@@ -1,0 +1,14 @@
+{
+  "name": "ai-gpms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-Powered Graduation Project Management System",
+  "scripts": {
+    "dev": "concurrently -k -n frontend,backend -c cyan,green \"npm:dev:frontend\" \"npm:dev:backend\"",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+frontend/dist/
+backend/uploads/
+ai-service/.venv/
+ai-service/__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.idea/
+.vscode/
+Thumbs.db
