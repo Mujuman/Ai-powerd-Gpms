@@ -2,8 +2,10 @@ import cors from 'cors'
 import express from 'express'
 import { rateLimit } from 'express-rate-limit'
 import helmet from 'helmet'
+import cookieParser from 'cookie-parser'
 import { config } from './config/env.js'
 import { pool } from './database/pool.js'
+import { authRoutes } from './modules/auth/auth.routes.js'
 
 export const app = express()
 
@@ -15,10 +17,12 @@ app.use(cors({
       callback(null, true)
       return
     }
-    callback(new Error('Origin is not allowed by CORS'))
+    callback(Object.assign(new Error('Origin is not allowed by CORS'), { status: 403 }))
   },
+  credentials: true,
 }))
 app.use(express.json({ limit: '1mb' }))
+app.use(cookieParser())
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }))
 
 app.get('/health', (_request, response) => {
@@ -38,7 +42,16 @@ app.get('/ready', async (_request, response, next) => {
   }
 })
 
+app.use('/api/auth', authRoutes)
+
 app.use((error, _request, response, _next) => {
   console.error('Request failed:', error)
-  response.status(500).json({ success: false, message: 'Internal server error' })
+  const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 500
+    ? error.status
+    : 500
+  response.status(status).json({
+    success: false,
+    message: status === 500 ? 'Internal server error' : error.message,
+    ...(error.details ? { errors: error.details } : {}),
+  })
 })

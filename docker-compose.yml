@@ -21,7 +21,13 @@ services:
       DB_NAME: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
       DB_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
       DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
       AI_SERVICE_URL: http://ai-service:8000
       UPLOAD_DIR: /app/uploads
     ports:
