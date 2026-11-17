@@ -21,7 +21,13 @@ const authenticationLimiter = rateLimit({
 export const authRoutes = Router()
 const controller = createAuthController()
 
-authRoutes.post('/login', authenticationLimiter, validateBody(loginSchema), controller.login)
+authRoutes.post(
+  '/login',
+  authenticationLimiter,
+  requireTrustedOrigin,
+  validateBody(loginSchema),
+  controller.login,
+)
 authRoutes.post('/refresh', authenticationLimiter, requireTrustedOrigin, controller.refresh)
 authRoutes.post('/logout', requireTrustedOrigin, controller.logout)
 authRoutes.get('/me', requireAuth, controller.me)
@@ -35,12 +41,14 @@ authRoutes.post(
 authRoutes.post(
   '/password-reset/request',
   authenticationLimiter,
+  requireTrustedOrigin,
   validateBody(passwordResetRequestSchema),
   controller.requestPasswordReset,
 )
 authRoutes.post(
   '/password-reset/confirm',
   authenticationLimiter,
+  requireTrustedOrigin,
   validateBody(passwordResetConfirmSchema),
   controller.confirmPasswordReset,
 )

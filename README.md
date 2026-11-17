@@ -40,7 +40,7 @@ Phase 3 provides MySQL migrations, exactly five seeded login roles, JWT-based AP
    $env:BOOTSTRAP_ADMIN_EMAIL = "admin@example.edu"
    $env:BOOTSTRAP_ADMIN_NAME = "System Administrator"
    $env:BOOTSTRAP_ADMIN_PASSWORD = "use-a-unique-password-of-at-least-12-characters"
-   docker compose run --rm -e BOOTSTRAP_ADMIN_EMAIL -e BOOTSTRAP_ADMIN_NAME -e BOOTSTRAP_ADMIN_PASSWORD backend npm run db:bootstrap-admin
+   docker compose exec -e BOOTSTRAP_ADMIN_EMAIL -e BOOTSTRAP_ADMIN_NAME -e BOOTSTRAP_ADMIN_PASSWORD backend npm run db:bootstrap-admin
    Remove-Item Env:BOOTSTRAP_ADMIN_EMAIL, Env:BOOTSTRAP_ADMIN_NAME, Env:BOOTSTRAP_ADMIN_PASSWORD
    ```
 
@@ -75,10 +75,15 @@ $env:DB_PASSWORD = "your-local-password"
 $env:JWT_ACCESS_SECRET = (node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
 $env:FRONTEND_ORIGIN = "http://localhost:5173"
 npm --prefix backend run db:setup
+$env:BOOTSTRAP_ADMIN_EMAIL = "admin@example.edu"
+$env:BOOTSTRAP_ADMIN_NAME = "System Administrator"
+$env:BOOTSTRAP_ADMIN_PASSWORD = "use-a-unique-password-of-at-least-12-characters"
+npm --prefix backend run db:bootstrap-admin
+Remove-Item Env:BOOTSTRAP_ADMIN_EMAIL, Env:BOOTSTRAP_ADMIN_NAME, Env:BOOTSTRAP_ADMIN_PASSWORD
 npm --prefix backend run dev
 ```
 
-For the one-time administrator, set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME`, and `BOOTSTRAP_ADMIN_PASSWORD`, then run `npm --prefix backend run db:bootstrap-admin`.
+Run the frontend command below in a second terminal.
 
 ```powershell
 npm --prefix frontend run dev

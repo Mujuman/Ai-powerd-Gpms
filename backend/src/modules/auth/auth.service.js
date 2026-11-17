@@ -26,7 +26,8 @@ function safeUser(user) {
   }
 }
 
-function isExpired(date) {
+function isExpired(date, databaseExpired) {
+  if (databaseExpired !== undefined) return Boolean(databaseExpired)
   return new Date(date).getTime() <= Date.now()
 }
 
@@ -150,7 +151,7 @@ export function createAuthService({
         return { error: new HttpError(401, 'Session expired; sign in again') }
       }
 
-      if (isExpired(stored.expires_at)) {
+      if (isExpired(stored.expires_at, stored.is_expired)) {
         await authRepository.revokeRefreshToken(connection, tokenHash)
         await addAudit(connection, 'auth.refresh.expired', stored.user_id, requestInfo)
         return { error: new HttpError(401, 'Invalid or expired refresh token') }
@@ -221,12 +222,13 @@ export function createAuthService({
     if (!user?.is_active) return
 
     const rawToken = createRawRefreshToken()
+    const tokenHash = hashOpaqueToken(rawToken)
     const expiresAt = new Date(Date.now() + 30 * 60_000)
     await transaction(databasePool, async (connection) => {
       await authRepository.revokeActivePasswordResets(connection, user.id)
       await authRepository.createPasswordResetToken(connection, {
         userId: user.id,
-        tokenHash: hashOpaqueToken(rawToken),
+        tokenHash,
         expiresAt,
       })
       await addAudit(connection, 'auth.password_reset.requested', user.id, requestInfo)
@@ -237,7 +239,7 @@ export function createAuthService({
     } catch (error) {
       console.error('Password reset email delivery failed:', error)
       await transaction(databasePool, async (connection) => {
-        await authRepository.revokeActivePasswordResets(connection, user.id)
+        await authRepository.revokePasswordReset(connection, tokenHash)
         await addAudit(connection, 'auth.password_reset.delivery_failed', user.id, requestInfo)
       })
       throw new HttpError(503, 'Password reset email could not be delivered')
@@ -249,7 +251,7 @@ export function createAuthService({
     const newHash = await bcrypt.hash(newPassword, PASSWORD_HASH_ROUNDS)
     const changed = await transaction(databasePool, async (connection) => {
       const reset = await authRepository.findPasswordResetForUpdate(connection, tokenHash)
-      if (!reset || reset.used_at || isExpired(reset.expires_at)) return false
+      if (!reset || reset.used_at || isExpired(reset.expires_at, reset.is_expired)) return false
 
       const user = await usersRepository.findUserForUpdate(connection, reset.user_id)
       if (!user?.is_active) return false

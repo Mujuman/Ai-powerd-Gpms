@@ -45,10 +45,10 @@ app.get('/ready', async (_request, response, next) => {
 app.use('/api/auth', authRoutes)
 
 app.use((error, _request, response, _next) => {
-  console.error('Request failed:', error)
   const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 500
     ? error.status
     : 500
+  if (status === 500) console.error('Request failed:', error)
   response.status(status).json({
     success: false,
     message: status === 500 ? 'Internal server error' : error.message,

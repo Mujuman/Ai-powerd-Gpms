@@ -37,7 +37,7 @@ async function start() {
 start().catch(async (error) => {
   console.error('Failed to start AI-GPMS API:', error)
   try {
-      await pool.end()
+    await pool.end()
   } catch (closeError) {
     console.error('Failed to close database pool after startup error:', closeError)
   }

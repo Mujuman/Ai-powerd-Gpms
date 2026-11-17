@@ -1,5 +1,4 @@
 import { config } from '../../config/env.js'
-import { HttpError } from '../../utils/http-error.js'
 import { authService } from './auth.service.js'
 
 export const refreshCookieName = 'gpms_refresh'
@@ -82,7 +81,6 @@ export function createAuthController(service = authService) {
     },
 
     requestPasswordReset: async (request, response) => {
-      if (!request.body.email) throw new HttpError(400, 'Email is required')
       await service.requestPasswordReset(request.body.email, requestInfo(request))
       response.status(202).json({
         success: true,

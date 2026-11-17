@@ -11,7 +11,8 @@ export async function createRefreshToken(connection, token) {
 
 export async function findRefreshTokenForUpdate(connection, tokenHash) {
   const [rows] = await connection.execute(
-    `SELECT id, user_id, token_hash, token_family, expires_at, revoked_at
+    `SELECT id, user_id, token_hash, token_family, expires_at, revoked_at,
+            expires_at <= UTC_TIMESTAMP(3) AS is_expired
        FROM refresh_tokens
       WHERE token_hash = ?
       FOR UPDATE`,
@@ -65,6 +66,15 @@ export async function revokeActivePasswordResets(connection, userId) {
   )
 }
 
+export async function revokePasswordReset(connection, tokenHash) {
+  await connection.execute(
+    `UPDATE password_reset_tokens
+        SET used_at = COALESCE(used_at, CURRENT_TIMESTAMP(3))
+      WHERE token_hash = ? AND used_at IS NULL`,
+    [tokenHash],
+  )
+}
+
 export async function createPasswordResetToken(connection, token) {
   await connection.execute(
     `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
@@ -75,7 +85,8 @@ export async function createPasswordResetToken(connection, token) {
 
 export async function findPasswordResetForUpdate(connection, tokenHash) {
   const [rows] = await connection.execute(
-    `SELECT id, user_id, token_hash, expires_at, used_at
+    `SELECT id, user_id, token_hash, expires_at, used_at,
+            expires_at <= UTC_TIMESTAMP(3) AS is_expired
        FROM password_reset_tokens
       WHERE token_hash = ?
       FOR UPDATE`,

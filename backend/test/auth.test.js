@@ -177,6 +177,10 @@ test('login schemas normalize email and reject oversized new passwords', () => {
     token: 't'.repeat(32),
     newPassword: 'a'.repeat(73),
   }).success, false)
+  assert.equal(loginSchema.safeParse({
+    email: 'student@example.edu',
+    password: 'é'.repeat(37),
+  }).success, false)
 })
 
 test('only the five configured login roles are accepted by authorization middleware', () => {
