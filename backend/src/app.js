@@ -6,6 +6,9 @@ import cookieParser from 'cookie-parser'
 import { config } from './config/env.js'
 import { pool } from './database/pool.js'
 import { authRoutes } from './modules/auth/auth.routes.js'
+import { usersRoutes } from './modules/users/users.routes.js'
+import { departmentsRoutes } from './modules/departments/departments.routes.js'
+import { rolesRoutes } from './modules/roles/roles.routes.js'
 
 export const app = express()
 
@@ -43,6 +46,9 @@ app.get('/ready', async (_request, response, next) => {
 })
 
 app.use('/api/auth', authRoutes)
+app.use('/api/users', usersRoutes)
+app.use('/api/departments', departmentsRoutes)
+app.use('/api/roles', rolesRoutes)
 
 app.use((error, _request, response, _next) => {
   const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 500

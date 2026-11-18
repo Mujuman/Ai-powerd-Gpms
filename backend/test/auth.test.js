@@ -9,6 +9,7 @@ import {
   passwordResetConfirmSchema,
 } from '../src/modules/auth/auth.schemas.js'
 import { supportedRoles, requireRoles } from '../src/middleware/require-roles.js'
+import { validateEnvironment } from '../src/config/env.js'
 
 const settings = {
   jwtAccessSecret: 'test-secret-with-more-than-thirty-two-bytes-long',
@@ -200,4 +201,20 @@ test('only the five configured login roles are accepted by authorization middlew
     (nextError) => { error = nextError },
   )
   assert.equal(error.status, 403)
+})
+
+test('XAMPP development may omit the empty database password; production may not', () => {
+  const environment = {
+    NODE_ENV: 'development',
+    DB_HOST: '127.0.0.1',
+    DB_NAME: 'ai_powerd_gpms_db',
+    DB_USER: 'root',
+    JWT_ACCESS_SECRET: 'test-secret-with-more-than-thirty-two-bytes-long',
+  }
+
+  assert.doesNotThrow(() => validateEnvironment(environment))
+  assert.throws(
+    () => validateEnvironment({ ...environment, NODE_ENV: 'production' }),
+    /DB_PASSWORD must be set in production/,
+  )
 })

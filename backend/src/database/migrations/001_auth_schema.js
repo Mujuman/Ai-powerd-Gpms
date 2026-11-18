@@ -16,7 +16,7 @@ export async function up(connection) {
           'student'
         )
       )
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
   await connection.query(`
@@ -31,7 +31,7 @@ export async function up(connection) {
       PRIMARY KEY (id),
       UNIQUE KEY uq_departments_code (code),
       KEY idx_departments_active (is_active)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
   await connection.query(`
@@ -51,7 +51,7 @@ export async function up(connection) {
       KEY idx_users_role_active (role_id, is_active),
       CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles (id)
         ON UPDATE RESTRICT ON DELETE RESTRICT
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
   await connection.query(`
@@ -71,7 +71,7 @@ export async function up(connection) {
         REFERENCES departments (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
       CONSTRAINT fk_department_assignments_assigner FOREIGN KEY (assigned_by)
         REFERENCES users (id) ON UPDATE RESTRICT ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
   await connection.query(`
@@ -90,7 +90,7 @@ export async function up(connection) {
       KEY idx_refresh_tokens_family (token_family, revoked_at),
       CONSTRAINT fk_refresh_tokens_user FOREIGN KEY (user_id)
         REFERENCES users (id) ON UPDATE RESTRICT ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
   await connection.query(`
@@ -106,7 +106,7 @@ export async function up(connection) {
       KEY idx_password_reset_tokens_user (user_id, used_at),
       CONSTRAINT fk_password_reset_tokens_user FOREIGN KEY (user_id)
         REFERENCES users (id) ON UPDATE RESTRICT ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
   await connection.query(`
@@ -119,7 +119,7 @@ export async function up(connection) {
       PRIMARY KEY (id),
       KEY idx_login_attempts_email_time (email, attempted_at),
       KEY idx_login_attempts_time (attempted_at)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
   await connection.query(`
@@ -137,6 +137,6 @@ export async function up(connection) {
       KEY idx_audit_logs_action_time (action, created_at),
       CONSTRAINT fk_audit_logs_user FOREIGN KEY (user_id) REFERENCES users (id)
         ON UPDATE RESTRICT ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 }

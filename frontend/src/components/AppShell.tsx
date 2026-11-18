@@ -1,0 +1,91 @@
+import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { GraduationCap, LogOut } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { RoleBadge } from './ui/RoleBadge'
+import type { UserRole } from '../lib/auth'
+
+// ── Per-role nav links ────────────────────────────────────────────────────
+const NAV_LINKS: Record<UserRole, { label: string; to: string }[]> = {
+  system_administrator: [
+    { label: 'Dashboard', to: '/admin/dashboard' },
+    { label: 'Users', to: '/admin/users' },
+    { label: 'Departments', to: '/admin/departments' },
+  ],
+  department_head: [
+    { label: 'Dashboard', to: '/head/dashboard' },
+  ],
+  academic_advisor: [
+    { label: 'Dashboard', to: '/advisor/dashboard' },
+  ],
+  examiner: [
+    { label: 'Dashboard', to: '/examiner/dashboard' },
+  ],
+  student: [
+    { label: 'Dashboard', to: '/student/dashboard' },
+  ],
+}
+
+export function AppShell() {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  if (!user) return null
+
+  const links = NAV_LINKS[user.role]
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login', { replace: true })
+  }
+
+  return (
+    <div className="app-shell">
+      {/* Sidebar */}
+      <aside className="sidebar" aria-label="Main navigation">
+        {/* Brand */}
+        <div className="sidebar-brand">
+          <span className="brand-mark">
+            <GraduationCap size={20} />
+          </span>
+          <span className="sidebar-brand-name">AI-GPMS</span>
+        </div>
+
+        {/* Nav */}
+        <nav className="sidebar-nav" aria-label="Role navigation">
+          {links.map(({ label, to }) => (
+            <Link key={to} to={to} className="sidebar-link">
+              {label}
+            </Link>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Main area */}
+      <div className="shell-body">
+        {/* Top navbar */}
+        <header className="shell-topbar" role="banner">
+          <span className="shell-topbar-spacer" />
+          <div className="shell-topbar-right">
+            <RoleBadge role={user.role} />
+            <span className="shell-username" aria-label={`Signed in as ${user.fullName}`}>
+              {user.fullName}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="btn-icon"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="shell-content" id="main-content">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  )
+}

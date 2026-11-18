@@ -54,6 +54,53 @@ To stop the stack without deleting persistent data:
 docker compose down
 ```
 
+## Run the frontend and API with local XAMPP MySQL
+
+This setup uses XAMPP's local MySQL/MariaDB server; Docker is not required for the frontend and API. In the XAMPP Control Panel, start **MySQL** (Apache is only needed if you want to open phpMyAdmin). The examples assume the database listens on port `3306`; use the port shown by XAMPP if yours differs.
+
+Create the database in phpMyAdmin (`http://localhost/phpmyadmin`) or its SQL tab:
+
+```sql
+CREATE DATABASE ai_powerd_gpms_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+```
+
+In PowerShell, run the following from the repository root. XAMPP commonly uses `root` with an empty password for local development; if you set a MySQL password, use it instead. An empty database password is accepted only outside production.
+
+```powershell
+npm --prefix frontend install
+npm --prefix backend install
+$env:NODE_ENV = "development"
+$env:DB_HOST = "127.0.0.1"
+$env:DB_PORT = "3306"
+$env:DB_NAME = "ai_powerd_gpms_db"
+$env:DB_USER = "root"
+$env:DB_PASSWORD = ""
+$env:JWT_ACCESS_SECRET = (node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+$env:FRONTEND_ORIGIN = "http://localhost:5173"
+npm --prefix backend run db:setup
+```
+
+The setup command creates the authentication tables and seeds the five roles in that database. Then create the first administrator and start the API:
+
+```powershell
+$env:BOOTSTRAP_ADMIN_EMAIL = "admin@example.edu"
+$env:BOOTSTRAP_ADMIN_NAME = "System Administrator"
+$env:BOOTSTRAP_ADMIN_PASSWORD = "use-a-unique-password-of-at-least-12-characters"
+npm --prefix backend run db:bootstrap-admin
+Remove-Item Env:BOOTSTRAP_ADMIN_EMAIL, Env:BOOTSTRAP_ADMIN_NAME, Env:BOOTSTRAP_ADMIN_PASSWORD
+npm --prefix backend run dev
+```
+
+In a second terminal at the repository root, start the frontend:
+
+```powershell
+npm --prefix frontend run dev
+```
+
+Open `http://localhost:5173`; the frontend proxies API requests to `http://localhost:3000`. To use another XAMPP MySQL port, set `DB_PORT` to that port before running the database commands. `.env.example` contains Docker Compose's MySQL-container settings; `MYSQL_USER` there is not the local XAMPP account.
+
 ## Run the frontend and API on the host
 
 Install packages from the repository root:
@@ -69,7 +116,7 @@ Set the backend environment variables in the current PowerShell session, includi
 ```powershell
 $env:DB_HOST = "127.0.0.1"
 $env:DB_PORT = "3306"
-$env:DB_NAME = "ai_gpms"
+$env:DB_NAME = "ai_powerd_gpms_db"
 $env:DB_USER = "ai_gpms_app"
 $env:DB_PASSWORD = "your-local-password"
 $env:JWT_ACCESS_SECRET = (node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
@@ -89,7 +136,7 @@ Run the frontend command below in a second terminal.
 npm --prefix frontend run dev
 ```
 
-The host-mode API expects a running MySQL instance. The Vite development proxy sends `/api` requests to `http://localhost:3000` unless `VITE_API_PROXY_TARGET` is set.
+For XAMPP, follow the preceding section; this generic host-mode example is for a separate MySQL instance with its own application user. The Vite development proxy sends `/api` requests to `http://localhost:3000` unless `VITE_API_PROXY_TARGET` is set.
 
 ## Useful commands
 
