@@ -2,10 +2,9 @@ import { Link, Outlet, useNavigate } from 'react-router-dom'
 import { GraduationCap, LogOut } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { RoleBadge } from './ui/RoleBadge'
-import type { UserRole } from '../lib/auth'
 
-// ── Per-role nav links ────────────────────────────────────────────────────
-const NAV_LINKS: Record<UserRole, { label: string; to: string }[]> = {
+// ── Per-role nav links ────────────────────────────────────────────────────────
+const NAV_LINKS = {
   system_administrator: [
     { label: 'Dashboard', to: '/admin/dashboard' },
     { label: 'Users', to: '/admin/users' },
@@ -31,7 +30,7 @@ export function AppShell() {
 
   if (!user) return null
 
-  const links = NAV_LINKS[user.role]
+  const links = NAV_LINKS[user.role] ?? []
 
   async function handleLogout() {
     await logout()
@@ -42,7 +41,6 @@ export function AppShell() {
     <div className="app-shell">
       {/* Sidebar */}
       <aside className="sidebar" aria-label="Main navigation">
-        {/* Brand */}
         <div className="sidebar-brand">
           <span className="brand-mark">
             <GraduationCap size={20} />
@@ -50,7 +48,6 @@ export function AppShell() {
           <span className="sidebar-brand-name">AI-GPMS</span>
         </div>
 
-        {/* Nav */}
         <nav className="sidebar-nav" aria-label="Role navigation">
           {links.map(({ label, to }) => (
             <Link key={to} to={to} className="sidebar-link">
@@ -64,7 +61,7 @@ export function AppShell() {
       <div className="shell-body">
         {/* Top navbar */}
         <header className="shell-topbar" role="banner">
-          <span className="shell-topbar-spacer" />
+          <span style={{ flex: 1 }} />
           <div className="shell-topbar-right">
             <RoleBadge role={user.role} />
             <span className="shell-username" aria-label={`Signed in as ${user.fullName}`}>

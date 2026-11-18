@@ -2,14 +2,20 @@ import { useAuth } from '../../contexts/AuthContext'
 import { RoleBadge } from '../../components/ui/RoleBadge'
 
 const RESPONSIBILITIES = [
-  'Submit and manage graduation project proposals',
-  'Collaborate with group members on project deliverables',
-  'Upload project documents and progress reports',
-  'Communicate with your assigned advisor',
-  'View examination schedules and results',
+  'Manage department students and import student information',
+  'Verify student eligibility for graduation projects',
+  'Configure department project rules and student grouping',
+  'Review and approve or reject project titles',
+  'Review AI advisor recommendations and approve advisor assignments',
+  'Manage examiner assignments',
+  'Monitor project progress across all groups',
+  'Manage defense schedules — assign dates, times, venues, and examiners',
+  'Record defense session information',
+  'Review academic assessments and manage final approvals',
+  'Generate departmental reports',
 ]
 
-export default function StudentDashboard() {
+export default function HeadDashboard() {
   const { user } = useAuth()
   if (!user) return null
 
@@ -27,9 +33,7 @@ export default function StudentDashboard() {
       {user.departments.length > 0 && (
         <div className="chip-row" aria-label="Your departments">
           {user.departments.map((d) => (
-            <span key={d.id} className="dept-chip">
-              {d.code} — {d.name}
-            </span>
+            <span key={d.id} className="dept-chip">{d.code} — {d.name}</span>
           ))}
         </div>
       )}
@@ -37,11 +41,9 @@ export default function StudentDashboard() {
       <div className="coming-soon-card">
         <h2 className="coming-soon-title">Your responsibilities</h2>
         <ul className="coming-soon-list">
-          {RESPONSIBILITIES.map((r) => (
-            <li key={r}>{r}</li>
-          ))}
+          {RESPONSIBILITIES.map((r) => <li key={r}>{r}</li>)}
         </ul>
-        <p className="coming-soon-note">Feature modules are coming soon.</p>
+        <p className="coming-soon-note">Feature modules are coming in upcoming phases.</p>
       </div>
     </div>
   )

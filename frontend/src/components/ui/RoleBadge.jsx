@@ -1,6 +1,4 @@
-import type { UserRole } from '../../lib/auth'
-
-const ROLE_LABEL: Record<UserRole, string> = {
+const ROLE_LABEL = {
   system_administrator: 'System Administrator',
   department_head: 'Department Head',
   academic_advisor: 'Academic Advisor',
@@ -8,7 +6,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   student: 'Student',
 }
 
-const ROLE_CLASS: Record<UserRole, string> = {
+const ROLE_CLASS = {
   system_administrator: 'badge-admin',
   department_head: 'badge-head',
   academic_advisor: 'badge-advisor',
@@ -16,11 +14,7 @@ const ROLE_CLASS: Record<UserRole, string> = {
   student: 'badge-student',
 }
 
-interface RoleBadgeProps {
-  role: UserRole
-}
-
-export function RoleBadge({ role }: RoleBadgeProps) {
+export function RoleBadge({ role }) {
   return (
     <span className={`role-badge ${ROLE_CLASS[role]}`} aria-label={`Role: ${ROLE_LABEL[role]}`}>
       {ROLE_LABEL[role]}

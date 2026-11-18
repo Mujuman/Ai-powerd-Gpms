@@ -4,29 +4,25 @@ import { GraduationCap } from 'lucide-react'
 import * as z from 'zod'
 import { useAuth } from '../../contexts/AuthContext'
 
-// ── Zod schema (manual parse — @hookform/resolvers not installed) ──────────
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
   password: z.string().min(1, 'Password is required'),
 })
-type LoginFormValues = z.infer<typeof loginSchema>
 
-// ── Component ─────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const { login } = useAuth()
-  const [serverError, setServerError] = useState<string | null>(null)
+  const [serverError, setServerError] = useState(null)
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
-  } = useForm<LoginFormValues>({ mode: 'onBlur' })
+  } = useForm({ mode: 'onBlur' })
 
-  async function onSubmit(raw: LoginFormValues) {
+  async function onSubmit(raw) {
     setServerError(null)
 
-    // Client-side validation via Zod
     const result = loginSchema.safeParse(raw)
     if (!result.success) {
       const fieldErrors = result.error.flatten().fieldErrors
@@ -37,11 +33,8 @@ export default function LoginPage() {
 
     try {
       await login(result.data.email, result.data.password)
-      // navigation is handled inside login()
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Invalid email or password'
+    } catch (err) {
+      const msg = err?.response?.data?.message ?? 'Invalid email or password'
       setServerError(msg)
     }
   }
@@ -60,24 +53,14 @@ export default function LoginPage() {
         <h1 className="auth-title">Sign in to your account</h1>
         <p className="auth-subtitle">Graduation Project Management System</p>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          noValidate
-          aria-label="Login form"
-          className="auth-form"
-        >
-          {/* Server-level error */}
+        <form onSubmit={handleSubmit(onSubmit)} noValidate aria-label="Login form" className="auth-form">
           {serverError && (
-            <div className="form-error-banner" role="alert">
-              {serverError}
-            </div>
+            <div className="form-error-banner" role="alert">{serverError}</div>
           )}
 
           {/* Email */}
           <div className="form-field">
-            <label htmlFor="email" className="form-label">
-              Email address
-            </label>
+            <label htmlFor="email" className="form-label">Email address</label>
             <input
               id="email"
               type="email"
@@ -85,7 +68,7 @@ export default function LoginPage() {
               autoFocus
               aria-describedby={errors.email ? 'email-error' : undefined}
               aria-invalid={!!errors.email}
-              className={`form-input ${errors.email ? 'is-invalid' : ''}`}
+              className={`form-input${errors.email ? ' is-invalid' : ''}`}
               {...register('email')}
             />
             {errors.email && (
@@ -97,16 +80,14 @@ export default function LoginPage() {
 
           {/* Password */}
           <div className="form-field">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
+            <label htmlFor="password" className="form-label">Password</label>
             <input
               id="password"
               type="password"
               autoComplete="current-password"
               aria-describedby={errors.password ? 'password-error' : undefined}
               aria-invalid={!!errors.password}
-              className={`form-input ${errors.password ? 'is-invalid' : ''}`}
+              className={`form-input${errors.password ? ' is-invalid' : ''}`}
               {...register('password')}
             />
             {errors.password && (
@@ -119,7 +100,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="btn-primary w-full mt-2"
+            className="btn-primary"
+            style={{ width: '100%', marginTop: '0.5rem' }}
             aria-busy={isSubmitting}
           >
             {isSubmitting ? 'Signing in…' : 'Sign in'}

@@ -3,10 +3,10 @@ import { getAccessToken, clearAuth } from './auth'
 
 const api = axios.create({
   baseURL: '/api',
-  withCredentials: true, // send refresh cookie
+  withCredentials: true, // send refresh cookie on every request
 })
 
-// ── Request interceptor: attach Bearer token ──────────────────────────────
+// ── Request interceptor: attach Bearer token ────────────────────────────────
 api.interceptors.request.use((config) => {
   const token = getAccessToken()
   if (token) {
@@ -15,19 +15,16 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// ── Response interceptor: handle 401 with single token-refresh retry ──────
+// ── Response interceptor: handle 401 with single token-refresh retry ─────────
 let _isRefreshing = false
-let _refreshQueue: Array<{
-  resolve: (token: string) => void
-  reject: (err: unknown) => void
-}> = []
+let _refreshQueue = []
 
-function processQueue(error: unknown, token: string | null) {
+function processQueue(error, token) {
   _refreshQueue.forEach(({ resolve, reject }) => {
     if (error) {
       reject(error)
     } else {
-      resolve(token!)
+      resolve(token)
     }
   })
   _refreshQueue = []
@@ -35,18 +32,23 @@ function processQueue(error: unknown, token: string | null) {
 
 api.interceptors.response.use(
   (response) => response,
-  async (error: unknown) => {
+  async (error) => {
     if (!axios.isAxiosError(error)) return Promise.reject(error)
 
-    const originalRequest = error.config as (typeof error.config) & { _retry?: boolean }
+    const originalRequest = error.config
     if (!originalRequest) return Promise.reject(error)
 
-    if (error.response?.status !== 401 || originalRequest._retry) {
+    // Don't retry the refresh endpoint itself — avoids infinite loop
+    if (
+      error.response?.status !== 401 ||
+      originalRequest._retry ||
+      originalRequest.url === '/auth/refresh'
+    ) {
       return Promise.reject(error)
     }
 
     if (_isRefreshing) {
-      // Queue this request until the refresh completes
+      // Queue this request until the refresh resolves
       return new Promise((resolve, reject) => {
         _refreshQueue.push({ resolve, reject })
       }).then((token) => {
@@ -60,17 +62,12 @@ api.interceptors.response.use(
     _isRefreshing = true
 
     try {
-      // Dynamically import to avoid circular dep at module load time
       const { setAuth } = await import('./auth')
-      const { data } = await axios.post<{ accessToken: string; user: import('./auth').AuthUser }>(
-        '/api/auth/refresh',
-        {},
-        { withCredentials: true },
-      )
-      setAuth(data.user, data.accessToken)
-      processQueue(null, data.accessToken)
+      const { data } = await api.post('/auth/refresh')
+      setAuth(data.data.user, data.data.accessToken)
+      processQueue(null, data.data.accessToken)
       originalRequest.headers = originalRequest.headers ?? {}
-      originalRequest.headers.Authorization = `Bearer ${data.accessToken}`
+      originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`
       return api(originalRequest)
     } catch (refreshError) {
       processQueue(refreshError, null)
