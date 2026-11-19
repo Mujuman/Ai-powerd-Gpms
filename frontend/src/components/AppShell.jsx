@@ -9,9 +9,12 @@ const NAV_LINKS = {
     { label: 'Dashboard', to: '/admin/dashboard' },
     { label: 'Users', to: '/admin/users' },
     { label: 'Departments', to: '/admin/departments' },
+    { label: 'Academic Calendar', to: '/admin/academics' },
+    { label: 'Students', to: '/admin/students' },
   ],
   department_head: [
     { label: 'Dashboard', to: '/head/dashboard' },
+    { label: 'Students & Projects', to: '/head/students' },
   ],
   academic_advisor: [
     { label: 'Dashboard', to: '/advisor/dashboard' },
@@ -21,6 +24,7 @@ const NAV_LINKS = {
   ],
   student: [
     { label: 'Dashboard', to: '/student/dashboard' },
+    { label: 'Academic Record', to: '/student/academic-record' },
   ],
 }
 
