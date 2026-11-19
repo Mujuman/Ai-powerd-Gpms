@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const titleRecommendationSchema = z.object({
-  description: z.string().trim().min(30).max(2000),
+  description: z.string().trim().min(30).max(10000),
 }).strict()
 
 export const projectMessageSchema = z.object({

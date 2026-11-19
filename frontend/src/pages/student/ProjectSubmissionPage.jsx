@@ -121,6 +121,9 @@ export default function ProjectSubmissionPage() {
                       <div className="action-row" key={idea.title}>
                         <div>
                           <strong>{idea.title}</strong>
+                          <p className="muted-copy">
+                            Idea relevance: {Math.round(idea.relevanceScore * 100)}%
+                          </p>
                           {idea.closestApprovedTitleSimilarity !== null && (
                             <p className="muted-copy">
                               Closest approved-title similarity: {Math.round(idea.closestApprovedTitleSimilarity * 100)}%

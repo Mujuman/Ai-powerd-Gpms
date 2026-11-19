@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { ProjectCollaborationPanel } from '../../components/projects/ProjectCollaborationPanel'
 import api from '../../lib/api'
 
 export default function AdvisorProjectsPage() {
@@ -36,6 +37,16 @@ export default function AdvisorProjectsPage() {
           </tbody>
         </table>
       </div>
+      {projects.map((project) => (
+        <section className="academic-card" key={`collaboration-${project.groupId}`}>
+          <h2 className="section-title">{project.groupName} · Advisor workspace</h2>
+          <p className="page-subtitle">
+            {project.title ?? 'Project proposal not submitted'}
+            {project.members?.length ? ` · ${project.members.length} student${project.members.length === 1 ? '' : 's'}` : ''}
+          </p>
+          <ProjectCollaborationPanel groupId={project.groupId} role="academic_advisor" />
+        </section>
+      ))}
     </div>
   )
 }

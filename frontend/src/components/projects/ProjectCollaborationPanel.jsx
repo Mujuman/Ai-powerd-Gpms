@@ -63,8 +63,10 @@ export function ProjectCollaborationPanel({
       const link = window.document.createElement('a')
       link.href = url
       link.download = document.fileName
+      window.document.body.appendChild(link)
       link.click()
-      URL.revokeObjectURL(url)
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (error) {
       setDownloadError(message(error, 'Could not download the project document'))
     }

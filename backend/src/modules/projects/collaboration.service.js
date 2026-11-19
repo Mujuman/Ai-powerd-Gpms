@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, stat, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, open, stat, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { HttpError } from '../../utils/http-error.js'
 import { withTransaction } from '../../database/transaction.js'
@@ -71,7 +71,7 @@ async function authorizeGroup(groupId, actor, connection = pool) {
   throw new HttpError(403, 'Student or assigned advisor access is required')
 }
 
-function assertDocument(file, documentType) {
+function assertDocument(file) {
   if (!file?.buffer) throw new HttpError(400, 'Choose a PDF or DOCX document to upload')
   const documentInfo = ALLOWED_DOCUMENT_TYPES.get(file.mimetype)
   const extension = path.extname(file.originalname).toLocaleLowerCase()
@@ -174,7 +174,7 @@ export async function listDocuments(groupId, actor) {
 
 export async function uploadDocument(groupId, documentType, file, actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Only students may upload project documents')
-  const documentInfo = assertDocument(file, documentType)
+  const documentInfo = assertDocument(file)
   const originalFilename = safeOriginalFilename(file.originalname)
   const document = {
     id: randomUUID(),
@@ -195,18 +195,24 @@ export async function uploadDocument(groupId, documentType, file, actor) {
   }
 
   await mkdir(DOCUMENT_ROOT, { recursive: true, mode: 0o700 })
+  let fileHandle
   try {
-    await writeFile(storedPath, file.buffer, { flag: 'wx', mode: 0o600 })
+    fileHandle = await open(storedPath, 'wx', 0o600)
+    await fileHandle.writeFile(file.buffer)
   } catch (error) {
-    try {
-      await unlink(storedPath)
-    } catch (cleanupError) {
-      if (cleanupError.code !== 'ENOENT') {
-        throw new AggregateError([error, cleanupError], 'Could not save or clean up the project document')
+    if (fileHandle) {
+      try {
+        await fileHandle.close()
+        await unlink(storedPath)
+      } catch (cleanupError) {
+        if (cleanupError.code !== 'ENOENT') {
+          throw new AggregateError([error, cleanupError], 'Could not save or clean up the project document')
+        }
       }
     }
     throw error
   }
+  await fileHandle.close()
 
   try {
     await withTransaction(pool, async (connection) => {
@@ -252,11 +258,13 @@ export async function getDocumentForDownload(documentId, actor) {
   if (!document) throw new HttpError(404, 'Project document not found')
   await authorizeGroup(document.groupId, actor)
   const storedPath = path.resolve(DOCUMENT_ROOT, document.storageKey)
-  if (!storedPath.startsWith(`${DOCUMENT_ROOT}${path.sep}`)) {
+  const relativePath = path.relative(DOCUMENT_ROOT, storedPath)
+  if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
     throw new HttpError(404, 'Project document not found')
   }
   try {
-    await stat(storedPath)
+    const fileStats = await stat(storedPath)
+    if (!fileStats.isFile()) throw new HttpError(404, 'Project document file is unavailable')
   } catch (error) {
     if (error.code === 'ENOENT') throw new HttpError(404, 'Project document file is unavailable')
     throw error
