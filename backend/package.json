@@ -8,6 +8,7 @@
     "start": "node --env-file-if-exists=.env src/server.js",
     "db:migrate": "node --env-file-if-exists=.env src/database/migrate.js",
     "db:seed": "node --env-file-if-exists=.env src/database/seed.js",
+    "db:seed:demo": "node --env-file-if-exists=.env src/database/seed-demo-users.js",
     "db:setup": "node --env-file-if-exists=.env src/database/setup.js",
     "db:bootstrap-admin": "node --env-file-if-exists=.env src/scripts/bootstrap-admin.js",
     "test": "node --test"
