@@ -9,7 +9,23 @@ function messageFor(error, fallback) {
 
 function ErrorMessage({ error, fallback }) {
   if (!error) return null
-  return <div className="table-error" role="alert">{messageFor(error, fallback)}</div>
+  const details = Array.isArray(error?.response?.data?.errors)
+    ? error.response.data.errors
+    : []
+  return (
+    <div className="table-error" role="alert">
+      {messageFor(error, fallback)}
+      {details.length > 0 && (
+        <ul>
+          {details.map((detail, index) => (
+            <li key={`${detail.path ?? 'error'}-${index}`}>
+              {detail.path ? `${detail.path}: ` : ''}{detail.message}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 export default function StudentsPage() {
@@ -219,8 +235,8 @@ export default function StudentsPage() {
   const eligibilityResults = Array.isArray(eligibilityQuery.data)
     ? eligibilityQuery.data
     : eligibilityQuery.data?.results ?? []
-  const formError = importMutation.error ?? rulesMutation.error ?? evaluateMutation.error
-    ?? groupMutation.error ?? registerStudentMutation.error ?? groupMembersMutation.error
+  const formError = rulesMutation.error ?? evaluateMutation.error ?? groupMutation.error
+    ?? registerStudentMutation.error ?? groupMembersMutation.error
 
   return (
     <div className="page-content">
@@ -312,6 +328,7 @@ export default function StudentsPage() {
                 {importMutation.isPending && importMutation.variables?.action !== 'confirm' ? 'Validating…' : 'Preview import'}
               </button>
             </form>
+            <ErrorMessage error={importMutation.error} fallback="Could not preview the student import" />
             {preview && (
               <div className="import-preview">
                 <p><strong>{preview.validRows}</strong> valid of {preview.totalRows}; <strong>{preview.invalidRows}</strong> need correction.</p>
@@ -474,11 +491,16 @@ export default function StudentsPage() {
                     <tr key={group.id}>
                       <td>{group.name}</td><td>{group.projectType}</td><td>{group.academicYear}</td>
                       <td>{editingGroup?.id === group.id ? (
-                        <select className="form-input member-select" multiple aria-label={`Members of ${group.name}`}
-                          value={editingGroup.memberIds}
+                        <select className="form-input member-select" multiple={group.projectType === 'group'}
+                          aria-label={`Members of ${group.name}`}
+                          value={group.projectType === 'individual'
+                            ? (editingGroup.memberIds[0] ?? '')
+                            : editingGroup.memberIds}
                           onChange={(event) => setEditingGroup({
                             ...editingGroup,
-                            memberIds: Array.from(event.target.selectedOptions, (option) => option.value),
+                            memberIds: group.projectType === 'individual'
+                              ? (event.target.value ? [event.target.value] : [])
+                              : Array.from(event.target.selectedOptions, (option) => option.value),
                           })}>
                           {students.map((student) => <option key={student.userId} value={student.userId}>
                             {student.studentId} — {student.fullName}
@@ -488,7 +510,10 @@ export default function StudentsPage() {
                       <td><div className="action-row">
                         {editingGroup?.id === group.id ? (
                           <>
-                            <button className="btn-primary" disabled={groupMembersMutation.isPending || !editingGroup.memberIds.length}
+                            <button className="btn-primary" disabled={groupMembersMutation.isPending
+                              || (group.projectType === 'individual'
+                                ? editingGroup.memberIds.length !== 1
+                                : !editingGroup.memberIds.length)}
                               onClick={() => groupMembersMutation.mutate()}>Save members</button>
                             <button className="btn-secondary" onClick={() => setEditingGroup(null)}>Cancel</button>
                           </>
