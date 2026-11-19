@@ -91,7 +91,7 @@ async function parseWorkbook(buffer) {
     for (const field of ['gpa', 'completedCredits']) {
       if (row[field] !== undefined && row[field] !== '') {
         const numeric = Number(row[field])
-        if (!Number.isFinite(numeric) || numeric < 0 || (field === 'gpa' && numeric > 1000)) {
+        if (!Number.isFinite(numeric) || numeric < 0 || (field === 'gpa' && numeric > 99.99)) {
           row.errors.push(`${field === 'gpa' ? 'GPA' : 'Completed credits'} must be a non-negative number`)
         } else {
           row[field] = numeric
@@ -99,10 +99,6 @@ async function parseWorkbook(buffer) {
       } else {
         row[field] = null
       }
-    }
-
-    if (row.department && row.department.toUpperCase() !== row.departmentCode) {
-      row.errors.push(`Department must match ${row.departmentCode}`)
     }
 
     if (row.email && seenEmails.has(row.email)) row.errors.push('Email is duplicated in this file')
@@ -199,7 +195,12 @@ export async function previewStudentImport({ buffer, originalFilename, departmen
   if (context.semester.status !== 'active') throw new HttpError(409, 'Select an active semester')
 
   const rows = await parseWorkbook(buffer)
-  rows.forEach((row) => { row.departmentCode = context.department.code })
+  rows.forEach((row) => {
+    row.departmentCode = context.department.code
+    if (row.department && row.department.toUpperCase() !== context.department.code.toUpperCase()) {
+      row.errors.push(`Department must match ${context.department.code}`)
+    }
+  })
   const validRows = rows.filter((row) => row.errors.length === 0)
   const duplicateErrors = await repository.findImportDuplicates(pool, validRows, departmentId)
   for (const row of validRows) row.errors.push(...(duplicateErrors.get(row.rowNumber) ?? []))
@@ -269,7 +270,6 @@ export async function confirmStudentImport(batchId, actor) {
       throw new HttpError(409, 'The selected academic year and semester must remain active')
     }
 
-    const rules = await repository.getRules(connection, departmentId)
     let imported = 0
     for (const row of batch.rows) {
       const user = await repository.findStudentAccountForImport(connection, row)
@@ -316,7 +316,7 @@ export async function listGroups(filters, actor) {
   return repository.listGroups(pool, { ...filters, departmentId })
 }
 
-async function validateGroupMembers(connection, studentUserIds, departmentId, academicYearId, rules) {
+async function validateGroupMembers(connection, studentUserIds, departmentId, academicYearId, rules, excludeGroupId) {
   const groupRules = rules.grouping ?? {}
   const minimum = groupRules.minimumGroupSize ?? 1
   const maximum = groupRules.maximumGroupSize ?? 100
@@ -327,7 +327,7 @@ async function validateGroupMembers(connection, studentUserIds, departmentId, ac
   if (students.length !== studentUserIds.length) {
     throw new HttpError(400, 'Every member must be an active student in this department')
   }
-  const existingMemberships = await repository.findActiveMemberships(connection, studentUserIds)
+  const existingMemberships = await repository.findActiveMemberships(connection, studentUserIds, excludeGroupId)
   if (existingMemberships.some((membership) => membership.academicYearId === academicYearId)) {
     throw new HttpError(409, 'A student is already assigned to a group in this academic year')
   }
@@ -380,7 +380,7 @@ export async function replaceGroupMembers(groupId, studentUserIds, actor) {
     if (group.projectType === 'individual' && studentUserIds.length !== 1) {
       throw new HttpError(400, 'An individual project group must contain exactly one student')
     }
-    await validateGroupMembers(connection, studentUserIds, departmentId, group.academicYearId, rules)
+    await validateGroupMembers(connection, studentUserIds, departmentId, group.academicYearId, rules, groupId)
     await repository.deactivateGroupMembers(connection, groupId)
     for (const studentUserId of studentUserIds) {
       await repository.addGroupMember(connection, groupId, studentUserId, actor.id)

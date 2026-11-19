@@ -7,12 +7,13 @@ export const departmentQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   search: z.string().trim().max(254).optional(),
+  academicYearId: uuid.optional(),
 }).strict()
 
 export const saveRulesSchema = z.object({
   eligibility: z.object({
-    minimumGpa: z.number().min(0).nullable().optional(),
-    maximumGpa: z.number().positive().nullable().optional(),
+    minimumGpa: z.number().min(0).max(99.99).nullable().optional(),
+    maximumGpa: z.number().positive().max(99.99).nullable().optional(),
     minimumYearLevel: z.number().int().positive().nullable().optional(),
     requiredAcademicYear: z.string().trim().max(16).nullable().optional(),
     requiredSemester: z.enum(['first', 'second', 'summer']).nullable().optional(),
@@ -31,6 +32,14 @@ export const saveRulesSchema = z.object({
   }, {
     path: ['grouping', 'minimumGroupSize'],
     message: 'Minimum group size cannot exceed maximum group size',
+  })
+  .refine((value) => {
+    const min = value.eligibility?.minimumGpa
+    const max = value.eligibility?.maximumGpa
+    return min == null || max == null || min <= max
+  }, {
+    path: ['eligibility', 'minimumGpa'],
+    message: 'Minimum GPA cannot exceed maximum GPA',
   })
 
 export const createGroupSchema = z.object({

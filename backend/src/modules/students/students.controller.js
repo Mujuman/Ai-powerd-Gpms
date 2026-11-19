@@ -1,0 +1,116 @@
+import { ZodError, z } from 'zod'
+import { HttpError } from '../../utils/http-error.js'
+import {
+  addGroupMembersSchema,
+  createGroupSchema,
+  departmentQuerySchema,
+  eligibilityQuerySchema,
+  importStudentsSchema,
+  saveRulesSchema,
+} from './students.schemas.js'
+import * as service from './students.service.js'
+
+const uuidSchema = z.string().uuid()
+
+function parse(schema, value) {
+  try {
+    return schema.parse(value)
+  } catch (error) {
+    if (error instanceof ZodError) {
+      throw new HttpError(400, 'Validation failed', error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+      })))
+    }
+    throw error
+  }
+}
+
+function actor(request) {
+  return { ...request.user, remoteAddress: request.ip }
+}
+
+export const studentsController = {
+  listStudents: async (request, response, next) => {
+    try {
+      const filters = parse(departmentQuerySchema, request.query)
+      response.json({ success: true, data: await service.listStudents(filters, actor(request)) })
+    } catch (error) { next(error) }
+  },
+  getStudent: async (request, response, next) => {
+    try {
+      const userId = parse(uuidSchema, request.params.userId)
+      response.json({ success: true, data: { student: await service.getStudent(userId, actor(request)) } })
+    } catch (error) { next(error) }
+  },
+  getRules: async (request, response, next) => {
+    try {
+      const departmentId = parse(uuidSchema, request.params.departmentId)
+      response.json({ success: true, data: { rules: await service.getDepartmentRules(departmentId, actor(request)) } })
+    } catch (error) { next(error) }
+  },
+  saveRules: async (request, response, next) => {
+    try {
+      const departmentId = parse(uuidSchema, request.params.departmentId)
+      const changes = parse(saveRulesSchema, request.body)
+      response.json({
+        success: true,
+        data: { rules: await service.saveDepartmentRules(departmentId, changes, actor(request)) },
+      })
+    } catch (error) { next(error) }
+  },
+  previewImport: async (request, response, next) => {
+    try {
+      if (!request.file) throw new HttpError(400, 'Upload an .xlsx workbook using the excelFile field')
+      const data = parse(importStudentsSchema, request.body)
+      const preview = await service.previewStudentImport({
+        ...data,
+        buffer: request.file.buffer,
+        originalFilename: request.file.originalname,
+      }, actor(request))
+      response.status(201).json({ success: true, data: preview })
+    } catch (error) { next(error) }
+  },
+  confirmImport: async (request, response, next) => {
+    try {
+      const batchId = parse(uuidSchema, request.params.batchId)
+      response.json({ success: true, data: await service.confirmStudentImport(batchId, actor(request)) })
+    } catch (error) { next(error) }
+  },
+  listGroups: async (request, response, next) => {
+    try {
+      const filters = parse(departmentQuerySchema, request.query)
+      response.json({ success: true, data: await service.listGroups(filters, actor(request)) })
+    } catch (error) { next(error) }
+  },
+  createGroup: async (request, response, next) => {
+    try {
+      const data = parse(createGroupSchema, request.body)
+      const id = await service.createGroup(data, actor(request))
+      response.status(201).json({ success: true, data: { id } })
+    } catch (error) { next(error) }
+  },
+  replaceGroupMembers: async (request, response, next) => {
+    try {
+      const groupId = parse(uuidSchema, request.params.groupId)
+      const { studentUserIds } = parse(addGroupMembersSchema, request.body)
+      await service.replaceGroupMembers(groupId, studentUserIds, actor(request))
+      response.json({ success: true, message: 'Group members updated' })
+    } catch (error) { next(error) }
+  },
+  listEligibility: async (request, response, next) => {
+    try {
+      const filters = parse(eligibilityQuerySchema, request.query)
+      response.json({ success: true, data: await service.listEligibility(filters, actor(request)) })
+    } catch (error) { next(error) }
+  },
+  evaluateEligibility: async (request, response, next) => {
+    try {
+      const filters = parse(eligibilityQuerySchema, request.body)
+      response.json({
+        success: true,
+        data: await service.evaluateEligibility(filters, actor(request)),
+      })
+    } catch (error) { next(error) }
+  },
+}

@@ -1,3 +1,5 @@
+import { HttpError } from '../../utils/http-error.js'
+
 export async function listStudents(databasePool, { departmentId, page, limit, search }) {
   const clauses = ['r.code = ?', 'sp.department_id = ?']
   const params = ['student', departmentId]
@@ -180,34 +182,48 @@ export async function findStudentAccountForImport(connection, row) {
 }
 
 export async function upsertImportedStudent(connection, student) {
+  const [owners] = await connection.execute(
+    'SELECT user_id AS userId FROM student_profiles WHERE student_id = ? FOR UPDATE',
+    [student.studentId],
+  )
+  if (owners[0] && owners[0].userId !== student.userId) {
+    throw new HttpError(409, `Student ID ${student.studentId} is already assigned to another account`)
+  }
+
   await connection.execute(
     'UPDATE users SET full_name = ? WHERE id = ?',
     [student.fullName, student.userId],
   )
-  await connection.execute(
-    `INSERT INTO student_profiles
-       (user_id, student_id, department_id, program, cohort, year_level,
-        phone, academic_year, semester, enrollment_status, gpa)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       program = VALUES(program), cohort = VALUES(cohort),
-       year_level = VALUES(year_level), phone = VALUES(phone),
-       academic_year = VALUES(academic_year), semester = VALUES(semester),
-       enrollment_status = VALUES(enrollment_status), gpa = VALUES(gpa)`,
-    [
-      student.userId,
-      student.studentId,
-      student.departmentId,
-      student.program,
-      student.cohort,
-      student.yearLevel,
-      student.phone,
-      student.academicYear,
-      student.semester,
-      student.enrollmentStatus,
-      student.gpa,
-    ],
-  )
+  const profileValues = [
+    student.studentId,
+    student.departmentId,
+    student.program,
+    student.cohort,
+    student.yearLevel,
+    student.phone,
+    student.academicYear,
+    student.semester,
+    student.enrollmentStatus,
+    student.gpa,
+  ]
+  if (owners[0]) {
+    await connection.execute(
+      `UPDATE student_profiles
+          SET student_id = ?, department_id = ?, program = ?, cohort = ?,
+              year_level = ?, phone = ?, academic_year = ?, semester = ?,
+              enrollment_status = ?, gpa = ?
+        WHERE user_id = ?`,
+      [...profileValues, student.userId],
+    )
+  } else {
+    await connection.execute(
+      `INSERT INTO student_profiles
+         (student_id, department_id, program, cohort, year_level, phone,
+          academic_year, semester, enrollment_status, gpa, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [...profileValues, student.userId],
+    )
+  }
   await connection.execute(
     `INSERT INTO student_academic_records
        (student_user_id, semester_id, gpa, completed_credits, year_level, enrollment_status)
@@ -256,7 +272,8 @@ export async function getRules(databasePool, departmentId) {
     'SELECT rules_json AS rules FROM academic_rules WHERE department_id = ?',
     [departmentId],
   )
-  return rows[0]?.rules ?? { eligibility: {}, grouping: {} }
+  const rules = rows[0]?.rules ?? { eligibility: {}, grouping: {} }
+  return typeof rules === 'string' ? JSON.parse(rules) : rules
 }
 
 export async function saveRules(connection, departmentId, rules, actorId) {
@@ -304,10 +321,10 @@ export async function listGroups(databasePool, { departmentId, academicYearId })
       ORDER BY ay.start_date DESC, d.name, g.name`,
     params,
   )
-  return rows.map((row) => ({
-    ...row,
-    members: typeof row.members === 'string' ? JSON.parse(row.members) : row.members,
-  }))
+  return rows.map((row) => {
+    const members = typeof row.members === 'string' ? JSON.parse(row.members) : row.members
+    return { ...row, members: (members ?? []).filter(Boolean) }
+  })
 }
 
 export async function findGroup(connection, groupId, lock = false) {
@@ -346,7 +363,7 @@ export async function findStudentsForGroup(connection, studentUserIds, departmen
   return rows
 }
 
-export async function findActiveMemberships(connection, studentUserIds) {
+export async function findActiveMemberships(connection, studentUserIds, excludeGroupId) {
   const placeholders = studentUserIds.map(() => '?').join(', ')
   const [rows] = await connection.execute(
     `SELECT gm.student_user_id AS userId, gm.group_id AS groupId,
@@ -354,8 +371,9 @@ export async function findActiveMemberships(connection, studentUserIds) {
        FROM student_group_members gm
        JOIN student_groups g ON g.id = gm.group_id
       WHERE gm.student_user_id IN (${placeholders}) AND gm.is_active = TRUE
+        AND (? IS NULL OR gm.group_id <> ?)
       FOR UPDATE`,
-    studentUserIds,
+    [...studentUserIds, excludeGroupId ?? null, excludeGroupId ?? null],
   )
   return rows
 }
@@ -460,3 +478,4 @@ export async function latestStudentEligibility(databasePool, userId) {
   }
   return result
 }
+

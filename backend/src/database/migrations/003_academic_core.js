@@ -51,6 +51,28 @@ export async function up(connection) {
   `)
 
   await connection.query(`
+    CREATE TABLE student_academic_records (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      student_user_id CHAR(36) NOT NULL,
+      semester_id CHAR(36) NOT NULL,
+      gpa DECIMAL(4,2) NULL,
+      completed_credits DECIMAL(7,2) NULL,
+      year_level TINYINT UNSIGNED NULL,
+      enrollment_status ENUM('active','inactive','graduated','suspended') NOT NULL DEFAULT 'active',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+        ON UPDATE CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_student_academic_record (student_user_id, semester_id),
+      KEY idx_student_records_semester (semester_id, enrollment_status),
+      CONSTRAINT fk_student_records_user FOREIGN KEY (student_user_id)
+        REFERENCES users (id) ON UPDATE RESTRICT ON DELETE CASCADE,
+      CONSTRAINT fk_student_records_semester FOREIGN KEY (semester_id)
+        REFERENCES semesters (id) ON UPDATE RESTRICT ON DELETE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await connection.query(`
     CREATE TABLE academic_rules (
       department_id CHAR(36) NOT NULL,
       rules_json JSON NOT NULL,
@@ -69,6 +91,8 @@ export async function up(connection) {
     CREATE TABLE student_import_batches (
       id CHAR(36) NOT NULL,
       department_id CHAR(36) NOT NULL,
+      academic_year_id CHAR(36) NOT NULL,
+      semester_id CHAR(36) NOT NULL,
       uploaded_by CHAR(36) NULL,
       original_filename VARCHAR(255) NOT NULL,
       status ENUM('previewed', 'confirmed', 'failed') NOT NULL DEFAULT 'previewed',
@@ -81,6 +105,10 @@ export async function up(connection) {
       KEY idx_student_import_batches_department (department_id, created_at),
       CONSTRAINT fk_student_import_batches_department FOREIGN KEY (department_id)
         REFERENCES departments (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+      CONSTRAINT fk_student_import_batches_year FOREIGN KEY (academic_year_id)
+        REFERENCES academic_years (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
+      CONSTRAINT fk_student_import_batches_semester FOREIGN KEY (semester_id)
+        REFERENCES semesters (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
       CONSTRAINT fk_student_import_batches_uploader FOREIGN KEY (uploaded_by)
         REFERENCES users (id) ON UPDATE RESTRICT ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
