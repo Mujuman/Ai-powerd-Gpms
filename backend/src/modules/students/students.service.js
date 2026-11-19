@@ -44,12 +44,28 @@ function normalizeHeader(value) {
   return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-async function parseWorkbook(buffer) {
+export async function parseStudentWorkbook(buffer) {
+  const zipSignature = Buffer.from([0x50, 0x4b, 0x03, 0x04])
+  if (!Buffer.isBuffer(buffer) || buffer.length < zipSignature.length
+    || !buffer.subarray(0, zipSignature.length).equals(zipSignature)) {
+    throw new HttpError(
+      400,
+      'The file content is not an .xlsx workbook. Save or export it as Excel Workbook (.xlsx); renaming an .xls or .csv file is not enough.',
+    )
+  }
+
   const workbook = new ExcelJS.Workbook()
   try {
     await workbook.xlsx.load(buffer)
-  } catch {
-    throw new HttpError(400, 'The uploaded file is not a valid .xlsx workbook')
+  } catch (error) {
+    console.error('ExcelJS could not read the student workbook', {
+      name: error.name,
+      code: error.code,
+    })
+    throw new HttpError(
+      400,
+      'Excel could not open this .xlsx workbook. It may be damaged or password-protected; save a fresh .xlsx copy and retry.',
+    )
   }
   const sheet = workbook.worksheets[0]
   if (!sheet || sheet.rowCount < 2) throw new HttpError(400, 'The workbook must contain a header and at least one student row')
@@ -304,7 +320,7 @@ export async function previewStudentImport({ buffer, originalFilename, departmen
   }
   if (context.semester.status !== 'active') throw new HttpError(409, 'Select an active semester')
 
-  const rows = await parseWorkbook(buffer)
+  const rows = await parseStudentWorkbook(buffer)
   rows.forEach((row) => {
     row.departmentCode = context.department.code
     if (row.department && row.department.toUpperCase() !== context.department.code.toUpperCase()) {
