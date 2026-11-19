@@ -305,29 +305,34 @@ export async function listGroups(databasePool, { departmentId, academicYearId })
     `SELECT g.id, g.department_id AS departmentId, d.code AS departmentCode,
             g.academic_year_id AS academicYearId, ay.label AS academicYear,
             g.name, g.project_type AS projectType, g.is_active AS isActive,
-            COUNT(CASE WHEN gm.is_active = TRUE THEN 1 END) AS memberCount,
-            COALESCE(JSON_ARRAYAGG(
-              CASE WHEN gm.is_active = TRUE THEN
-                JSON_OBJECT('userId', u.id, 'studentId', sp.student_id,
-                            'fullName', u.full_name, 'email', u.email)
-              ELSE NULL END
-            ), JSON_ARRAY()) AS members
+            (SELECT COUNT(*) FROM student_group_members gm
+              WHERE gm.group_id = g.id AND gm.is_active = TRUE) AS memberCount
        FROM student_groups g
        JOIN departments d ON d.id = g.department_id
        JOIN academic_years ay ON ay.id = g.academic_year_id
-       LEFT JOIN student_group_members gm ON gm.group_id = g.id
-       LEFT JOIN users u ON u.id = gm.student_user_id
-       LEFT JOIN student_profiles sp ON sp.user_id = u.id
        ${where}
-      GROUP BY g.id, g.department_id, d.code, g.academic_year_id, ay.label,
-               g.name, g.project_type, g.is_active
       ORDER BY ay.start_date DESC, d.name, g.name`,
     params,
   )
-  return rows.map((row) => {
-    const members = typeof row.members === 'string' ? JSON.parse(row.members) : row.members
-    return { ...row, members: (members ?? []).filter(Boolean) }
-  })
+  if (!rows.length) return []
+
+  const placeholders = rows.map(() => '?').join(', ')
+  const [members] = await databasePool.execute(
+    `SELECT gm.group_id AS groupId, u.id AS userId, sp.student_id AS studentId,
+            u.full_name AS fullName, u.email
+       FROM student_group_members gm
+       JOIN users u ON u.id = gm.student_user_id
+       LEFT JOIN student_profiles sp ON sp.user_id = u.id
+      WHERE gm.is_active = TRUE AND gm.group_id IN (${placeholders})
+      ORDER BY u.full_name`,
+    rows.map((row) => row.id),
+  )
+  const membersByGroup = new Map(rows.map((row) => [row.id, []]))
+  for (const member of members) membersByGroup.get(member.groupId).push(member)
+  return rows.map((row) => ({
+    ...row,
+    members: membersByGroup.get(row.id),
+  }))
 }
 
 export async function findGroup(connection, groupId, lock = false) {

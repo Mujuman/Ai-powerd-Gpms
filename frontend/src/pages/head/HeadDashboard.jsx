@@ -43,7 +43,7 @@ export default function HeadDashboard() {
         <ul className="coming-soon-list">
           {RESPONSIBILITIES.map((r) => <li key={r}>{r}</li>)}
         </ul>
-        <p className="coming-soon-note">Feature modules are coming in upcoming phases.</p>
+        <p className="coming-soon-note">Student records, eligibility rules, imports, and groups are available under Students &amp; Projects. Other project lifecycle workflows are being added in later phases.</p>
       </div>
     </div>
   )

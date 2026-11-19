@@ -40,7 +40,7 @@ export default function AdminDashboard() {
         <ul className="coming-soon-list">
           {RESPONSIBILITIES.map((r) => <li key={r}>{r}</li>)}
         </ul>
-        <p className="coming-soon-note">Feature modules are coming in upcoming phases.</p>
+        <p className="coming-soon-note">Academic years and semesters are managed in Academic Calendar. Remaining project lifecycle and AI modules are planned for later phases.</p>
       </div>
     </div>
   )

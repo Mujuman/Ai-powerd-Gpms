@@ -4,12 +4,12 @@ AI-Powered Graduation Project Management System for university graduation-projec
 
 ## Current implementation status
 
-The current foundation includes five seeded roles, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, MySQL migrations, and health/readiness endpoints. Academic workflows, document analysis, and production AI features are future implementation phases; the AI service currently exposes its health endpoint and a Celery health-check task only.
+The current implementation includes five seeded roles, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, academic calendars, student spreadsheet import, configurable eligibility rules and history, and department-scoped project groups. The AI service currently exposes its health endpoint and a Celery health-check task only; project recommendations, document analysis, assessment, and defense workflows remain future implementation phases.
 
 ## Technology and local requirements
 
 - Node.js 22.9+ and npm.
-- MySQL 8+ (XAMPP MariaDB can be used for local development; validate version-specific behavior).
+- MySQL 8+ or XAMPP MariaDB 10.4+ (the local academic migrations and core queries are verified with MariaDB 10.4).
 - Python 3.11+.
 - Redis, recommended through WSL2 on Windows.
 - Celery worker running in WSL2/Linux, not as a native Windows process.
@@ -168,6 +168,13 @@ npm --prefix backend start
 - `GET /api/auth/me`, `POST /api/auth/change-password`
 - `POST /api/auth/password-reset/request`, `POST /api/auth/password-reset/confirm`
 - `/api/users`, `/api/departments`, and `/api/roles` (role-protected)
+- `/api/academics/years` and `/api/academics/semesters` for academic calendar management
+- `/api/students` for department-scoped student listing and individual student records
+- `/api/students/imports/preview` and `/api/students/imports/:batchId/confirm` for validated, two-step imports
+- `/api/students/rules/:departmentId`, `/api/students/eligibility`, and `/api/students/eligibility/evaluate`
+- `/api/students/groups` and `/api/students/groups/:groupId/members`
 - `GET /health`, `GET /ready`
 
-Only the five specified login roles exist: System Administrator, Department Head, Academic Advisor, Examiner, and Student. Department/project authorization and academic modules remain part of the upcoming implementation phases.
+Student imports accept `.xlsx` files up to 5 MB and 2,000 rows. The first worksheet must have `Student ID`, `Full Name`, and `Email` columns; `Program`, `Cohort`/`Batch`, `Year Level`, `GPA`, `Phone`, `Credits`, and `Department` are optional. A matching active student account must already exist for each email. Invalid rows are reported in the preview and the batch cannot be confirmed until a corrected file is uploaded.
+
+Only the five specified login roles exist: System Administrator, Department Head, Academic Advisor, Examiner, and Student. Academic policy values remain department-configurable. The broader project lifecycle and production AI features are still future phases.
