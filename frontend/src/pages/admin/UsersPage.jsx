@@ -280,7 +280,9 @@ export default function UsersPage() {
   })
 
   const users = usersQuery.data
-  const departments = deptsQuery.data?.data ?? []
+  const userRows = Array.isArray(users?.data) ? users.data : []
+  const usersResponseInvalid = users !== undefined && !Array.isArray(users.data)
+  const departments = Array.isArray(deptsQuery.data?.data) ? deptsQuery.data.data : []
 
   return (
     <div className="page-content">
@@ -331,6 +333,9 @@ export default function UsersPage() {
           {usersQuery.error?.response?.data?.message ?? 'Failed to load users'}
         </div>
       )}
+      {usersResponseInvalid && (
+        <div className="table-error" role="alert">The server returned an unexpected user list.</div>
+      )}
 
       {/* Table */}
       {users && (
@@ -348,17 +353,17 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.data.map((u) => (
+                {userRows.map((u) => (
                   <tr key={u.id}>
                     <td style={{ fontWeight: 600 }}>{u.fullName}</td>
                     <td style={{ color: '#61708a' }}>{u.email}</td>
                     <td><RoleBadge role={u.role} /></td>
                     <td>
                       <div className="chip-row">
-                        {u.departments.map((d) => (
+                        {(Array.isArray(u.departments) ? u.departments : []).map((d) => (
                           <span key={d.id} className="dept-chip">{d.code}</span>
                         ))}
-                        {u.departments.length === 0 && <span style={{ color: '#8290a6', fontSize: '0.85rem' }}>—</span>}
+                        {(!Array.isArray(u.departments) || u.departments.length === 0) && <span style={{ color: '#8290a6', fontSize: '0.85rem' }}>—</span>}
                       </div>
                     </td>
                     <td>
@@ -385,7 +390,7 @@ export default function UsersPage() {
                     </td>
                   </tr>
                 ))}
-                {users.data.length === 0 && (
+                {userRows.length === 0 && (
                   <tr><td colSpan={6} className="table-empty">No users found</td></tr>
                 )}
               </tbody>
@@ -395,10 +400,10 @@ export default function UsersPage() {
           {/* Pagination */}
           <div className="pagination">
             <span className="pagination-info">
-              {users.total} user{users.total !== 1 ? 's' : ''} · Page {users.page} of {users.totalPages}
+              {users.total} user{users.total !== 1 ? 's' : ''} · Page {users.page} of {users.totalPages ?? 1}
             </span>
             <button className="btn-secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">Previous</button>
-            <button className="btn-secondary" disabled={page >= users.totalPages} onClick={() => setPage((p) => p + 1)} aria-label="Next page">Next</button>
+            <button className="btn-secondary" disabled={page >= (users.totalPages ?? 1)} onClick={() => setPage((p) => p + 1)} aria-label="Next page">Next</button>
           </div>
         </>
       )}
