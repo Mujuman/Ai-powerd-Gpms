@@ -23,7 +23,10 @@ export const studentSubmissionSchema = z.object({
 export const reviewSubmissionSchema = z.object({
   decision: z.enum(['approved', 'rejected']),
   note: z.string().trim().max(4000).optional().default(''),
-}).strict()
+}).strict().refine((value) => value.decision !== 'rejected' || value.note.length > 0, {
+  path: ['note'],
+  message: 'A rejection reason is required',
+})
 
 const staffFields = {
   departmentId: uuid.optional(),

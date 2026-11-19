@@ -45,7 +45,6 @@ export default function ProjectsPage() {
   const [scheduleEdit, setScheduleEdit] = useState(null)
   const [examinerSelections, setExaminerSelections] = useState({})
   const [advisorSelections, setAdvisorSelections] = useState({})
-  const [assessmentEdit, setAssessmentEdit] = useState(null)
 
   useEffect(() => {
     if (!departmentId && departments.length === 1) setDepartmentId(departments[0].id)
@@ -69,7 +68,6 @@ export default function ProjectsPage() {
   const staff = staffQuery.data ?? []
   const advisors = staff.filter((member) => member.role === 'academic_advisor' && member.isActive)
   const examiners = staff.filter((member) => member.role === 'examiner' && member.isActive)
-  const pendingSubmissions = (submissionsQuery.data ?? []).filter((submission) => submission.status === 'submitted')
   const approvedGroups = groups.filter((group) => group.submissionStatus === 'approved' && group.isActive)
   const queryErrors = [
     groupsQuery.error,
@@ -133,8 +131,8 @@ export default function ProjectsPage() {
       if (action === 'update-defense') {
         const { id, changes } = variables
         return (await api.patch(`/projects/defenses/${id}`, {
-          ...changes,
           scheduledAt: new Date(changes.scheduledAt).toISOString(),
+          venue: changes.venue,
         }, { params: { departmentId } })).data.data
       }
       if (action === 'cancel-defense') {
@@ -165,6 +163,13 @@ export default function ProjectsPage() {
         setScheduleForm({ groupId: '', defenseType: 'proposal', scheduledAt: '', venue: '', notes: '' })
       }
       if (variables.action === 'update-defense') setScheduleEdit(null)
+      if (variables.action === 'assign-examiner-ai') {
+        setExaminerSelections((current) => {
+          const next = { ...current }
+          delete next[variables.id]
+          return next
+        })
+      }
       invalidateWorkspaces()
     },
   })
@@ -336,7 +341,7 @@ export default function ProjectsPage() {
             </div>
 
             <div className="page-header">
-              <div><h3 className="section-title">Advisor assignments</h3><p className="page-subtitle">AI assigns unassigned approved projects using project and specialization embeddings, subject to advisor capacity.</p></div>
+              <div><h3 className="section-title">Advisor assignments</h3><p className="page-subtitle">AI matches unassigned approved projects to advisor specializations while respecting each advisor's capacity.</p></div>
               <button className="btn-primary" disabled={mutation.isPending || advisors.length === 0}
                 onClick={() => mutation.mutate({ action: 'assign-advisors-ai' })}>AI assign unassigned projects</button>
             </div>
@@ -366,7 +371,7 @@ export default function ProjectsPage() {
             </div>
           </Section>
 
-          <Section id="similarity" title="AI project similarity" description="Compare the latest project titles and descriptions using sentence embeddings. Scores are similarity indicators, not plagiarism findings.">
+          <Section id="similarity" title="AI project similarity" description="Compare project titles and descriptions with the configured sentence-embedding model, or a clearly labeled local TF-IDF baseline when the AI service is not configured. Similarity scores are not plagiarism findings.">
             <div className="action-row">
               <button className="btn-primary" disabled={mutation.isPending}
                 onClick={() => mutation.mutate({ action: 'analyze-similarity' })}>Run AI similarity analysis</button>

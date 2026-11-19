@@ -34,6 +34,7 @@ export default function StudentsPage() {
   const [groupName, setGroupName] = useState('')
   const [projectType, setProjectType] = useState('group')
   const [memberIds, setMemberIds] = useState([])
+  const [editingGroup, setEditingGroup] = useState(null)
   const [ruleForm, setRuleForm] = useState({
     minimumGpa: '',
     maximumGpa: '',
@@ -170,6 +171,15 @@ export default function StudentsPage() {
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
     },
   })
+  const groupMembersMutation = useMutation({
+    mutationFn: async () => (await api.put(`/students/groups/${editingGroup.id}/members`, {
+      studentUserIds: editingGroup.memberIds,
+    })).data.data,
+    onSuccess: () => {
+      setEditingGroup(null)
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
+    },
+  })
 
   function numberOrNull(value) {
     return value === '' ? null : Number(value)
@@ -210,7 +220,7 @@ export default function StudentsPage() {
     ? eligibilityQuery.data
     : eligibilityQuery.data?.results ?? []
   const formError = importMutation.error ?? rulesMutation.error ?? evaluateMutation.error
-    ?? groupMutation.error ?? registerStudentMutation.error
+    ?? groupMutation.error ?? registerStudentMutation.error ?? groupMembersMutation.error
 
   return (
     <div className="page-content">
@@ -459,14 +469,39 @@ export default function StudentsPage() {
             {groupsQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
-                  <thead><tr><th>Group</th><th>Project</th><th>Academic year</th><th>Members</th></tr></thead>
+                  <thead><tr><th>Group</th><th>Project</th><th>Academic year</th><th>Members</th><th>Actions</th></tr></thead>
                   <tbody>{groupsQuery.data.map((group) => (
                     <tr key={group.id}>
                       <td>{group.name}</td><td>{group.projectType}</td><td>{group.academicYear}</td>
-                      <td>{group.members.map((member) => member.fullName).join(', ') || '—'}</td>
+                      <td>{editingGroup?.id === group.id ? (
+                        <select className="form-input member-select" multiple aria-label={`Members of ${group.name}`}
+                          value={editingGroup.memberIds}
+                          onChange={(event) => setEditingGroup({
+                            ...editingGroup,
+                            memberIds: Array.from(event.target.selectedOptions, (option) => option.value),
+                          })}>
+                          {students.map((student) => <option key={student.userId} value={student.userId}>
+                            {student.studentId} — {student.fullName}
+                          </option>)}
+                        </select>
+                      ) : group.members.map((member) => member.fullName).join(', ') || '—'}</td>
+                      <td><div className="action-row">
+                        {editingGroup?.id === group.id ? (
+                          <>
+                            <button className="btn-primary" disabled={groupMembersMutation.isPending || !editingGroup.memberIds.length}
+                              onClick={() => groupMembersMutation.mutate()}>Save members</button>
+                            <button className="btn-secondary" onClick={() => setEditingGroup(null)}>Cancel</button>
+                          </>
+                        ) : (
+                          <button className="btn-secondary" onClick={() => setEditingGroup({
+                            id: group.id,
+                            memberIds: group.members.map((member) => member.userId),
+                          })}>Edit members</button>
+                        )}
+                      </div></td>
                     </tr>
                   ))}
-                  {groupsQuery.data.length === 0 && <tr><td className="table-empty" colSpan={4}>No project groups found.</td></tr>}
+                  {groupsQuery.data.length === 0 && <tr><td className="table-empty" colSpan={5}>No project groups found.</td></tr>}
                   </tbody>
                 </table>
               </div>
