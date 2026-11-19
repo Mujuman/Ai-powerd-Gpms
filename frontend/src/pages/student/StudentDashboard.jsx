@@ -12,10 +12,11 @@ const WORK_AREAS = [
     tasks: ['Review your student profile', 'Check your latest eligibility'],
   },
   {
-    title: 'Project group',
-    description: 'See your assigned teammates, advisor, and project information.',
+    title: 'Project proposal and group',
+    description: 'View your group, submit a project title and description, and track review feedback.',
     icon: UsersRound,
-    status: 'Coming soon',
+    status: 'Available',
+    to: '/student/project',
     tasks: ['View group information', 'Contact your advisor'],
   },
   {
@@ -50,7 +51,7 @@ export default function StudentDashboard() {
       eyebrow="Student workspace"
       summary="Follow your graduation-project journey and keep your academic information up to date."
       workAreas={WORK_AREAS}
-      footer="Your academic record is available now. Project collaboration, submissions, and assessment features are planned for later phases."
+      footer="Your academic record, project proposal submission, review status, and defense schedule are available now."
     />
   )
 }

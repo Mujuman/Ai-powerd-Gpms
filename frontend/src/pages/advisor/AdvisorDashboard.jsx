@@ -7,7 +7,8 @@ const WORK_AREAS = [
     title: 'Assigned students',
     description: 'View your project groups and the students assigned to your supervision.',
     icon: UsersRound,
-    status: 'Coming soon',
+    status: 'Available',
+    to: '/advisor/projects',
     tasks: ['Review assigned groups', 'Communicate with students'],
   },
   {
@@ -42,7 +43,7 @@ export default function AdvisorDashboard() {
       eyebrow="Advisor workspace"
       summary="Support your students from project planning through final submission."
       workAreas={WORK_AREAS}
-      footer="Advisor project, document, and assessment workflows are planned for upcoming phases."
+      footer="Your currently assigned project groups and student members are available in the assigned projects workspace."
     />
   )
 }

@@ -28,6 +28,9 @@ export default function StudentsPage() {
   const [semesterId, setSemesterId] = useState('')
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
+  const [studentForm, setStudentForm] = useState({
+    fullName: '', email: '', password: '', studentId: '', program: '', cohort: '', yearLevel: '',
+  })
   const [groupName, setGroupName] = useState('')
   const [projectType, setProjectType] = useState('group')
   const [memberIds, setMemberIds] = useState([])
@@ -154,6 +157,19 @@ export default function StudentsPage() {
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
     },
   })
+  const registerStudentMutation = useMutation({
+    mutationFn: async () => (await api.post('/students/register', {
+      ...studentForm,
+      departmentId,
+      academicYearId,
+      semesterId,
+      yearLevel: studentForm.yearLevel ? Number(studentForm.yearLevel) : null,
+    })).data.data,
+    onSuccess: () => {
+      setStudentForm({ fullName: '', email: '', password: '', studentId: '', program: '', cohort: '', yearLevel: '' })
+      void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+    },
+  })
 
   function numberOrNull(value) {
     return value === '' ? null : Number(value)
@@ -193,7 +209,8 @@ export default function StudentsPage() {
   const eligibilityResults = Array.isArray(eligibilityQuery.data)
     ? eligibilityQuery.data
     : eligibilityQuery.data?.results ?? []
-  const formError = importMutation.error ?? rulesMutation.error ?? evaluateMutation.error ?? groupMutation.error
+  const formError = importMutation.error ?? rulesMutation.error ?? evaluateMutation.error
+    ?? groupMutation.error ?? registerStudentMutation.error
 
   return (
     <div className="page-content">
@@ -242,6 +259,39 @@ export default function StudentsPage() {
             </div>
             {yearsQuery.isError && <ErrorMessage error={yearsQuery.error} fallback="Could not load academic years" />}
             {semestersQuery.isError && <ErrorMessage error={semestersQuery.error} fallback="Could not load semesters" />}
+            <form className="rules-form" onSubmit={(event) => {
+              event.preventDefault()
+              registerStudentMutation.mutate()
+            }}>
+              <h3 className="section-title">Register a student</h3>
+              <p className="page-subtitle">Create a student login and academic record in the selected active year and semester.</p>
+              <div className="rules-grid">
+                <label className="form-field"><span className="form-label">Full name</span>
+                  <input className="form-input" required maxLength={160} value={studentForm.fullName}
+                    onChange={(event) => setStudentForm({ ...studentForm, fullName: event.target.value })} /></label>
+                <label className="form-field"><span className="form-label">Email</span>
+                  <input className="form-input" type="email" required value={studentForm.email}
+                    onChange={(event) => setStudentForm({ ...studentForm, email: event.target.value })} /></label>
+                <label className="form-field"><span className="form-label">Initial password (12+ characters)</span>
+                  <input className="form-input" type="password" minLength={12} required value={studentForm.password}
+                    onChange={(event) => setStudentForm({ ...studentForm, password: event.target.value })} /></label>
+                <label className="form-field"><span className="form-label">Student ID</span>
+                  <input className="form-input" required maxLength={32} value={studentForm.studentId}
+                    onChange={(event) => setStudentForm({ ...studentForm, studentId: event.target.value })} /></label>
+                <label className="form-field"><span className="form-label">Program</span>
+                  <input className="form-input" maxLength={120} value={studentForm.program}
+                    onChange={(event) => setStudentForm({ ...studentForm, program: event.target.value })} /></label>
+                <label className="form-field"><span className="form-label">Cohort</span>
+                  <input className="form-input" maxLength={32} value={studentForm.cohort}
+                    onChange={(event) => setStudentForm({ ...studentForm, cohort: event.target.value })} /></label>
+                <label className="form-field"><span className="form-label">Year level</span>
+                  <input className="form-input" type="number" min={1} max={255} value={studentForm.yearLevel}
+                    onChange={(event) => setStudentForm({ ...studentForm, yearLevel: event.target.value })} /></label>
+              </div>
+              <button className="btn-primary" disabled={!selectedYear?.isActive || selectedSemester?.status !== 'active' || registerStudentMutation.isPending}>
+                {registerStudentMutation.isPending ? 'Registering…' : 'Register student'}
+              </button>
+            </form>
             <form className="import-form" onSubmit={uploadPreview}>
               <label className="form-field">
                 <span className="form-label">Excel workbook (.xlsx, max 5 MB)</span>

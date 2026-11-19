@@ -11,10 +11,11 @@ const WORK_AREAS = [
     tasks: ['Review project materials', 'See assigned students'],
   },
   {
-    title: 'Assessment',
-    description: 'Record evaluation comments and assessment scores.',
+    title: 'Defense assessments',
+    description: 'View assigned defense sessions and submit or update evaluation records.',
     icon: ClipboardCheck,
-    status: 'Coming soon',
+    status: 'Available',
+    to: '/examiner/defenses',
     tasks: ['Submit assessment scores', 'Record required corrections'],
   },
   {
@@ -42,7 +43,7 @@ export default function ExaminerDashboard() {
       eyebrow="Examiner workspace"
       summary="Review graduation projects and provide clear, timely assessment feedback."
       workAreas={WORK_AREAS}
-      footer="Project review, correction, and defense workflows are planned for upcoming phases."
+      footer="Your assigned defense sessions and submitted evaluation records are available in the defense workspace."
     />
   )
 }
