@@ -80,7 +80,8 @@ export async function findImportDuplicates(databasePool, rows, departmentId) {
   const emailPlaceholders = emails.map(() => '?').join(', ')
   const studentPlaceholders = studentIds.map(() => '?').join(', ')
   const [users] = await databasePool.execute(
-    `SELECT u.email, u.id AS userId, r.code AS role, sp.student_id AS studentId,
+    `SELECT u.email, u.id AS userId, u.is_active AS isActive,
+            r.code AS role, sp.student_id AS studentId,
             sp.department_id AS departmentId
        FROM users u
        JOIN roles r ON r.id = u.role_id
@@ -101,6 +102,7 @@ export async function findImportDuplicates(databasePool, rows, departmentId) {
     const user = byEmail.get(row.email)
     if (!user) errors.push('A student account for this email must exist before import')
     else if (user.role !== 'student') errors.push('The email belongs to a non-student account')
+    else if (!user.isActive) errors.push('The student account is inactive')
     else if (user.studentId && user.studentId !== row.studentId) {
       errors.push('The student account already has a different student ID')
     } else if (user.departmentId && user.departmentId !== departmentId) {

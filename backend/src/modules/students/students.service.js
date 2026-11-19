@@ -337,6 +337,11 @@ export async function createGroup(data, actor) {
   const departmentId = await resolveDepartment(actor, data.departmentId)
   const id = randomUUID()
   await withTransaction(pool, async (connection) => {
+    const [departments] = await connection.execute(
+      'SELECT id FROM departments WHERE id = ? AND is_active = TRUE FOR UPDATE',
+      [departmentId],
+    )
+    if (!departments[0]) throw new HttpError(404, 'Department not found')
     const [years] = await connection.execute(
       'SELECT id FROM academic_years WHERE id = ? AND is_active = TRUE FOR UPDATE',
       [data.academicYearId],
@@ -375,8 +380,12 @@ export async function replaceGroupMembers(groupId, studentUserIds, actor) {
   await withTransaction(pool, async (connection) => {
     const group = await repository.findGroup(connection, groupId, true)
     if (!group) throw new HttpError(404, 'Student group not found')
+    if (!group.isActive) throw new HttpError(409, 'This student group is inactive')
     const departmentId = await resolveDepartment(actor, group.departmentId)
     const rules = await repository.getRules(connection, departmentId)
+    if (group.projectType === 'individual' && rules.grouping?.allowIndividualProjects !== true) {
+      throw new HttpError(400, 'Individual projects are not enabled by this department')
+    }
     if (group.projectType === 'individual' && studentUserIds.length !== 1) {
       throw new HttpError(400, 'An individual project group must contain exactly one student')
     }
