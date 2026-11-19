@@ -1,50 +1,114 @@
+import { ArrowRight, BarChart3, CalendarDays, ClipboardCheck, FolderKanban, UsersRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { RoleBadge } from '../../components/ui/RoleBadge'
 
-const RESPONSIBILITIES = [
-  'Manage department students and import student information',
-  'Verify student eligibility for graduation projects',
-  'Configure department project rules and student grouping',
-  'Review and approve or reject project titles',
-  'Review AI advisor recommendations and approve advisor assignments',
-  'Manage examiner assignments',
-  'Monitor project progress across all groups',
-  'Manage defense schedules — assign dates, times, venues, and examiners',
-  'Record defense session information',
-  'Review academic assessments and manage final approvals',
-  'Generate departmental reports',
+const WORK_AREAS = [
+  {
+    title: 'Students & eligibility',
+    description: 'Import student records, configure department rules, review eligibility, and manage project groups.',
+    icon: UsersRound,
+    status: 'Available',
+    to: '/head/students',
+    tasks: ['Student information and imports', 'Eligibility rules and evaluations', 'Project group setup'],
+  },
+  {
+    title: 'Project approvals',
+    description: 'Review proposed project titles and approve advisor recommendations.',
+    icon: ClipboardCheck,
+    status: 'Coming soon',
+    tasks: ['Review project titles', 'Approve advisor assignments'],
+  },
+  {
+    title: 'Project progress',
+    description: 'Follow project milestones and coordinate examiner assignments.',
+    icon: FolderKanban,
+    status: 'Coming soon',
+    tasks: ['Monitor group progress', 'Manage examiner assignments'],
+  },
+  {
+    title: 'Defenses & assessments',
+    description: 'Coordinate defense sessions, record outcomes, and manage final approvals.',
+    icon: CalendarDays,
+    status: 'Coming soon',
+    tasks: ['Schedule defense sessions', 'Record assessments and decisions'],
+  },
+  {
+    title: 'Department reports',
+    description: 'Review project activity and prepare departmental reports.',
+    icon: BarChart3,
+    status: 'Coming soon',
+    tasks: ['Generate departmental reports'],
+  },
 ]
 
 export default function HeadDashboard() {
   const { user } = useAuth()
   if (!user) return null
 
+  const departments = Array.isArray(user.departments) ? user.departments : []
+
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">Dashboard</h1>
-        <RoleBadge role={user.role} />
-      </div>
-
-      <p className="dashboard-welcome">
-        Welcome back, <strong>{user.fullName}</strong>
-      </p>
-
-      {user.departments.length > 0 && (
-        <div className="chip-row" aria-label="Your departments">
-          {user.departments.map((d) => (
-            <span key={d.id} className="dept-chip">{d.code} — {d.name}</span>
-          ))}
+    <div className="head-dashboard">
+      <section className="head-dashboard-hero">
+        <div className="head-dashboard-hero-copy">
+          <div className="head-dashboard-eyebrow">Department workspace</div>
+          <h1>Welcome back, {user.fullName}</h1>
+          <p>Coordinate graduation projects and keep your department moving forward.</p>
+          <div className="head-dashboard-departments" aria-label="Your departments">
+            {departments.length > 0
+              ? departments.map((department) => (
+                <span key={department.id} className="head-department-pill">
+                  {department.code} <span aria-hidden="true">·</span> {department.name}
+                </span>
+              ))
+              : <span className="head-department-pill">No department assigned</span>}
+          </div>
         </div>
-      )}
+        <div className="head-dashboard-hero-action">
+          <RoleBadge role={user.role} />
+          <Link className="btn-primary head-dashboard-cta" to="/head/students">
+            Open student workspace <ArrowRight size={17} />
+          </Link>
+        </div>
+      </section>
 
-      <div className="coming-soon-card">
-        <h2 className="coming-soon-title">Your responsibilities</h2>
-        <ul className="coming-soon-list">
-          {RESPONSIBILITIES.map((r) => <li key={r}>{r}</li>)}
-        </ul>
-        <p className="coming-soon-note">Student records, eligibility rules, imports, and groups are available under Students &amp; Projects. Other project lifecycle workflows are being added in later phases.</p>
-      </div>
+      <section className="head-work-section" aria-labelledby="head-work-title">
+        <div className="head-section-heading">
+          <div>
+            <h2 id="head-work-title">Department workspaces</h2>
+            <p>Choose an area to continue managing your graduation-project program.</p>
+          </div>
+          <span className="head-work-count">{WORK_AREAS.length} work areas</span>
+        </div>
+
+        <div className="head-work-grid">
+          {WORK_AREAS.map(({ title, description, icon: Icon, status, to, tasks }) => {
+            const content = (
+              <>
+                <div className="head-work-card-top">
+                  <span className={`head-work-icon${to ? ' is-available' : ''}`}><Icon size={20} /></span>
+                  <span className={`head-work-status${to ? ' is-available' : ''}`}>{status}</span>
+                </div>
+                <h3>{title}</h3>
+                <p className="head-work-description">{description}</p>
+                <ul className="head-work-tasks">
+                  {tasks.map((task) => <li key={task}>{task}</li>)}
+                </ul>
+                {to && <span className="head-work-link">Manage students and rules <ArrowRight size={15} /></span>}
+              </>
+            )
+
+            return to
+              ? <Link className="head-work-card head-work-card-link" key={title} to={to}>{content}</Link>
+              : <article className="head-work-card" key={title}>{content}</article>
+          })}
+        </div>
+      </section>
+
+      <p className="head-dashboard-footnote">
+        Student records, eligibility, imports, and groups are available now. Other project lifecycle workflows are being added in later phases.
+      </p>
     </div>
   )
 }
