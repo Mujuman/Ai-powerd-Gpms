@@ -38,10 +38,14 @@ export const createGroupSchema = z.object({
   academicYearId: uuid,
   name: z.string().trim().min(1).max(120),
   projectType: z.enum(['individual', 'group']).default('group'),
-}).strict()
+  studentUserIds: z.array(uuid).min(1).max(100),
+}).strict().refine((value) => new Set(value.studentUserIds).size === value.studentUserIds.length, {
+  path: ['studentUserIds'],
+  message: 'Student IDs must be unique',
+})
 
 export const addGroupMembersSchema = z.object({
-  studentUserIds: z.array(uuid).min(1).max(100),
+  studentUserIds: z.array(uuid).max(100),
 }).strict().refine((value) => new Set(value.studentUserIds).size === value.studentUserIds.length, {
   path: ['studentUserIds'],
   message: 'Student IDs must be unique',
@@ -51,4 +55,10 @@ export const eligibilityQuerySchema = z.object({
   departmentId: uuid.optional(),
   academicYearId: uuid.optional(),
   semesterId: uuid.optional(),
+}).strict()
+
+export const importStudentsSchema = z.object({
+  departmentId: uuid.optional(),
+  academicYearId: uuid,
+  semesterId: uuid,
 }).strict()

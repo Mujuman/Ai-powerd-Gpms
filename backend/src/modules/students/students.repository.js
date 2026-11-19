@@ -349,13 +349,23 @@ export async function findStudentsForGroup(connection, studentUserIds, departmen
 export async function findActiveMemberships(connection, studentUserIds) {
   const placeholders = studentUserIds.map(() => '?').join(', ')
   const [rows] = await connection.execute(
-    `SELECT student_user_id AS userId, group_id AS groupId
-       FROM student_group_members
-      WHERE student_user_id IN (${placeholders}) AND is_active = TRUE
+    `SELECT gm.student_user_id AS userId, gm.group_id AS groupId,
+            g.academic_year_id AS academicYearId
+       FROM student_group_members gm
+       JOIN student_groups g ON g.id = gm.group_id
+      WHERE gm.student_user_id IN (${placeholders}) AND gm.is_active = TRUE
       FOR UPDATE`,
     studentUserIds,
   )
   return rows
+}
+
+export async function deactivateGroupMembers(connection, groupId) {
+  await connection.execute(
+    `UPDATE student_group_members SET is_active = FALSE, left_at = CURRENT_TIMESTAMP(3)
+      WHERE group_id = ? AND is_active = TRUE`,
+    [groupId],
+  )
 }
 
 export async function addGroupMember(connection, groupId, studentUserId, assignedBy) {
