@@ -316,11 +316,11 @@ export async function listGroups(filters, actor) {
   return repository.listGroups(pool, { ...filters, departmentId })
 }
 
-async function validateGroupMembers(connection, studentUserIds, departmentId, academicYearId, rules, excludeGroupId) {
+async function validateGroupMembers(connection, studentUserIds, departmentId, academicYearId, rules, excludeGroupId, projectType = 'group') {
   const groupRules = rules.grouping ?? {}
   const minimum = groupRules.minimumGroupSize ?? 1
   const maximum = groupRules.maximumGroupSize ?? 100
-  if (studentUserIds.length < minimum || studentUserIds.length > maximum) {
+  if (projectType === 'group' && (studentUserIds.length < minimum || studentUserIds.length > maximum)) {
     throw new HttpError(400, `Group size must be between ${minimum} and ${maximum} according to department rules`)
   }
   const students = await repository.findStudentsForGroup(connection, studentUserIds, departmentId)
@@ -349,7 +349,7 @@ export async function createGroup(data, actor) {
     if (data.projectType === 'individual' && data.studentUserIds.length !== 1) {
       throw new HttpError(400, 'An individual project group must contain exactly one student')
     }
-    await validateGroupMembers(connection, data.studentUserIds, departmentId, data.academicYearId, rules)
+    await validateGroupMembers(connection, data.studentUserIds, departmentId, data.academicYearId, rules, undefined, data.projectType)
     await repository.insertGroup(connection, {
       ...data,
       id,
@@ -380,7 +380,15 @@ export async function replaceGroupMembers(groupId, studentUserIds, actor) {
     if (group.projectType === 'individual' && studentUserIds.length !== 1) {
       throw new HttpError(400, 'An individual project group must contain exactly one student')
     }
-    await validateGroupMembers(connection, studentUserIds, departmentId, group.academicYearId, rules, groupId)
+    await validateGroupMembers(
+      connection,
+      studentUserIds,
+      departmentId,
+      group.academicYearId,
+      rules,
+      groupId,
+      group.projectType,
+    )
     await repository.deactivateGroupMembers(connection, groupId)
     for (const studentUserId of studentUserIds) {
       await repository.addGroupMember(connection, groupId, studentUserId, actor.id)
