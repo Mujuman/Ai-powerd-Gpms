@@ -91,7 +91,8 @@ async function parseWorkbook(buffer) {
     for (const field of ['gpa', 'completedCredits']) {
       if (row[field] !== undefined && row[field] !== '') {
         const numeric = Number(row[field])
-        if (!Number.isFinite(numeric) || numeric < 0 || (field === 'gpa' && numeric > 99.99)) {
+        const maximum = field === 'gpa' ? 99.99 : 99999.99
+        if (!Number.isFinite(numeric) || numeric < 0 || numeric > maximum) {
           row.errors.push(`${field === 'gpa' ? 'GPA' : 'Completed credits'} must be a non-negative number`)
         } else {
           row[field] = numeric
@@ -99,6 +100,9 @@ async function parseWorkbook(buffer) {
       } else {
         row[field] = null
       }
+    }
+    for (const field of ['program', 'cohort', 'phone']) {
+      row[field] = row[field] || null
     }
 
     if (row.email && seenEmails.has(row.email)) row.errors.push('Email is duplicated in this file')

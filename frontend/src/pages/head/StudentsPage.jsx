@@ -53,6 +53,7 @@ export default function StudentsPage() {
     queryFn: async () => (await api.get('/academics/years')).data.data.data,
   })
   const years = yearsQuery.data ?? []
+  const selectedYear = years.find((year) => year.id === academicYearId)
   useEffect(() => {
     if (!academicYearId && years.length) {
       setAcademicYearId((years.find((year) => year.isActive) ?? years[0]).id)
@@ -65,6 +66,7 @@ export default function StudentsPage() {
     queryFn: async () => (await api.get('/academics/semesters', { params: { academicYearId } })).data.data.semesters,
   })
   const semesters = semestersQuery.data ?? []
+  const selectedSemester = semesters.find((semester) => semester.id === semesterId)
   useEffect(() => {
     if (!semesters.some((semester) => semester.id === semesterId)) {
       setSemesterId(semesters.find((semester) => semester.status === 'active')?.id ?? '')
@@ -83,7 +85,7 @@ export default function StudentsPage() {
   })
   const groupsQuery = useQuery({
     queryKey: ['student-groups', departmentId, academicYearId],
-    enabled: Boolean(departmentId),
+    enabled: Boolean(departmentId && academicYearId),
     queryFn: async () => (await api.get('/students/groups', {
       params: { departmentId, academicYearId },
     })).data.data,
@@ -246,7 +248,7 @@ export default function StudentsPage() {
                 <input className="form-input file-input" type="file" accept=".xlsx" required
                   onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
               </label>
-              <button className="btn-primary" disabled={!file || !academicYearId || !semesterId || importMutation.isPending}>
+              <button className="btn-primary" disabled={!file || !selectedYear?.isActive || selectedSemester?.status !== 'active' || importMutation.isPending}>
                 {importMutation.isPending && importMutation.variables?.action !== 'confirm' ? 'Validating…' : 'Preview import'}
               </button>
             </form>
