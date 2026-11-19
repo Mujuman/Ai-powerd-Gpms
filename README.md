@@ -88,7 +88,7 @@ The setup script creates `ai-service\.venv`. Install its dependencies if you did
 
 ```powershell
 Set-Location ai-service
-.\ai-service\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
