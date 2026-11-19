@@ -15,12 +15,15 @@ const NAV_LINKS = {
   department_head: [
     { label: 'Dashboard', to: '/head/dashboard' },
     { label: 'Students & Projects', to: '/head/students' },
+    { label: 'Project lifecycle', to: '/head/projects' },
   ],
   academic_advisor: [
     { label: 'Dashboard', to: '/advisor/dashboard' },
+    { label: 'Assigned projects', to: '/advisor/projects' },
   ],
   examiner: [
     { label: 'Dashboard', to: '/examiner/dashboard' },
+    { label: 'Defenses & assessments', to: '/examiner/defenses' },
   ],
   student: [
     { label: 'Dashboard', to: '/student/dashboard' },

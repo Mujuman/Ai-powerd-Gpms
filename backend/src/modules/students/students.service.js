@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto'
+import bcrypt from 'bcryptjs'
 import ExcelJS from 'exceljs'
 import { pool } from '../../database/pool.js'
 import { withTransaction } from '../../database/transaction.js'
 import { recordAudit } from '../audit/audit.repository.js'
+import { createUser as insertUser, setUserDepartments } from '../users/users.repository.js'
 import { HttpError } from '../../utils/http-error.js'
 import * as repository from './students.repository.js'
 
@@ -24,6 +26,8 @@ const HEADER_ALIASES = new Map([
   ['credits', 'completedCredits'],
   ['completedcredits', 'completedCredits'],
 ])
+
+const PASSWORD_HASH_ROUNDS = 12
 
 function cellText(value) {
   if (value === null || value === undefined) return ''
@@ -143,6 +147,92 @@ async function resolveDepartment(actor, requestedDepartmentId) {
 export async function listStudents(filters, actor) {
   const departmentId = await resolveDepartment(actor, filters.departmentId)
   return repository.listStudents(pool, { ...filters, departmentId })
+}
+
+export async function registerStudent(data, actor) {
+  const departmentId = await resolveDepartment(actor, data.departmentId)
+  const userId = randomUUID()
+  const passwordHash = await bcrypt.hash(data.password, PASSWORD_HASH_ROUNDS)
+
+  try {
+    await withTransaction(pool, async (connection) => {
+      const context = await repository.findImportContext(
+        connection,
+        departmentId,
+        data.academicYearId,
+        data.semesterId,
+      )
+      if (!context.department) throw new HttpError(404, 'Department not found')
+      if (!context.year?.isActive || context.semester?.status !== 'active') {
+        throw new HttpError(409, 'Select an active academic year and semester')
+      }
+      if (context.semester.academicYearId !== data.academicYearId) {
+        throw new HttpError(400, 'Semester does not belong to the selected academic year')
+      }
+      const [emailRows] = await connection.execute(
+        'SELECT id FROM users WHERE email = ? LIMIT 1 FOR UPDATE',
+        [data.email],
+      )
+      if (emailRows[0]) throw new HttpError(409, 'An account already uses this email address')
+      const [studentIdRows] = await connection.execute(
+        'SELECT user_id FROM student_profiles WHERE student_id = ? LIMIT 1 FOR UPDATE',
+        [data.studentId],
+      )
+      if (studentIdRows[0]) throw new HttpError(409, 'Student ID is already registered')
+
+      await insertUser(connection, {
+        id: userId,
+        email: data.email,
+        fullName: data.fullName,
+        passwordHash,
+        role: 'student',
+      })
+      await connection.execute(
+        `INSERT INTO student_profiles
+           (user_id, student_id, department_id, program, cohort, year_level, phone,
+            academic_year, semester, enrollment_status, gpa)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL)`,
+        [
+          userId,
+          data.studentId,
+          departmentId,
+          data.program || null,
+          data.cohort || null,
+          data.yearLevel ?? null,
+          data.phone || null,
+          context.year.label,
+          context.semester.name,
+        ],
+      )
+      await connection.execute(
+        `INSERT INTO student_academic_records
+           (student_user_id, semester_id, year_level, enrollment_status)
+         VALUES (?, ?, ?, 'active')`,
+        [userId, data.semesterId, data.yearLevel ?? null],
+      )
+      await setUserDepartments(connection, userId, [departmentId], actor.id)
+      await recordAudit(connection, {
+        userId: actor.id,
+        action: 'students.register',
+        targetType: 'user',
+        targetId: userId,
+        remoteAddress: actor.remoteAddress,
+        metadata: { studentId: data.studentId, departmentId },
+      })
+    })
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      throw new HttpError(409, 'The student email or student ID is already registered')
+    }
+    throw error
+  }
+  return {
+    userId,
+    studentId: data.studentId,
+    fullName: data.fullName,
+    email: data.email,
+    departmentId,
+  }
 }
 
 export async function getStudent(userId, actor) {

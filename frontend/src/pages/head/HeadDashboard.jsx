@@ -14,30 +14,34 @@ const WORK_AREAS = [
   },
   {
     title: 'Project approvals',
-    description: 'Review proposed project titles and approve advisor recommendations.',
+    description: 'Review title submissions, view AI similarity, and assign academic advisors.',
     icon: ClipboardCheck,
-    status: 'Coming soon',
+    status: 'Available',
+    to: '/head/projects#project-review',
     tasks: ['Review project titles', 'Approve advisor assignments'],
   },
   {
     title: 'Project progress',
-    description: 'Follow project milestones and coordinate examiner assignments.',
+    description: 'Monitor project status and manage advisor and examiner assignments.',
     icon: FolderKanban,
-    status: 'Coming soon',
+    status: 'Available',
+    to: '/head/projects#project-reports',
     tasks: ['Monitor group progress', 'Manage examiner assignments'],
   },
   {
     title: 'Defenses & assessments',
-    description: 'Coordinate defense sessions, record outcomes, and manage final approvals.',
+    description: 'Create and update defense schedules and review examiner evaluations.',
     icon: CalendarDays,
-    status: 'Coming soon',
+    status: 'Available',
+    to: '/head/projects#defense-schedules',
     tasks: ['Schedule defense sessions', 'Record assessments and decisions'],
   },
   {
     title: 'Department reports',
-    description: 'Review project activity and prepare departmental reports.',
+    description: 'Review project statistics and AI similarity reports.',
     icon: BarChart3,
-    status: 'Coming soon',
+    status: 'Available',
+    to: '/head/projects#project-reports',
     tasks: ['Generate departmental reports'],
   },
 ]
@@ -67,8 +71,8 @@ export default function HeadDashboard() {
         </div>
         <div className="head-dashboard-hero-action">
           <RoleBadge role={user.role} />
-          <Link className="btn-primary head-dashboard-cta" to="/head/students">
-            Open student workspace <ArrowRight size={17} />
+          <Link className="btn-primary head-dashboard-cta" to="/head/projects">
+            Open project workspace <ArrowRight size={17} />
           </Link>
         </div>
       </section>
@@ -95,7 +99,7 @@ export default function HeadDashboard() {
                 <ul className="head-work-tasks">
                   {tasks.map((task) => <li key={task}>{task}</li>)}
                 </ul>
-                {to && <span className="head-work-link">Manage students and rules <ArrowRight size={15} /></span>}
+                {to && <span className="head-work-link">Open workspace <ArrowRight size={15} /></span>}
               </>
             )
 
@@ -107,7 +111,7 @@ export default function HeadDashboard() {
       </section>
 
       <p className="head-dashboard-footnote">
-        Student records, eligibility, imports, and groups are available now. Other project lifecycle workflows are being added in later phases.
+        Use the project workspace for submissions, staff assignments, similarity analysis, schedules, assessments, and department reports.
       </p>
     </div>
   )

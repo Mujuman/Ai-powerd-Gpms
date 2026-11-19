@@ -7,6 +7,14 @@ export const departmentQuerySchema = z.object({
   academicYearId: uuid.optional(),
 }).strict()
 
+export const staffQuerySchema = departmentQuerySchema.extend({
+  role: z.enum(['academic_advisor', 'examiner']).optional(),
+}).strict()
+
+export const submissionQuerySchema = departmentQuerySchema.extend({
+  status: z.enum(['submitted', 'approved', 'rejected']).optional(),
+}).strict()
+
 export const studentSubmissionSchema = z.object({
   title: z.string().trim().min(8).max(240),
   description: z.string().trim().min(30).max(10000),
@@ -18,6 +26,7 @@ export const reviewSubmissionSchema = z.object({
 }).strict()
 
 const staffFields = {
+  departmentId: uuid.optional(),
   fullName: z.string().trim().min(1).max(160),
   email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
   password: z.string().min(12).refine(
@@ -60,6 +69,7 @@ export const updateDefenseSchema = z.object({
 }).strict().refine((value) => Object.keys(value).length > 0, 'At least one field is required')
 
 export const assignExaminersSchema = z.object({
+  departmentId: uuid.optional(),
   examinerUserIds: z.array(uuid).min(1).max(20),
 }).strict().refine(
   (value) => new Set(value.examinerUserIds).size === value.examinerUserIds.length,

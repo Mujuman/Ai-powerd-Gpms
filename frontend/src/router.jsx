@@ -9,8 +9,12 @@ import DepartmentsPage from './pages/admin/DepartmentsPage'
 import AcademicCalendarPage from './pages/admin/AcademicCalendarPage'
 import StudentsPage from './pages/head/StudentsPage'
 import HeadDashboard from './pages/head/HeadDashboard'
+import HeadProjectsPage from './pages/head/ProjectsPage'
+import StudentProjectPage from './pages/student/ProjectSubmissionPage'
 import AdvisorDashboard from './pages/advisor/AdvisorDashboard'
+import AdvisorProjectsPage from './pages/advisor/ProjectsPage'
 import ExaminerDashboard from './pages/examiner/ExaminerDashboard'
+import ExaminerDefensesPage from './pages/examiner/DefensesPage'
 import StudentDashboard from './pages/student/StudentDashboard'
 import AcademicRecordPage from './pages/student/AcademicRecordPage'
 import { RoleRedirect } from './components/auth/RoleRedirect'
@@ -45,6 +49,7 @@ export const router = createBrowserRouter([
                   { path: 'departments', element: <DepartmentsPage /> },
                   { path: 'academics', element: <AcademicCalendarPage /> },
                   { path: 'students', element: <StudentsPage /> },
+                  { path: 'projects', element: <HeadProjectsPage /> },
                 ],
               },
             ],
@@ -76,6 +81,7 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: <Navigate to="/advisor/dashboard" replace /> },
                   { path: 'dashboard', element: <AdvisorDashboard /> },
+                  { path: 'projects', element: <AdvisorProjectsPage /> },
                 ],
               },
             ],
@@ -91,6 +97,7 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: <Navigate to="/examiner/dashboard" replace /> },
                   { path: 'dashboard', element: <ExaminerDashboard /> },
+                  { path: 'defenses', element: <ExaminerDefensesPage /> },
                 ],
               },
             ],
@@ -107,6 +114,7 @@ export const router = createBrowserRouter([
                   { index: true, element: <Navigate to="/student/dashboard" replace /> },
                   { path: 'dashboard', element: <StudentDashboard /> },
                   { path: 'academic-record', element: <AcademicRecordPage /> },
+                  { path: 'project', element: <StudentProjectPage /> },
                 ],
               },
             ],

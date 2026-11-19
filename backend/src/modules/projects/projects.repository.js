@@ -33,6 +33,10 @@ export async function listStudentGroups(connection, studentUserId) {
               WHERE ps.group_id = g.id ORDER BY ps.version DESC LIMIT 1) AS description,
             (SELECT ps.status FROM project_submissions ps
               WHERE ps.group_id = g.id ORDER BY ps.version DESC LIMIT 1) AS submissionStatus,
+            (SELECT ps.version FROM project_submissions ps
+              WHERE ps.group_id = g.id ORDER BY ps.version DESC LIMIT 1) AS submissionVersion,
+            (SELECT ps.review_note FROM project_submissions ps
+              WHERE ps.group_id = g.id ORDER BY ps.version DESC LIMIT 1) AS reviewNote,
             (SELECT u.full_name FROM project_advisor_assignments aa
               JOIN users u ON u.id = aa.advisor_user_id
               WHERE aa.group_id = g.id AND aa.is_active = TRUE LIMIT 1) AS advisorName
@@ -272,7 +276,9 @@ export async function getApprovedProjectText(connection, groupId) {
   const [rows] = await connection.execute(
     `SELECT id, title, description FROM project_submissions
       WHERE group_id = ? AND status = 'approved'
-      ORDER BY version DESC LIMIT 1`,
+        AND version = (SELECT MAX(latest.version) FROM project_submissions latest
+                        WHERE latest.group_id = project_submissions.group_id)
+      LIMIT 1`,
     [groupId],
   )
   return rows[0] ?? null
@@ -366,29 +372,31 @@ export async function listDefenseSchedules(connection, departmentId) {
   const [rows] = await connection.execute(
     `SELECT ds.id, ds.group_id AS groupId, g.name AS groupName,
             ps.title, ds.defense_type AS defenseType, ds.scheduled_at AS scheduledAt,
-            ds.venue, ds.notes, ds.status,
-            GROUP_CONCAT(DISTINCT CONCAT(u.id, ':', u.full_name) ORDER BY u.full_name SEPARATOR '||') AS examinerList
+            ds.venue, ds.notes, ds.status
        FROM defense_schedules ds
        JOIN student_groups g ON g.id = ds.group_id
        LEFT JOIN project_submissions ps ON ps.group_id = g.id
         AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest
                            WHERE latest.group_id = g.id)
-       LEFT JOIN defense_schedule_examiners de ON de.schedule_id = ds.id AND de.is_active = TRUE
-       LEFT JOIN users u ON u.id = de.examiner_user_id
       WHERE ds.department_id = ?
-      GROUP BY ds.id
       ORDER BY ds.scheduled_at DESC`,
     [departmentId],
   )
-  return rows.map((row) => ({
-    ...row,
-    examiners: row.examinerList
-      ? row.examinerList.split('||').map((entry) => {
-        const [id, fullName] = entry.split(':')
-        return { id, fullName }
-      })
-      : [],
-  }))
+  if (!rows.length) return rows
+  const placeholders = rows.map(() => '?').join(', ')
+  const [examiners] = await connection.execute(
+    `SELECT de.schedule_id AS scheduleId, u.id, u.full_name AS fullName
+       FROM defense_schedule_examiners de
+       JOIN users u ON u.id = de.examiner_user_id
+      WHERE de.schedule_id IN (${placeholders}) AND de.is_active = TRUE
+      ORDER BY u.full_name`,
+    rows.map((row) => row.id),
+  )
+  const bySchedule = new Map(rows.map((row) => [row.id, []]))
+  for (const examiner of examiners) {
+    bySchedule.get(examiner.scheduleId).push({ id: examiner.id, fullName: examiner.fullName })
+  }
+  return rows.map((row) => ({ ...row, examiners: bySchedule.get(row.id) }))
 }
 
 export async function createDefenseSchedule(connection, schedule) {

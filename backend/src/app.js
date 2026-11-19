@@ -11,6 +11,7 @@ import { departmentsRoutes } from './modules/departments/departments.routes.js'
 import { rolesRoutes } from './modules/roles/roles.routes.js'
 import { academicsRoutes } from './modules/academics/academics.routes.js'
 import { studentsRoutes } from './modules/students/students.routes.js'
+import { projectsRoutes } from './modules/projects/projects.routes.js'
 
 export const app = express()
 
@@ -53,6 +54,7 @@ app.use('/api/departments', departmentsRoutes)
 app.use('/api/roles', rolesRoutes)
 app.use('/api/academics', academicsRoutes)
 app.use('/api/students', studentsRoutes)
+app.use('/api/projects', projectsRoutes)
 
 app.use((error, _request, response, _next) => {
   const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 500

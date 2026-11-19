@@ -6,6 +6,7 @@ import {
   departmentQuerySchema,
   eligibilityQuerySchema,
   importStudentsSchema,
+  registerStudentSchema,
   saveRulesSchema,
 } from './students.schemas.js'
 import * as service from './students.service.js'
@@ -35,6 +36,15 @@ export const studentsController = {
     try {
       const filters = parse(departmentQuerySchema, request.query)
       response.json({ success: true, data: await service.listStudents(filters, actor(request)) })
+    } catch (error) { next(error) }
+  },
+  registerStudent: async (request, response, next) => {
+    try {
+      const data = parse(registerStudentSchema, request.body)
+      response.status(201).json({
+        success: true,
+        data: { student: await service.registerStudent(data, actor(request)) },
+      })
     } catch (error) { next(error) }
   },
   getStudent: async (request, response, next) => {

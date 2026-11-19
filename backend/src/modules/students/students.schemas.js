@@ -71,3 +71,20 @@ export const importStudentsSchema = z.object({
   academicYearId: uuid,
   semesterId: uuid,
 }).strict()
+
+export const registerStudentSchema = z.object({
+  departmentId: uuid.optional(),
+  academicYearId: uuid,
+  semesterId: uuid,
+  email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
+  fullName: z.string().trim().min(1).max(160),
+  password: z.string().min(12).refine(
+    (value) => Buffer.byteLength(value, 'utf8') <= 72,
+    'Password must be at most 72 UTF-8 bytes',
+  ),
+  studentId: z.string().trim().min(1).max(32),
+  program: z.string().trim().max(120).optional().default(''),
+  cohort: z.string().trim().max(32).optional().default(''),
+  yearLevel: z.number().int().positive().max(255).nullable().optional(),
+  phone: z.string().trim().max(32).optional().default(''),
+}).strict()
