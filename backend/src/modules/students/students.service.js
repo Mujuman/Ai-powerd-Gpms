@@ -445,7 +445,7 @@ export async function evaluateEligibility(filters, actor) {
     const results = []
     for (const student of students) {
       const gpa = student.gpa === null ? null : Number(student.gpa)
-      const yearLevel = student.yearLevel ?? student.profileYearLevel
+      const yearLevel = student.yearLevel
       const reasons = []
       const policy = rules.eligibility
       if (policy.minimumGpa != null && (gpa === null || gpa < policy.minimumGpa)) {

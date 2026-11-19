@@ -253,13 +253,14 @@ export async function upsertImportedStudent(connection, student) {
 export async function findStudentRowsForEligibility(connection, departmentId, semesterId) {
   const [rows] = await connection.execute(
     `SELECT sp.user_id AS studentUserId, sp.student_id AS studentId,
-            sp.academic_year AS academicYear, sp.semester,
-            sp.gpa AS profileGpa, sp.year_level AS profileYearLevel,
+            ay.label AS academicYear, sem.name AS semester,
             sar.gpa, sar.year_level AS yearLevel,
             sar.completed_credits AS completedCredits,
             sar.enrollment_status AS enrollmentStatus
        FROM student_profiles sp
        JOIN student_academic_records sar ON sar.student_user_id = sp.user_id
+       JOIN semesters sem ON sem.id = sar.semester_id
+       JOIN academic_years ay ON ay.id = sem.academic_year_id
        JOIN users u ON u.id = sp.user_id
       WHERE sp.department_id = ? AND sar.semester_id = ?
         AND u.is_active = TRUE
