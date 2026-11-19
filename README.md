@@ -106,7 +106,7 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Check `http://127.0.0.1:8000/health`. To enable sentence-embedding analysis, set `AI_SERVICE_TOKEN` in the AI service process to the same private token configured for the backend. The first similarity request loads `AI_EMBEDDING_MODEL` (defaults to `sentence-transformers/all-MiniLM-L6-v2`); that model must be available locally or downloaded. If no token is configured in the backend, project recommendations and title comparisons use the clearly labeled local TF-IDF lexical baseline instead.
+Check `http://127.0.0.1:8000/health`. To enable sentence-embedding analysis, set `AI_SERVICE_TOKEN` in the AI service process to the same private token configured for the backend. The first similarity request loads `AI_EMBEDDING_MODEL` (defaults to `sentence-transformers/all-MiniLM-L6-v2`); that model must be available locally or downloaded. If the embedding runtime or model cannot load while AI is enabled, the service returns HTTP 503 rather than silently presenting lexical results as semantic AI. If no token is configured in the backend, project recommendations and title comparisons use the clearly labeled local TF-IDF lexical baseline instead.
 
 ## Start Redis and Celery on Windows
 
@@ -173,6 +173,13 @@ npm --prefix backend test
 npm --prefix backend run db:migrate
 npm --prefix backend run db:seed
 npm --prefix backend start
+```
+
+Run the AI service's focused tests from the activated AI-service environment:
+
+```powershell
+Set-Location ai-service
+python -m unittest discover -s tests -v
 ```
 
 ## Existing API foundation

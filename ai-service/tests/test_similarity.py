@@ -1,3 +1,4 @@
+import builtins
 import os
 import unittest
 from unittest.mock import patch
@@ -20,6 +21,11 @@ def create_request(pairs=None):
 
 class FakeModel:
     def encode(self, texts, **kwargs):
+        if len(texts) != 2 or kwargs != {
+            "normalize_embeddings": True,
+            "show_progress_bar": False,
+        }:
+            raise AssertionError("Unexpected embedding request")
         return [[1.0, 0.0], [0.8, 0.6]]
 
 
@@ -51,6 +57,25 @@ class SimilarityServiceTests(unittest.TestCase):
             "rightId": "project-b",
             "score": 0.8,
         }])
+
+    def test_returns_service_unavailable_when_embedding_runtime_cannot_load(self):
+        request = create_request()
+        original_import = builtins.__import__
+
+        def block_sentence_transformers(name, *args, **kwargs):
+            if name == "sentence_transformers":
+                raise OSError("torch DLL loading was blocked")
+            return original_import(name, *args, **kwargs)
+
+        with (
+            patch.dict(os.environ, {"AI_SERVICE_TOKEN": "expected"}),
+            patch("builtins.__import__", side_effect=block_sentence_transformers),
+        ):
+            with self.assertRaises(HTTPException) as unavailable:
+                similarity(request, "expected")
+
+        self.assertEqual(unavailable.exception.status_code, 503)
+        self.assertIn("dependencies could not be loaded", unavailable.exception.detail)
 
     def test_rejects_duplicate_or_reversed_comparison_pairs(self):
         with self.assertRaises(ValidationError):

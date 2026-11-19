@@ -43,10 +43,10 @@ class SimilarityRequest(BaseModel):
 def load_embedding_model():
     try:
         from sentence_transformers import SentenceTransformer
-    except ImportError as error:
+    except (ImportError, OSError) as error:
         raise HTTPException(
             status_code=503,
-            detail="Install the AI service requirements to enable project similarity analysis",
+            detail="Sentence-embedding dependencies could not be loaded; install the AI service requirements in a compatible Python environment",
         ) from error
 
     model_name = os.getenv("AI_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
