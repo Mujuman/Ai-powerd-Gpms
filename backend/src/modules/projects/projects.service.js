@@ -12,6 +12,7 @@ import {
 import { HttpError } from '../../utils/http-error.js'
 import { analyzeSimilarity } from './ai-client.js'
 import * as repository from './projects.repository.js'
+import * as collaborationRepository from './collaboration.repository.js'
 
 const PASSWORD_HASH_ROUNDS = 12
 
@@ -681,17 +682,7 @@ export async function listStudentDefenses(actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
   const groups = await repository.listStudentGroups(pool, actor.id)
   const groupIds = groups.map((group) => group.groupId)
-  if (!groupIds.length) return []
-  const placeholders = groupIds.map(() => '?').join(', ')
-  const [rows] = await pool.execute(
-    `SELECT ds.id, ds.group_id AS groupId, ds.defense_type AS defenseType,
-            ds.scheduled_at AS scheduledAt, ds.venue, ds.status, g.name AS groupName
-       FROM defense_schedules ds
-       JOIN student_groups g ON g.id = ds.group_id
-      WHERE ds.group_id IN (${placeholders}) ORDER BY ds.scheduled_at DESC`,
-    groupIds,
-  )
-  return rows
+  return collaborationRepository.listStudentDefenseSchedules(pool, groupIds)
 }
 
 export async function getDepartmentReport(filters, actor) {

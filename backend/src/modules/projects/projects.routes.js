@@ -2,9 +2,11 @@ import { Router } from 'express'
 import { requireAuth } from '../../middleware/require-auth.js'
 import { requireRoles } from '../../middleware/require-roles.js'
 import { projectsController } from './projects.controller.js'
+import { collaborationRoutes } from './collaboration.routes.js'
 
 export const projectsRoutes = Router()
 projectsRoutes.use(requireAuth)
+projectsRoutes.use(collaborationRoutes)
 
 const managers = requireRoles('system_administrator', 'department_head')
 
