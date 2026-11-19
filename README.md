@@ -82,6 +82,19 @@ All services run as local processes. Frontend and API development servers bind t
 
    Or run `npm run dev`. The frontend is at `http://localhost:5173`, the API at `http://localhost:3000`, and database readiness at `http://localhost:3000/ready`.
 
+### Seed local demo users
+
+For role-by-role UI testing only, seed one sample account for each of the five roles plus a demo department, student profile, and (when the database has no academic year yet) a demo calendar. This command is opt-in, refuses to run in production, and resets only the documented `*.example.test` demo accounts:
+
+```powershell
+$env:DEMO_SEED_ENABLED = "true"
+$env:DEMO_SEED_PASSWORD = "Choose-a-local-demo-password"
+npm --prefix backend run db:seed:demo
+Remove-Item Env:DEMO_SEED_ENABLED, Env:DEMO_SEED_PASSWORD
+```
+
+All five sample users use the password supplied in `DEMO_SEED_PASSWORD`. The sample accounts are `admin.demo@example.test`, `head.demo@example.test`, `advisor.demo@example.test`, `examiner.demo@example.test`, and `student.demo@example.test`.
+
 ## Start the AI service
 
 The setup script creates `ai-service\.venv`. Install its dependencies if you did not use `-InstallAiDependencies`, then start FastAPI in a separate terminal:
