@@ -65,6 +65,7 @@ test('login normalizes email, records success, and issues a hashed refresh token
     full_name: 'Sample Student',
     role: 'student',
     is_active: 1,
+    departments: [{ id: 'department-id', code: 'CS', name: 'Computer Science' }],
   }
   const repositories = createRepositories({
     usersRepository: {
@@ -90,6 +91,7 @@ test('login normalizes email, records success, and issues a hashed refresh token
 
   assert.equal(session.user.email, user.email)
   assert.equal(session.user.role, 'student')
+  assert.deepEqual(session.user.departments, user.departments)
   assert.equal(repositories.state.loginAttempts[0].successful, true)
   assert.equal(repositories.state.audits[0].action, 'auth.login.succeeded')
   assert.equal(repositories.state.refreshTokens.length, 1)

@@ -15,6 +15,18 @@ export async function findLoginUserByEmail(email, databasePool = pool) {
   return rows[0] ?? null
 }
 
+async function findActiveDepartments(databasePool, userId) {
+  const [departmentRows] = await databasePool.execute(
+    `SELECT d.id, d.code, d.name
+       FROM user_department_assignments uda
+       JOIN departments d ON d.id = uda.department_id
+      WHERE uda.user_id = ? AND uda.is_active = TRUE AND d.is_active = TRUE
+      ORDER BY d.name`,
+    [userId],
+  )
+  return departmentRows
+}
+
 export async function findUserForUpdate(connection, userId) {
   const [rows] = await connection.execute(
     `SELECT u.id, u.email, u.password_hash, u.full_name, u.is_active,
@@ -25,7 +37,13 @@ export async function findUserForUpdate(connection, userId) {
       FOR UPDATE`,
     [userId],
   )
-  return rows[0] ?? null
+  const user = rows[0]
+  if (!user) return null
+
+  return {
+    ...user,
+    departments: await findActiveDepartments(connection, userId),
+  }
 }
 
 export async function findSessionUserById(userId, databasePool = pool) {
@@ -40,20 +58,12 @@ export async function findSessionUserById(userId, databasePool = pool) {
   const user = userRows[0]
   if (!user || !user.is_active) return null
 
-  const [departmentRows] = await databasePool.execute(
-    `SELECT d.id, d.code, d.name
-       FROM user_department_assignments uda
-       JOIN departments d ON d.id = uda.department_id
-      WHERE uda.user_id = ? AND uda.is_active = TRUE AND d.is_active = TRUE
-      ORDER BY d.name`,
-    [userId],
-  )
   return {
     id: user.id,
     email: user.email,
     fullName: user.full_name,
     role: user.role,
-    departments: departmentRows,
+    departments: await findActiveDepartments(databasePool, userId),
   }
 }
 

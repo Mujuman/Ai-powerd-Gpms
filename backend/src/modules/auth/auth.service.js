@@ -23,6 +23,7 @@ function safeUser(user) {
     email: user.email,
     fullName: user.full_name,
     role: user.role,
+    departments: user.departments ?? [],
   }
 }
 
