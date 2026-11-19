@@ -20,8 +20,8 @@ export const saveRulesSchema = z.object({
     requiredEnrollmentStatus: z.enum(['active', 'inactive', 'graduated', 'suspended']).nullable().optional(),
   }).strict().optional(),
   grouping: z.object({
-    minimumGroupSize: z.number().int().positive().nullable().optional(),
-    maximumGroupSize: z.number().int().positive().nullable().optional(),
+    minimumGroupSize: z.number().int().positive().max(100).nullable().optional(),
+    maximumGroupSize: z.number().int().positive().max(100).nullable().optional(),
     allowIndividualProjects: z.boolean().optional(),
   }).strict().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, 'At least one rule category is required')

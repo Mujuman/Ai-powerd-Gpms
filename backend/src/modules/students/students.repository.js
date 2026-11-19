@@ -371,6 +371,7 @@ export async function findActiveMemberships(connection, studentUserIds, excludeG
        FROM student_group_members gm
        JOIN student_groups g ON g.id = gm.group_id
       WHERE gm.student_user_id IN (${placeholders}) AND gm.is_active = TRUE
+        AND g.is_active = TRUE
         AND (? IS NULL OR gm.group_id <> ?)
       FOR UPDATE`,
     [...studentUserIds, excludeGroupId ?? null, excludeGroupId ?? null],
