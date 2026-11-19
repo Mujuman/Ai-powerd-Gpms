@@ -41,7 +41,7 @@ export default function StudentDashboard() {
         <ul className="coming-soon-list">
           {RESPONSIBILITIES.map((r) => <li key={r}>{r}</li>)}
         </ul>
-        <p className="coming-soon-note">Feature modules are coming in upcoming phases.</p>
+        <p className="coming-soon-note">View your academic details and latest eligibility result under Academic Record. Project submission and assessment workflows are planned for later phases.</p>
       </div>
     </div>
   )

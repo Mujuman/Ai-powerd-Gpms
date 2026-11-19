@@ -388,7 +388,10 @@ export default function StudentsPage() {
                 <input className="form-input" required maxLength="120" value={groupName}
                   onChange={(event) => setGroupName(event.target.value)} /></label>
               <label className="form-field"><span className="form-label">Project type</span>
-                <select className="form-input" value={projectType} onChange={(event) => setProjectType(event.target.value)}>
+                <select className="form-input" value={projectType} onChange={(event) => {
+                  setProjectType(event.target.value)
+                  if (event.target.value === 'individual' && memberIds.length > 1) setMemberIds(memberIds.slice(0, 1))
+                }}>
                   <option value="group">Group</option><option value="individual">Individual</option>
                 </select></label>
               <label className="form-field member-select"><span className="form-label">Members</span>
@@ -397,7 +400,8 @@ export default function StudentsPage() {
                   {students.map((student) => <option key={student.userId} value={student.userId}>{student.studentId} — {student.fullName}</option>)}
                 </select>
               </label>
-              <button className="btn-primary" disabled={!academicYearId || memberIds.length === 0 || groupMutation.isPending}>
+              <button className="btn-primary" disabled={!selectedYear?.isActive || memberIds.length === 0
+                || (projectType === 'individual' && memberIds.length !== 1) || groupMutation.isPending}>
                 {groupMutation.isPending ? 'Creating…' : 'Create group'}
               </button>
             </form>

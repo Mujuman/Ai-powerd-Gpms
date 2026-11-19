@@ -13,7 +13,7 @@ export const departmentQuerySchema = z.object({
 export const saveRulesSchema = z.object({
   eligibility: z.object({
     minimumGpa: z.number().min(0).max(99.99).nullable().optional(),
-    maximumGpa: z.number().positive().max(99.99).nullable().optional(),
+    maximumGpa: z.number().min(0).max(99.99).nullable().optional(),
     minimumYearLevel: z.number().int().positive().nullable().optional(),
     requiredAcademicYear: z.string().trim().max(16).nullable().optional(),
     requiredSemester: z.enum(['first', 'second', 'summer']).nullable().optional(),
