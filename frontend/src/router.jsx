@@ -6,10 +6,13 @@ import LoginPage from './components/auth/LoginPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import UsersPage from './pages/admin/UsersPage'
 import DepartmentsPage from './pages/admin/DepartmentsPage'
+import AcademicCalendarPage from './pages/admin/AcademicCalendarPage'
+import StudentsPage from './pages/head/StudentsPage'
 import HeadDashboard from './pages/head/HeadDashboard'
 import AdvisorDashboard from './pages/advisor/AdvisorDashboard'
 import ExaminerDashboard from './pages/examiner/ExaminerDashboard'
 import StudentDashboard from './pages/student/StudentDashboard'
+import AcademicRecordPage from './pages/student/AcademicRecordPage'
 import { RoleRedirect } from './components/auth/RoleRedirect'
 
 export const router = createBrowserRouter([
@@ -38,6 +41,8 @@ export const router = createBrowserRouter([
                   { path: 'dashboard', element: <AdminDashboard /> },
                   { path: 'users', element: <UsersPage /> },
                   { path: 'departments', element: <DepartmentsPage /> },
+                  { path: 'academics', element: <AcademicCalendarPage /> },
+                  { path: 'students', element: <StudentsPage /> },
                 ],
               },
             ],
@@ -53,6 +58,7 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: <Navigate to="/head/dashboard" replace /> },
                   { path: 'dashboard', element: <HeadDashboard /> },
+                  { path: 'students', element: <StudentsPage /> },
                 ],
               },
             ],
@@ -98,6 +104,7 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: <Navigate to="/student/dashboard" replace /> },
                   { path: 'dashboard', element: <StudentDashboard /> },
+                  { path: 'academic-record', element: <AcademicRecordPage /> },
                 ],
               },
             ],
