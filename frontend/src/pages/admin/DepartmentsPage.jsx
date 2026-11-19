@@ -156,6 +156,8 @@ export default function DepartmentsPage() {
   })
 
   const depts = deptsQuery.data
+  const departmentRows = Array.isArray(depts?.data) ? depts.data : []
+  const departmentsResponseInvalid = depts !== undefined && !Array.isArray(depts.data)
 
   return (
     <div className="page-content">
@@ -177,6 +179,9 @@ export default function DepartmentsPage() {
           {deptsQuery.error?.response?.data?.message ?? 'Failed to load departments'}
         </div>
       )}
+      {departmentsResponseInvalid && (
+        <div className="table-error" role="alert">The server returned an unexpected department list.</div>
+      )}
 
       {/* Table */}
       {depts && (
@@ -191,7 +196,7 @@ export default function DepartmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {depts.data.map((d) => (
+              {departmentRows.map((d) => (
                 <tr key={d.id}>
                   <td style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>{d.code}</td>
                   <td style={{ fontWeight: 500 }}>{d.name}</td>
@@ -219,7 +224,7 @@ export default function DepartmentsPage() {
                   </td>
                 </tr>
               ))}
-              {depts.data.length === 0 && (
+              {departmentRows.length === 0 && (
                 <tr><td colSpan={4} className="table-empty">No departments found</td></tr>
               )}
             </tbody>
