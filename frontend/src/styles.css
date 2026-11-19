@@ -509,6 +509,133 @@ textarea.form-input {
   margin: 0.2rem 0 0;
 }
 
+.academic-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
+  border: 1px solid #e5eaf2;
+  border-radius: 14px;
+}
+
+.section-title {
+  margin: 0;
+  color: #17233c;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.muted-copy {
+  margin: 0;
+  color: #61708a;
+  font-size: 0.88rem;
+}
+
+.academic-form-grid,
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  align-items: end;
+  gap: 1rem;
+}
+
+.academic-form-grid > button {
+  width: fit-content;
+}
+
+.calendar-year-select {
+  max-width: 240px;
+}
+
+.import-form,
+.group-form,
+.rules-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.import-form {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.import-form .form-field {
+  flex: 1;
+  min-width: 220px;
+}
+
+.file-input {
+  padding: 0.4rem 0.6rem;
+}
+
+.import-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.import-preview > p {
+  margin: 0;
+  color: #34425c;
+}
+
+.department-select {
+  width: min(100%, 360px);
+}
+
+.member-select {
+  width: min(100%, 500px);
+}
+
+.member-select select {
+  height: 140px;
+  padding: 0.5rem;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #34425c;
+  font-size: 0.88rem;
+}
+
+.record-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.record-grid > div {
+  padding: 0.8rem;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+}
+
+.record-grid dt {
+  margin-bottom: 0.35rem;
+  color: #61708a;
+  font-size: 0.78rem;
+}
+
+.record-grid dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.eligibility-reasons {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #61708a;
+}
+
 /* ── Filter bar ───────────────────────────────────────────────────────────── */
 .filter-bar {
   display: flex;
@@ -653,6 +780,8 @@ textarea.form-input {
   .sidebar { width: 180px; }
   .shell-content { padding: 1.25rem; }
   .modal-card { padding: 1.5rem; }
+  .academic-card { padding: 1rem; }
+  .import-form { flex-direction: column; align-items: stretch; }
 }
 
 @media (max-width: 480px) {

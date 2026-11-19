@@ -55,7 +55,8 @@ export async function updateAcademicYear(id, changes, actorId) {
 
 export async function setAcademicYearActive(id, active, actorId) {
   await withTransaction(pool, async (connection) => {
-    const year = await repository.findAcademicYear(connection, id, true)
+    await connection.execute('SELECT id FROM academic_years ORDER BY id FOR UPDATE')
+    const year = await repository.findAcademicYear(connection, id)
     if (!year) throw new HttpError(404, 'Academic year not found')
     if (active) {
       await connection.execute('UPDATE academic_years SET is_active = FALSE WHERE is_active = TRUE')
@@ -117,6 +118,9 @@ export async function updateSemester(id, changes, actorId) {
 
 export async function setSemesterStatus(id, status, actorId) {
   await withTransaction(pool, async (connection) => {
+    const initialSemester = await repository.findSemester(connection, id)
+    if (!initialSemester) throw new HttpError(404, 'Semester not found')
+    await repository.findAcademicYear(connection, initialSemester.academicYearId, true)
     const semester = await repository.findSemester(connection, id, true)
     if (!semester) throw new HttpError(404, 'Semester not found')
     const year = await repository.findAcademicYear(connection, semester.academicYearId, true)
