@@ -350,7 +350,10 @@ export default function ProjectsPage() {
                 <thead><tr><th>Project group</th><th>Approved title</th><th>Current advisor</th><th>Reassign advisor</th></tr></thead>
                 <tbody>{approvedGroups.map((group) => (
                   <tr key={group.id}>
-                    <td>{group.name}</td><td>{group.title}</td><td>{group.advisorName || 'Unassigned'}</td>
+                    <td>{group.name}</td><td>{group.title}</td>
+                    <td>{group.advisorName || 'Unassigned'}{group.advisorAssignmentMethod
+                      ? <span className="muted-copy"> · {group.advisorAssignmentMethod === 'ai' ? 'AI assigned' : 'manual'}</span>
+                      : null}</td>
                     <td><div className="action-row">
                       <select className="form-input" aria-label={`Advisor for ${group.name}`}
                         value={advisorSelections[group.id] ?? ''}
@@ -434,7 +437,8 @@ export default function ProjectsPage() {
                       </div>
                     ) : <>{formatDate(schedule.scheduledAt)}<br />{schedule.venue}</>}</td>
                     <td>
-                      <div>{schedule.examiners.map((examiner) => examiner.fullName).join(', ') || 'Unassigned'}</div>
+                      <div>{schedule.examiners.map((examiner) =>
+                        `${examiner.fullName} (${examiner.assignmentMethod === 'ai' ? 'AI' : 'manual'})`).join(', ') || 'Unassigned'}</div>
                       {schedule.status === 'scheduled' && (
                         <div className="head-review-actions">
                           <select className="form-input" multiple aria-label={`Examiners for ${schedule.groupName}`}

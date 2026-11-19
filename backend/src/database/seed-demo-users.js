@@ -277,6 +277,25 @@ async function seedDemoData() {
           ],
         )
       }
+
+      const [submissionRows] = await connection.execute(
+        'SELECT id FROM project_submissions WHERE group_id = ? LIMIT 1 FOR UPDATE',
+        [groupId],
+      )
+      if (!submissionRows[0]) {
+        await connection.execute(
+          `INSERT INTO project_submissions
+             (id, group_id, version, title, description, submitted_by)
+           VALUES (?, ?, 1, ?, ?, ?)`,
+          [
+            randomUUID(),
+            groupId,
+            'Smart Campus Resource Monitoring',
+            'A web-based system that analyzes campus utility usage and helps department teams identify practical opportunities to reduce waste.',
+            studentUserId,
+          ],
+        )
+      }
     }
 
     await connection.commit()

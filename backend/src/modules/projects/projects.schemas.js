@@ -53,6 +53,7 @@ export const updateStaffSchema = z.object({
 }).strict().refine((value) => Object.keys(value).length > 0, 'At least one field is required')
 
 export const assignAdvisorSchema = z.object({
+  departmentId: uuid.optional(),
   advisorUserId: uuid,
 }).strict()
 

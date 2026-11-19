@@ -84,5 +84,21 @@ export async function analyzeSimilarity(items, pairs) {
   if (typeof result?.modelName !== 'string' || !Array.isArray(result.scores)) {
     throw new HttpError(502, 'AI similarity service returned an invalid response')
   }
+  const expectedPairs = new Set(pairs.map(({ leftId, rightId }) => `${leftId}|${rightId}`))
+  const receivedPairs = new Set()
+  for (const score of result.scores) {
+    if (typeof score?.leftId !== 'string' || typeof score?.rightId !== 'string'
+      || !Number.isFinite(score.score) || score.score < -1 || score.score > 1) {
+      throw new HttpError(502, 'AI similarity service returned an invalid score')
+    }
+    const key = `${score.leftId}|${score.rightId}`
+    if (!expectedPairs.has(key) || receivedPairs.has(key)) {
+      throw new HttpError(502, 'AI similarity service returned unexpected comparison results')
+    }
+    receivedPairs.add(key)
+  }
+  if (receivedPairs.size !== expectedPairs.size) {
+    throw new HttpError(502, 'AI similarity service omitted one or more requested comparisons')
+  }
   return result
 }

@@ -4,7 +4,7 @@ AI-Powered Graduation Project Management System for university graduation-projec
 
 ## Current implementation status
 
-The current implementation includes five seeded roles, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, academic calendars, student spreadsheet import, configurable eligibility rules and history, and department-scoped project groups. The AI service currently exposes its health endpoint and a Celery health-check task only; project recommendations, document analysis, assessment, and defense workflows remain future implementation phases.
+The current implementation includes five seeded roles, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, academic calendars, student registration and spreadsheet import, configurable eligibility rules and history, and department-scoped project groups. The Department Head project lifecycle includes student proposal submission and approval, similarity analysis, advisor/examiner management and matching, defense scheduling, examiner assessments, and department progress reports. The AI service provides sentence-embedding similarity when configured; without it, the API explicitly labels and uses a local TF-IDF lexical baseline.
 
 ## Technology and local requirements
 
@@ -84,7 +84,7 @@ All services run as local processes. Frontend and API development servers bind t
 
 ### Seed local demo users
 
-For role-by-role UI testing only, seed one sample account for each of the five roles plus a demo department, student profile, and (when the database has no academic year yet) a demo calendar. This command is opt-in, refuses to run in production, and resets only the documented `*.example.test` demo accounts:
+For role-by-role UI testing only, seed one sample account for each of the five roles plus a demo department, student profile, sample group, pending proposal, and (when the database has no academic year yet) a demo calendar. This command is opt-in, refuses to run in production, and resets only the documented `*.example.test` demo accounts:
 
 ```powershell
 $env:DEMO_SEED_ENABLED = "true"
@@ -106,7 +106,7 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Check `http://127.0.0.1:8000/health`. AI analysis endpoints are not implemented yet; do not treat this health response as evidence that project analysis is available.
+Check `http://127.0.0.1:8000/health`. To enable sentence-embedding analysis, set `AI_SERVICE_TOKEN` in the AI service process to the same private token configured for the backend. The first similarity request loads `AI_EMBEDDING_MODEL` (defaults to `sentence-transformers/all-MiniLM-L6-v2`); that model must be available locally or downloaded. If no token is configured in the backend, project recommendations and title comparisons use the clearly labeled local TF-IDF lexical baseline instead.
 
 ## Start Redis and Celery on Windows
 
@@ -136,7 +136,7 @@ export REDIS_URL=redis://127.0.0.1:6379/0
 celery -A app.celery_app:celery_app worker --loglevel=info
 ```
 
-Redis and Celery currently support only the health-check task. Long-running project, document, and reporting tasks will be added in later phases.
+Redis and Celery currently support the health-check task. The current project similarity endpoint runs synchronously; long-running document and reporting tasks can use Celery in a later phase.
 
 ## Linux setup
 
@@ -162,7 +162,7 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 ## Environment variables
 
-`.env.example` is a template, not a credential file. Backend scripts load the optional `backend/.env`; values already supplied by the shell take precedence. `AI_SERVICE_URL`, `AI_SERVICE_TOKEN`, and `REDIS_URL` are reserved for the planned internal AI/background-task integration; configuring them does not create those features.
+`.env.example` is a template, not a credential file. Backend scripts load the optional `backend/.env`; values already supplied by the shell take precedence. `AI_SERVICE_URL` and `AI_SERVICE_TOKEN` enable the internal sentence-embedding service; leave the token blank to use the local TF-IDF baseline. The AI service process must receive the same token as the backend. `REDIS_URL` is used by Celery.
 
 ## Useful commands
 
@@ -185,9 +185,19 @@ npm --prefix backend start
 - `/api/students` for department-scoped student listing and individual student records
 - `/api/students/imports/preview` and `/api/students/imports/:batchId/confirm` for validated, two-step imports
 - `/api/students/rules/:departmentId`, `/api/students/eligibility`, and `/api/students/eligibility/evaluate`
+- `POST /api/students/register` for Department Head student account and record creation
 - `/api/students/groups` and `/api/students/groups/:groupId/members`
+- `/api/projects/mine` for student proposal submission and review status
+- `/api/projects/submissions` and `/api/projects/submissions/:submissionId/review` for Head review
+- `/api/projects/staff` for Department Head advisor/examiner account management
+- `/api/projects/advisors/assign-ai` and `/api/projects/groups/:groupId/advisor` for advisor recommendations and reassignment
+- `/api/projects/similarity` for department-scoped project title/description comparisons
+- `/api/projects/defenses` and `/api/projects/defenses/:scheduleId/examiners` for defense scheduling and examiner assignment
+- `/api/projects/assessments` and `/api/projects/examiner/defenses/:scheduleId/assessment` for submitted examiner evaluations
+- `/api/projects/reports` for department statistics and project progress
+- `POST /api/v1/similarity` on the internal AI service for authenticated sentence-embedding comparisons
 - `GET /health`, `GET /ready`
 
 Student imports accept `.xlsx` files up to 5 MB and 2,000 rows. The first worksheet must have `Student ID`, `Full Name`, and `Email` columns; `Program`, `Cohort`/`Batch`, `Year Level`, `GPA`, `Phone`, `Credits`, and `Department` are optional. A matching active student account must already exist for each email. Invalid rows are reported in the preview and the batch cannot be confirmed until a corrected file is uploaded.
 
-Only the five specified login roles exist: System Administrator, Department Head, Academic Advisor, Examiner, and Student. Academic policy values remain department-configurable. The broader project lifecycle and production AI features are still future phases.
+Only the five specified login roles exist: System Administrator, Department Head, Academic Advisor, Examiner, and Student. Academic policy values remain department-configurable. The transformer model's semantic-analysis quality depends on the configured model being available; the local baseline compares lexical overlap and must not be interpreted as a plagiarism decision.

@@ -166,6 +166,8 @@ export async function listDepartmentGroups(connection, departmentId, academicYea
               WHERE ps.group_id = g.id ORDER BY ps.version DESC LIMIT 1) AS submissionStatus,
             (SELECT aa.advisor_user_id FROM project_advisor_assignments aa
               WHERE aa.group_id = g.id AND aa.is_active = TRUE LIMIT 1) AS advisorUserId,
+            (SELECT aa.assignment_method FROM project_advisor_assignments aa
+              WHERE aa.group_id = g.id AND aa.is_active = TRUE LIMIT 1) AS advisorAssignmentMethod,
             (SELECT u.full_name FROM project_advisor_assignments aa
               JOIN users u ON u.id = aa.advisor_user_id
               WHERE aa.group_id = g.id AND aa.is_active = TRUE LIMIT 1) AS advisorName,
@@ -418,7 +420,8 @@ export async function listDefenseSchedules(connection, departmentId) {
   if (!rows.length) return rows
   const placeholders = rows.map(() => '?').join(', ')
   const [examiners] = await connection.execute(
-    `SELECT de.schedule_id AS scheduleId, u.id, u.full_name AS fullName
+    `SELECT de.schedule_id AS scheduleId, u.id, u.full_name AS fullName,
+            de.assignment_method AS assignmentMethod
        FROM defense_schedule_examiners de
        JOIN users u ON u.id = de.examiner_user_id
       WHERE de.schedule_id IN (${placeholders}) AND de.is_active = TRUE
@@ -427,7 +430,11 @@ export async function listDefenseSchedules(connection, departmentId) {
   )
   const bySchedule = new Map(rows.map((row) => [row.id, []]))
   for (const examiner of examiners) {
-    bySchedule.get(examiner.scheduleId).push({ id: examiner.id, fullName: examiner.fullName })
+    bySchedule.get(examiner.scheduleId).push({
+      id: examiner.id,
+      fullName: examiner.fullName,
+      assignmentMethod: examiner.assignmentMethod,
+    })
   }
   return rows.map((row) => ({ ...row, examiners: bySchedule.get(row.id) }))
 }
@@ -524,13 +531,13 @@ export async function listAssessments(connection, departmentId) {
             ds.scheduled_at AS scheduledAt, u.id AS examinerUserId,
             u.full_name AS examinerName, da.outcome, da.rubric_json AS rubric,
             da.comments, da.submitted_at AS submittedAt, da.updated_at AS updatedAt,
-            de.assignment_method AS assignmentMethod
+            (SELECT de.assignment_method FROM defense_schedule_examiners de
+              WHERE de.schedule_id = ds.id AND de.examiner_user_id = da.examiner_user_id
+              ORDER BY de.assigned_at DESC, de.id DESC LIMIT 1) AS assignmentMethod
        FROM defense_assessments da
        JOIN defense_schedules ds ON ds.id = da.schedule_id
        JOIN student_groups g ON g.id = ds.group_id
        JOIN users u ON u.id = da.examiner_user_id
-       JOIN defense_schedule_examiners de ON de.schedule_id = ds.id
-        AND de.examiner_user_id = da.examiner_user_id
        LEFT JOIN project_submissions ps ON ps.group_id = g.id
         AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest
                            WHERE latest.group_id = g.id)
