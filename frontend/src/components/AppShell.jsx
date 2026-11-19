@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { RoleBadge } from './ui/RoleBadge'
@@ -56,9 +56,13 @@ export function AppShell() {
 
         <nav className="sidebar-nav" aria-label="Role navigation">
           {links.map(({ label, to }) => (
-            <Link key={to} to={to} className="sidebar-link">
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+            >
               {label}
-            </Link>
+            </NavLink>
           ))}
         </nav>
       </aside>
