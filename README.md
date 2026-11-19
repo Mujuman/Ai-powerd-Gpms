@@ -15,7 +15,7 @@ Phase 3 provides MySQL migrations, exactly five seeded login roles, JWT-based AP
 
 ## Requirements
 
-- Node.js 22 or newer and npm.
+- Node.js 22.9 or newer and npm.
 - Docker Desktop with Docker Compose for the complete stack.
 - Python 3.11 or newer only if running the AI service outside Docker.
 
@@ -111,7 +111,7 @@ npm --prefix frontend install
 npm --prefix backend install
 ```
 
-Set the backend environment variables in the current PowerShell session, including a unique JWT secret. Apply migrations and role seeds before creating an administrator:
+Backend commands load the optional `backend/.env` file automatically; keep that file local and do not commit it. Environment variables already set in PowerShell take precedence. You can set the backend values there, or in the current PowerShell session as shown below. Apply migrations and role seeds before creating an administrator:
 
 ```powershell
 $env:DB_HOST = "127.0.0.1"
