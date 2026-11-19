@@ -10,7 +10,7 @@ async function start() {
   await runMigrations()
   await seedRoles()
 
-  const server = app.listen(config.port, () => {
+  const server = app.listen(config.port, config.host, () => {
     console.log(`AI-GPMS API listening on port ${config.port}`)
   })
 

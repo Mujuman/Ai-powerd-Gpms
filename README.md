@@ -2,160 +2,172 @@
 
 AI-Powered Graduation Project Management System for university graduation-project workflows.
 
-## Development status
+## Current implementation status
 
-Phase 3 provides MySQL migrations, exactly five seeded login roles, JWT-based API authentication, rotating database-backed refresh sessions, password changes and reset flow, login/audit records, role middleware, and one-time initial administrator bootstrap. Academic modules and AI analysis endpoints are not implemented yet.
+The current foundation includes five seeded roles, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, MySQL migrations, and health/readiness endpoints. Academic workflows, document analysis, and production AI features are future implementation phases; the AI service currently exposes its health endpoint and a Celery health-check task only.
 
-## Architecture
+## Technology and local requirements
 
-- `frontend/`: React, Vite, TypeScript, Tailwind CSS, and the planned client-side libraries.
-- `backend/`: Express API with MySQL2 connection pooling and health/readiness endpoints.
-- `ai-service/`: Internal FastAPI service and Celery worker configuration.
-- MySQL and Redis are private to the Compose network. MySQL is optionally reachable from the host on loopback for local development.
+- Node.js 22.9+ and npm.
+- MySQL 8+ (XAMPP MariaDB can be used for local development; validate version-specific behavior).
+- Python 3.11+.
+- Redis, recommended through WSL2 on Windows.
+- Celery worker running in WSL2/Linux, not as a native Windows process.
 
-## Requirements
+All services run as local processes. Frontend and API development servers bind to `127.0.0.1` by default.
 
-- Node.js 22.9 or newer and npm.
-- Docker Desktop with Docker Compose for the complete stack.
-- Python 3.11 or newer only if running the AI service outside Docker.
+## Windows setup
 
-## Start the containerized development stack
+1. Install Node.js, Python 3.11+, XAMPP/MySQL, and WSL2 with Ubuntu. Start MySQL in XAMPP.
+2. Create the local database in phpMyAdmin or a MySQL client:
 
-1. Copy `.env.example` to `.env`.
-2. Set unique MySQL passwords and replace `JWT_ACCESS_SECRET` with a random secret of at least 32 bytes. In PowerShell, generate one with:
+   ```sql
+   CREATE DATABASE ai_powerd_gpms_db
+     CHARACTER SET utf8mb4
+     COLLATE utf8mb4_unicode_ci;
+   ```
+
+   Create a dedicated account when possible, and set the same password in `backend\.env`:
+
+   ```sql
+   CREATE USER 'ai_gpms_app'@'127.0.0.1' IDENTIFIED BY 'replace-with-a-unique-password';
+   GRANT ALL PRIVILEGES ON `ai_powerd_gpms_db`.* TO 'ai_gpms_app'@'127.0.0.1';
+   ```
+
+   For an existing local XAMPP installation, its configured MySQL account can also be used for development.
+
+3. From the repository root, install the JavaScript packages and create the AI virtual environment:
+
+   ```powershell
+   .\scripts\setup-windows.ps1
+   ```
+
+   To also install the large AI/ML Python dependencies:
+
+   ```powershell
+   .\scripts\setup-windows.ps1 -InstallAiDependencies
+   ```
+
+4. Edit `backend\.env`. The setup script creates it from `.env.example` only when it does not already exist. Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` for your local database, and replace `JWT_ACCESS_SECRET` with a random value of at least 32 bytes. Keep this file private and do not commit it.
+
+   Generate a JWT secret in PowerShell:
 
    ```powershell
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-3. From the repository root, run:
+5. Apply migrations and role seeds:
 
    ```powershell
-   docker compose up --build
+   npm --prefix backend run db:setup
    ```
 
-4. In a second terminal, set temporary administrator bootstrap values and create the initial account:
+6. Create the initial System Administrator account once. Use a unique password of 12–72 UTF-8 bytes:
 
    ```powershell
    $env:BOOTSTRAP_ADMIN_EMAIL = "admin@example.edu"
    $env:BOOTSTRAP_ADMIN_NAME = "System Administrator"
-   $env:BOOTSTRAP_ADMIN_PASSWORD = "use-a-unique-password-of-at-least-12-characters"
-   docker compose exec -e BOOTSTRAP_ADMIN_EMAIL -e BOOTSTRAP_ADMIN_NAME -e BOOTSTRAP_ADMIN_PASSWORD backend npm run db:bootstrap-admin
+   $env:BOOTSTRAP_ADMIN_PASSWORD = "replace-with-a-unique-password"
+   npm --prefix backend run db:bootstrap-admin
    Remove-Item Env:BOOTSTRAP_ADMIN_EMAIL, Env:BOOTSTRAP_ADMIN_NAME, Env:BOOTSTRAP_ADMIN_PASSWORD
    ```
 
-5. Open `http://localhost:5173`. Check the API at `http://localhost:3000/health` and database readiness at `http://localhost:3000/ready`.
+   The command refuses to run if a System Administrator already exists.
 
-The API applies pending migrations and seeds the five roles before listening. The admin bootstrap command is one-time and refuses to run once any System Administrator exists. The frontend is served by Vite in development mode. MySQL data, Redis data, and uploaded files use named Docker volumes. Compose does not publish Redis or the AI service to the host.
+7. Start the frontend and backend:
 
-To stop the stack without deleting persistent data:
+   ```powershell
+   .\scripts\start-development.ps1
+   ```
 
-```powershell
-docker compose down
-```
+   Or run `npm run dev`. The frontend is at `http://localhost:5173`, the API at `http://localhost:3000`, and database readiness at `http://localhost:3000/ready`.
 
-## Run the frontend and API with local XAMPP MySQL
+## Start the AI service
 
-This setup uses XAMPP's local MySQL/MariaDB server; Docker is not required for the frontend and API. In the XAMPP Control Panel, start **MySQL** (Apache is only needed if you want to open phpMyAdmin). The examples assume the database listens on port `3306`; use the port shown by XAMPP if yours differs.
-
-Create the database in phpMyAdmin (`http://localhost/phpmyadmin`) or its SQL tab:
-
-```sql
-CREATE DATABASE ai_powerd_gpms_db
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-```
-
-In PowerShell, run the following from the repository root. XAMPP commonly uses `root` with an empty password for local development; if you set a MySQL password, use it instead. An empty database password is accepted only outside production.
+The setup script creates `ai-service\.venv`. Install its dependencies if you did not use `-InstallAiDependencies`, then start FastAPI in a separate terminal:
 
 ```powershell
-npm --prefix frontend install
-npm --prefix backend install
-$env:NODE_ENV = "development"
-$env:DB_HOST = "127.0.0.1"
-$env:DB_PORT = "3306"
-$env:DB_NAME = "ai_powerd_gpms_db"
-$env:DB_USER = "root"
-$env:DB_PASSWORD = ""
-$env:JWT_ACCESS_SECRET = (node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-$env:FRONTEND_ORIGIN = "http://localhost:5173"
-npm --prefix backend run db:setup
+Set-Location ai-service
+.\ai-service\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The setup command creates the authentication tables and seeds the five roles in that database. Then create the first administrator and start the API:
+Check `http://127.0.0.1:8000/health`. AI analysis endpoints are not implemented yet; do not treat this health response as evidence that project analysis is available.
+
+## Start Redis and Celery on Windows
+
+Install Redis in WSL2 Ubuntu and start it:
 
 ```powershell
-$env:BOOTSTRAP_ADMIN_EMAIL = "admin@example.edu"
-$env:BOOTSTRAP_ADMIN_NAME = "System Administrator"
-$env:BOOTSTRAP_ADMIN_PASSWORD = "use-a-unique-password-of-at-least-12-characters"
-npm --prefix backend run db:bootstrap-admin
-Remove-Item Env:BOOTSTRAP_ADMIN_EMAIL, Env:BOOTSTRAP_ADMIN_NAME, Env:BOOTSTRAP_ADMIN_PASSWORD
-npm --prefix backend run dev
+wsl -d Ubuntu
 ```
 
-In a second terminal at the repository root, start the frontend:
+Then in Ubuntu:
 
-```powershell
-npm --prefix frontend run dev
+```bash
+sudo apt update
+sudo apt install -y redis-server python3-venv python3-pip
+sudo service redis-server start
+redis-cli ping
 ```
 
-Open `http://localhost:5173`; the frontend proxies API requests to `http://localhost:3000`. To use another XAMPP MySQL port, set `DB_PORT` to that port before running the database commands. `.env.example` contains Docker Compose's MySQL-container settings; `MYSQL_USER` there is not the local XAMPP account.
+`redis-cli ping` should return `PONG`. Run Celery from the project in WSL2/Linux, using a Linux virtual environment:
 
-## Run the frontend and API on the host
-
-Install packages from the repository root:
-
-```powershell
-npm install
-npm --prefix frontend install
-npm --prefix backend install
+```bash
+cd /mnt/c/Codes/AI-GPMS/ai-service
+python3 -m venv .venv-wsl
+source .venv-wsl/bin/activate
+python -m pip install -r requirements.txt
+export REDIS_URL=redis://127.0.0.1:6379/0
+celery -A app.celery_app:celery_app worker --loglevel=info
 ```
 
-Backend commands load the optional `backend/.env` file automatically; keep that file local and do not commit it. Environment variables already set in PowerShell take precedence. You can set the backend values there, or in the current PowerShell session as shown below. Apply migrations and role seeds before creating an administrator:
+Redis and Celery currently support only the health-check task. Long-running project, document, and reporting tasks will be added in later phases.
 
-```powershell
-$env:DB_HOST = "127.0.0.1"
-$env:DB_PORT = "3306"
-$env:DB_NAME = "ai_powerd_gpms_db"
-$env:DB_USER = "ai_gpms_app"
-$env:DB_PASSWORD = "your-local-password"
-$env:JWT_ACCESS_SECRET = (node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-$env:FRONTEND_ORIGIN = "http://localhost:5173"
-npm --prefix backend run db:setup
-$env:BOOTSTRAP_ADMIN_EMAIL = "admin@example.edu"
-$env:BOOTSTRAP_ADMIN_NAME = "System Administrator"
-$env:BOOTSTRAP_ADMIN_PASSWORD = "use-a-unique-password-of-at-least-12-characters"
-npm --prefix backend run db:bootstrap-admin
-Remove-Item Env:BOOTSTRAP_ADMIN_EMAIL, Env:BOOTSTRAP_ADMIN_NAME, Env:BOOTSTRAP_ADMIN_PASSWORD
-npm --prefix backend run dev
+## Linux setup
+
+From the repository root:
+
+```bash
+bash scripts/setup-linux.sh
 ```
 
-Run the frontend command below in a second terminal.
+Set the database values and JWT secret in `backend/.env`, start MySQL and Redis, then run `npm --prefix backend run db:setup`, bootstrap the administrator, and run `npm run dev`. To install the Python AI dependencies during setup, use:
 
-```powershell
-npm --prefix frontend run dev
+```bash
+INSTALL_AI_DEPENDENCIES=1 bash scripts/setup-linux.sh
 ```
 
-For XAMPP, follow the preceding section; this generic host-mode example is for a separate MySQL instance with its own application user. The Vite development proxy sends `/api` requests to `http://localhost:3000` unless `VITE_API_PROXY_TARGET` is set.
+Run FastAPI with the AI virtual environment and Celery in a separate Linux terminal:
+
+```bash
+cd ai-service
+source .venv/bin/activate
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+## Environment variables
+
+`.env.example` is a template, not a credential file. Backend scripts load the optional `backend/.env`; values already supplied by the shell take precedence. `AI_SERVICE_URL`, `AI_SERVICE_TOKEN`, and `REDIS_URL` are reserved for the planned internal AI/background-task integration; configuring them does not create those features.
 
 ## Useful commands
 
 ```powershell
+npm run dev
 npm --prefix frontend run build
 npm --prefix backend test
 npm --prefix backend run db:migrate
 npm --prefix backend run db:seed
 npm --prefix backend start
-docker compose ps
 ```
 
-## Authentication API
+## Existing API foundation
 
-- `POST /api/auth/login` — email and password; returns a short-lived access token and sets an HTTP-only refresh cookie.
-- `POST /api/auth/refresh` — rotates the refresh cookie; reuse of a revoked token revokes its token family.
-- `POST /api/auth/logout` — revokes the refresh-token family and clears the cookie.
-- `GET /api/auth/me` — returns the active account and its current role/department assignments; send the access token as a Bearer token.
-- `POST /api/auth/change-password` — changes the current password, revokes prior refresh sessions, and starts a fresh session.
-- `POST /api/auth/password-reset/request` and `/confirm` — one-time email reset flow; SMTP must be configured for requests.
+- `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`
+- `GET /api/auth/me`, `POST /api/auth/change-password`
+- `POST /api/auth/password-reset/request`, `POST /api/auth/password-reset/confirm`
+- `/api/users`, `/api/departments`, and `/api/roles` (role-protected)
+- `GET /health`, `GET /ready`
 
-Login failures, refresh/session events, password changes, and reset events are written to `login_attempts` and/or `audit_logs`. Access authorization reloads the active user and role from MySQL, so deactivated accounts lose access without waiting for token expiry. Department/project authorization is added with the academic modules in later phases.
+Only the five specified login roles exist: System Administrator, Department Head, Academic Advisor, Examiner, and Student. Department/project authorization and academic modules remain part of the upcoming implementation phases.
