@@ -147,7 +147,7 @@ export async function listUsers(databasePool, filters = {}) {
     [...params, limit, offset],
   )
 
-  if (rows.length === 0) return { data: rows, total, page, limit, totalPages: Math.ceil(total / limit) }
+  if (rows.length === 0) return { data: rows, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) }
 
   const placeholders = rows.map(() => '?').join(', ')
   const [departmentRows] = await databasePool.execute(
@@ -172,7 +172,7 @@ export async function listUsers(databasePool, filters = {}) {
     departments: departmentsByUser.get(row.id),
   }))
 
-  return { data: users, total, page, limit, totalPages: Math.ceil(total / limit) }
+  return { data: users, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) }
 }
 
 /**
