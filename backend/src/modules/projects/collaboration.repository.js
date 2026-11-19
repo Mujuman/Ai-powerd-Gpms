@@ -40,6 +40,17 @@ export async function isAssignedAdvisor(connection, groupId, advisorUserId) {
   return Boolean(rows[0])
 }
 
+export async function hasActiveAdvisor(connection, groupId) {
+  const [rows] = await connection.execute(
+    `SELECT 1
+       FROM project_advisor_assignments
+      WHERE group_id = ? AND is_active = TRUE
+      LIMIT 1`,
+    [groupId],
+  )
+  return Boolean(rows[0])
+}
+
 export async function hasRevisionRequiredAssessment(connection, groupId) {
   const [rows] = await connection.execute(
     `SELECT 1
