@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom'
-import { GraduationCap, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { RoleBadge } from './ui/RoleBadge'
 
@@ -46,10 +46,12 @@ export function AppShell() {
       {/* Sidebar */}
       <aside className="sidebar" aria-label="Main navigation">
         <div className="sidebar-brand">
-          <span className="brand-mark">
-            <GraduationCap size={20} />
-          </span>
-          <span className="sidebar-brand-name">AI-GPMS</span>
+          <img
+            src="/werabe-university-logo.png"
+            alt="Werabe University"
+            className="sidebar-brand-logo"
+          />
+          <span className="sidebar-system-name">AI Graduation Project System</span>
         </div>
 
         <nav className="sidebar-nav" aria-label="Role navigation">

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { GraduationCap } from 'lucide-react'
 import * as z from 'zod'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -43,11 +42,12 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="auth-card">
         {/* Brand */}
-        <div className="auth-brand" aria-label="AI-GPMS">
-          <span className="brand-mark">
-            <GraduationCap size={22} />
-          </span>
-          <span className="auth-brand-name">AI-GPMS</span>
+        <div className="auth-brand">
+          <img
+            src="/werabe-university-logo.png"
+            alt="Werabe University"
+            className="auth-brand-logo"
+          />
         </div>
 
         <h1 className="auth-title">Sign in to your account</h1>
