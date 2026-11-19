@@ -1,44 +1,48 @@
+import { ClipboardCheck, FileSearch, MessageSquareText, Presentation } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { RoleBadge } from '../../components/ui/RoleBadge'
+import { RoleDashboard } from '../../components/RoleDashboard'
 
-const RESPONSIBILITIES = [
-  'View assigned projects and review submitted documents',
-  'Provide evaluation comments and submit assessment scores',
-  'Identify required corrections and review revised documents',
-  'Confirm correction completion',
-  'Participate in defense evaluation',
+const WORK_AREAS = [
+  {
+    title: 'Assigned projects',
+    description: 'View projects assigned to you for review and evaluation.',
+    icon: FileSearch,
+    status: 'Coming soon',
+    tasks: ['Review project materials', 'See assigned students'],
+  },
+  {
+    title: 'Assessment',
+    description: 'Record evaluation comments and assessment scores.',
+    icon: ClipboardCheck,
+    status: 'Coming soon',
+    tasks: ['Submit assessment scores', 'Record required corrections'],
+  },
+  {
+    title: 'Revisions',
+    description: 'Review revised documents and confirm correction completion.',
+    icon: MessageSquareText,
+    status: 'Coming soon',
+    tasks: ['Check student revisions', 'Confirm completed corrections'],
+  },
+  {
+    title: 'Defense evaluation',
+    description: 'Participate in scheduled defenses and submit evaluation results.',
+    icon: Presentation,
+    status: 'Coming soon',
+    tasks: ['View defense schedule', 'Submit defense evaluation'],
+  },
 ]
 
 export default function ExaminerDashboard() {
   const { user } = useAuth()
-  if (!user) return null
 
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">Dashboard</h1>
-        <RoleBadge role={user.role} />
-      </div>
-
-      <p className="dashboard-welcome">
-        Welcome back, <strong>{user.fullName}</strong>
-      </p>
-
-      {user.departments.length > 0 && (
-        <div className="chip-row" aria-label="Your departments">
-          {user.departments.map((d) => (
-            <span key={d.id} className="dept-chip">{d.code} — {d.name}</span>
-          ))}
-        </div>
-      )}
-
-      <div className="coming-soon-card">
-        <h2 className="coming-soon-title">Your responsibilities</h2>
-        <ul className="coming-soon-list">
-          {RESPONSIBILITIES.map((r) => <li key={r}>{r}</li>)}
-        </ul>
-        <p className="coming-soon-note">Feature modules are coming in upcoming phases.</p>
-      </div>
-    </div>
+    <RoleDashboard
+      user={user}
+      eyebrow="Examiner workspace"
+      summary="Review graduation projects and provide clear, timely assessment feedback."
+      workAreas={WORK_AREAS}
+      footer="Project review, correction, and defense workflows are planned for upcoming phases."
+    />
   )
 }
