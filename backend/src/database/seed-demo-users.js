@@ -17,8 +17,8 @@ function assertDemoSeedingEnabled() {
     throw new Error('Demo seeding is disabled. Set DEMO_SEED_ENABLED=true in a non-production environment to continue.')
   }
   const password = process.env.DEMO_SEED_PASSWORD
-  if (!password || Buffer.byteLength(password, 'utf8') < 12 || Buffer.byteLength(password, 'utf8') > 72) {
-    throw new Error('Set DEMO_SEED_PASSWORD to a password containing 12 to 72 UTF-8 bytes.')
+  if (!password || Buffer.byteLength(password, 'utf8') < 8 || Buffer.byteLength(password, 'utf8') > 72) {
+    throw new Error('Set DEMO_SEED_PASSWORD to a password containing 8 to 72 UTF-8 bytes.')
   }
   return password
 }

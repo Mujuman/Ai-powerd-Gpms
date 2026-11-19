@@ -93,7 +93,7 @@ npm --prefix backend run db:seed:demo
 Remove-Item Env:DEMO_SEED_ENABLED, Env:DEMO_SEED_PASSWORD
 ```
 
-All five sample users use the password supplied in `DEMO_SEED_PASSWORD`. The sample accounts are `admin.demo@example.test`, `head.demo@example.test`, `advisor.demo@example.test`, `examiner.demo@example.test`, and `student.demo@example.test`.
+All five sample users use the password supplied in `DEMO_SEED_PASSWORD` (8–72 UTF-8 bytes; development-only). The sample accounts are `admin.demo@example.test`, `head.demo@example.test`, `advisor.demo@example.test`, `examiner.demo@example.test`, and `student.demo@example.test`.
 
 ## Start the AI service
 
