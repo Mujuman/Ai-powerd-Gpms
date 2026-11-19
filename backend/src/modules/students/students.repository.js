@@ -199,10 +199,10 @@ export async function upsertImportedStudent(connection, student) {
   const profileValues = [
     student.studentId,
     student.departmentId,
-    student.program,
-    student.cohort,
+    student.program ?? null,
+    student.cohort ?? null,
     student.yearLevel,
-    student.phone,
+    student.phone ?? null,
     student.academicYear,
     student.semester,
     student.enrollmentStatus,
@@ -211,8 +211,9 @@ export async function upsertImportedStudent(connection, student) {
   if (owners[0]) {
     await connection.execute(
       `UPDATE student_profiles
-          SET student_id = ?, department_id = ?, program = ?, cohort = ?,
-              year_level = ?, phone = ?, academic_year = ?, semester = ?,
+          SET student_id = ?, department_id = ?, program = COALESCE(?, program),
+              cohort = COALESCE(?, cohort), year_level = COALESCE(?, year_level),
+              phone = COALESCE(?, phone), academic_year = ?, semester = ?,
               enrollment_status = ?, gpa = ?
         WHERE user_id = ?`,
       [...profileValues, student.userId],

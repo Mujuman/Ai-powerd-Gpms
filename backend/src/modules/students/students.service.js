@@ -338,10 +338,14 @@ export async function listGroups(filters, actor) {
 
 async function validateGroupMembers(connection, studentUserIds, departmentId, academicYearId, rules, excludeGroupId, projectType = 'group') {
   const groupRules = rules.grouping ?? {}
-  const minimum = groupRules.minimumGroupSize ?? 1
-  const maximum = groupRules.maximumGroupSize ?? 100
-  if (projectType === 'group' && (studentUserIds.length < minimum || studentUserIds.length > maximum)) {
-    throw new HttpError(400, `Group size must be between ${minimum} and ${maximum} according to department rules`)
+  if (projectType === 'group'
+    && ((groupRules.minimumGroupSize != null && studentUserIds.length < groupRules.minimumGroupSize)
+      || (groupRules.maximumGroupSize != null && studentUserIds.length > groupRules.maximumGroupSize))) {
+    const bounds = [
+      groupRules.minimumGroupSize != null ? `at least ${groupRules.minimumGroupSize}` : null,
+      groupRules.maximumGroupSize != null ? `at most ${groupRules.maximumGroupSize}` : null,
+    ].filter(Boolean).join(' and ')
+    throw new HttpError(400, `Group size must be ${bounds} according to department rules`)
   }
   const students = await repository.findStudentsForGroup(connection, studentUserIds, departmentId)
   if (students.length !== studentUserIds.length) {
