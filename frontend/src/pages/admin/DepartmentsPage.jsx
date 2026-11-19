@@ -18,7 +18,7 @@ const deptSchema = z.object({
 // ── API helpers ───────────────────────────────────────────────────────────────
 async function fetchDepartments() {
   const { data } = await api.get('/departments')
-  return data
+  return data.data
 }
 
 async function createDepartment(body) {
