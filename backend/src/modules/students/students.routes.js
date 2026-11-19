@@ -23,10 +23,7 @@ studentsRoutes.use(requireAuth)
 const managers = requireRoles('system_administrator', 'department_head')
 
 studentsRoutes.get('/', managers, studentsController.listStudents)
-studentsRoutes.get('/me', requireRoles('student'), (request, _response, next) => {
-  request.params.userId = request.user.id
-  next()
-}, studentsController.getStudent)
+studentsRoutes.get('/me', requireRoles('student'), studentsController.getMe)
 studentsRoutes.get('/eligibility', requireRoles('system_administrator', 'department_head', 'student'), studentsController.listEligibility)
 studentsRoutes.post('/eligibility/evaluate', managers, studentsController.evaluateEligibility)
 

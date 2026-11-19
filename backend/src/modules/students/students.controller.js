@@ -43,6 +43,14 @@ export const studentsController = {
       response.json({ success: true, data: { student: await service.getStudent(userId, actor(request)) } })
     } catch (error) { next(error) }
   },
+  getMe: async (request, response, next) => {
+    try {
+      response.json({
+        success: true,
+        data: { student: await service.getStudent(request.user.id, actor(request)) },
+      })
+    } catch (error) { next(error) }
+  },
   getRules: async (request, response, next) => {
     try {
       const departmentId = parse(uuidSchema, request.params.departmentId)
