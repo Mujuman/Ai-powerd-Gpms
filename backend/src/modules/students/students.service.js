@@ -76,6 +76,9 @@ async function parseWorkbook(buffer) {
     if (!row.email || row.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
       row.errors.push('A valid email address is required')
     }
+    if (row.program?.length > 120) row.errors.push('Program must be at most 120 characters')
+    if (row.cohort?.length > 32) row.errors.push('Cohort must be at most 32 characters')
+    if (row.phone?.length > 32) row.errors.push('Phone must be at most 32 characters')
 
     if (row.yearLevel) {
       const yearLevel = Number(row.yearLevel)
@@ -106,9 +109,10 @@ async function parseWorkbook(buffer) {
     }
 
     if (row.email && seenEmails.has(row.email)) row.errors.push('Email is duplicated in this file')
-    if (row.studentId && seenStudentIds.has(row.studentId)) row.errors.push('Student ID is duplicated in this file')
+    const normalizedStudentId = row.studentId?.toLowerCase()
+    if (normalizedStudentId && seenStudentIds.has(normalizedStudentId)) row.errors.push('Student ID is duplicated in this file')
     if (row.email) seenEmails.add(row.email)
-    if (row.studentId) seenStudentIds.add(row.studentId)
+    if (normalizedStudentId) seenStudentIds.add(normalizedStudentId)
     rows.push(row)
   }
 

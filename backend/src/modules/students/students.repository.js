@@ -95,7 +95,7 @@ export async function findImportDuplicates(databasePool, rows, departmentId) {
     studentIds,
   )
   const byEmail = new Map(users.map((row) => [row.email, row]))
-  const byStudentId = new Map(profiles.map((row) => [row.studentId, row]))
+  const byStudentId = new Map(profiles.map((row) => [String(row.studentId).toLowerCase(), row]))
   const result = new Map()
   rows.forEach((row) => {
     const errors = []
@@ -109,7 +109,7 @@ export async function findImportDuplicates(databasePool, rows, departmentId) {
       errors.push('The student account already belongs to another department')
     }
 
-    const existing = byStudentId.get(row.studentId)
+    const existing = byStudentId.get(String(row.studentId).toLowerCase())
     if (existing && existing.userId !== user?.userId) {
       errors.push('Student ID is already assigned to another account')
     } else if (existing && existing.departmentId !== departmentId) {
