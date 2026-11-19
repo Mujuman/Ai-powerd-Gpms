@@ -133,10 +133,11 @@ export async function listUsers(databasePool, filters = {}) {
       ${where}`,
     params,
   )
-  const total = countRows[0].total
+  const total = Number(countRows[0].total)
 
   const [rows] = await databasePool.execute(
-    `SELECT u.id, u.email, u.full_name, u.is_active, u.created_at, u.updated_at,
+    `SELECT u.id, u.email, u.full_name AS fullName, u.is_active AS isActive,
+            u.created_at AS createdAt, u.updated_at AS updatedAt,
             r.code AS role
        FROM users u
        JOIN roles r ON r.id = u.role_id
@@ -146,7 +147,32 @@ export async function listUsers(databasePool, filters = {}) {
     [...params, limit, offset],
   )
 
-  return { data: rows, total, page, limit }
+  if (rows.length === 0) return { data: rows, total, page, limit, totalPages: Math.ceil(total / limit) }
+
+  const placeholders = rows.map(() => '?').join(', ')
+  const [departmentRows] = await databasePool.execute(
+    `SELECT uda.user_id AS userId, d.id, d.code, d.name
+       FROM user_department_assignments uda
+       JOIN departments d ON d.id = uda.department_id
+      WHERE uda.user_id IN (${placeholders})
+        AND uda.is_active = TRUE AND d.is_active = TRUE
+      ORDER BY d.name`,
+    rows.map((row) => row.id),
+  )
+  const departmentsByUser = new Map(rows.map((row) => [row.id, []]))
+  for (const department of departmentRows) {
+    departmentsByUser.get(department.userId).push({
+      id: department.id,
+      code: department.code,
+      name: department.name,
+    })
+  }
+  const users = rows.map((row) => ({
+    ...row,
+    departments: departmentsByUser.get(row.id),
+  }))
+
+  return { data: users, total, page, limit, totalPages: Math.ceil(total / limit) }
 }
 
 /**

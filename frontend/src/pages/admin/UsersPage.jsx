@@ -46,12 +46,12 @@ async function fetchUsers({ page, limit, role, departmentId, search, isActive })
   if (search) params.set('search', search)
   if (isActive !== '') params.set('isActive', isActive)
   const { data } = await api.get(`/users?${params}`)
-  return data
+  return data.data
 }
 
 async function fetchDepartments() {
   const { data } = await api.get('/departments')
-  return data
+  return data.data
 }
 
 async function createUser(body) {
@@ -79,7 +79,7 @@ function CreateUserModal({ departments, onClose }) {
       const { departmentIds, ...rest } = values
       const user = await createUser(rest)
       if (departmentIds?.length) {
-        await setDepartments(user.data.id, departmentIds)
+        await setDepartments(user.data.user.id, departmentIds)
       }
       return user
     },

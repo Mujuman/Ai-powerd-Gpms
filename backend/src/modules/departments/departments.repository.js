@@ -26,10 +26,11 @@ export async function listDepartments(databasePool, filters = {}) {
     `SELECT COUNT(*) AS total FROM departments d ${where}`,
     params,
   )
-  const total = countRows[0].total
+  const total = Number(countRows[0].total)
 
   const [rows] = await databasePool.execute(
-    `SELECT d.id, d.code, d.name, d.is_active, d.created_at, d.updated_at
+    `SELECT d.id, d.code, d.name, d.is_active AS isActive,
+            d.created_at AS createdAt, d.updated_at AS updatedAt
        FROM departments d
       ${where}
       ORDER BY d.name
