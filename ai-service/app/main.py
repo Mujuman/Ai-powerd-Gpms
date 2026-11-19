@@ -30,6 +30,12 @@ class SimilarityRequest(BaseModel):
             raise ValueError("Similarity item IDs must be unique")
         if any(pair.left_id not in ids or pair.right_id not in ids for pair in self.pairs):
             raise ValueError("Every similarity pair must reference an item")
+        comparisons = {
+            tuple(sorted((pair.left_id, pair.right_id)))
+            for pair in self.pairs
+        }
+        if len(comparisons) != len(self.pairs):
+            raise ValueError("Similarity pairs must be unique")
         return self
 
 
