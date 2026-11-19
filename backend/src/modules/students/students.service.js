@@ -183,6 +183,14 @@ export async function saveDepartmentRules(departmentId, changes, actor) {
       eligibility: { ...(existing.eligibility ?? {}), ...(changes.eligibility ?? {}) },
       grouping: { ...(existing.grouping ?? {}), ...(changes.grouping ?? {}) },
     }
+    if (rules.grouping.minimumGroupSize != null && rules.grouping.maximumGroupSize != null
+      && rules.grouping.minimumGroupSize > rules.grouping.maximumGroupSize) {
+      throw new HttpError(400, 'Minimum group size cannot exceed maximum group size')
+    }
+    if (rules.eligibility.minimumGpa != null && rules.eligibility.maximumGpa != null
+      && rules.eligibility.minimumGpa > rules.eligibility.maximumGpa) {
+      throw new HttpError(400, 'Minimum GPA cannot exceed maximum GPA')
+    }
     await repository.saveRules(connection, scopedDepartment, rules, actor.id)
     await recordAudit(connection, {
       userId: actor.id,
