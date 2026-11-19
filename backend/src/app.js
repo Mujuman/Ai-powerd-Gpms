@@ -56,7 +56,8 @@ app.use('/api/academics', academicsRoutes)
 app.use('/api/students', studentsRoutes)
 app.use('/api/projects', projectsRoutes)
 
-app.use((error, _request, response, _next) => {
+app.use((error, _request, response, next) => {
+  if (response.headersSent) return next(error)
   const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 500
     ? error.status
     : 500

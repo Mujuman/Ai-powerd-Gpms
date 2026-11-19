@@ -81,7 +81,6 @@ function assertDocument(file) {
   if (!file.buffer.subarray(0, documentInfo.signature.length).equals(documentInfo.signature)) {
     throw new HttpError(400, 'The uploaded file content does not match its file type')
   }
-  return documentInfo
 }
 
 export async function recommendTitles(groupId, description, actor) {
@@ -174,7 +173,7 @@ export async function listDocuments(groupId, actor) {
 
 export async function uploadDocument(groupId, documentType, file, actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Only students may upload project documents')
-  const documentInfo = assertDocument(file)
+  assertDocument(file)
   const originalFilename = safeOriginalFilename(file.originalname)
   const document = {
     id: randomUUID(),
@@ -195,24 +194,35 @@ export async function uploadDocument(groupId, documentType, file, actor) {
   }
 
   await mkdir(DOCUMENT_ROOT, { recursive: true, mode: 0o700 })
-  let fileHandle
+  const fileHandle = await open(storedPath, 'wx', 0o600)
+  let writeError = null
+  let closeError = null
   try {
-    fileHandle = await open(storedPath, 'wx', 0o600)
     await fileHandle.writeFile(file.buffer)
   } catch (error) {
-    if (fileHandle) {
-      try {
-        await fileHandle.close()
-        await unlink(storedPath)
-      } catch (cleanupError) {
-        if (cleanupError.code !== 'ENOENT') {
-          throw new AggregateError([error, cleanupError], 'Could not save or clean up the project document')
-        }
+    writeError = error
+  }
+  try {
+    await fileHandle.close()
+  } catch (error) {
+    closeError = error
+  }
+  if (writeError || closeError) {
+    try {
+      await unlink(storedPath)
+    } catch (cleanupError) {
+      if (cleanupError.code !== 'ENOENT') {
+        throw new AggregateError(
+          [writeError, closeError, cleanupError].filter(Boolean),
+          'Could not save or clean up the project document',
+        )
       }
     }
-    throw error
+    if (writeError && closeError) {
+      throw new AggregateError([writeError, closeError], 'Could not write or close the project document')
+    }
+    throw writeError ?? closeError
   }
-  await fileHandle.close()
 
   try {
     await withTransaction(pool, async (connection) => {

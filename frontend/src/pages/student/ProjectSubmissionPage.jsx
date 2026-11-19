@@ -73,6 +73,7 @@ export default function ProjectSubmissionPage() {
               <div>
                 <h2 className="section-title">{project.groupName}</h2>
                 <p className="page-subtitle">{project.departmentCode} · {project.departmentName} · {project.academicYear}</p>
+                <p className="muted-copy">Advisor: {project.advisorName ?? 'Not assigned yet'}</p>
               </div>
               <span className={status === 'approved' ? 'status-active' : status === 'rejected' ? 'status-inactive' : 'dept-chip'}>
                 {status ?? 'Not submitted'}
@@ -82,7 +83,6 @@ export default function ProjectSubmissionPage() {
               <h3 className="section-title">{project.title}</h3>
               <p className="muted-copy">{project.description}</p>
               {project.reviewNote && <p className="project-review-note"><strong>Department review:</strong> {project.reviewNote}</p>}
-              <p className="muted-copy">Advisor: {project.advisorName ?? 'Not assigned yet'}</p>
             </div>}
             {canSubmit && (
               <form className="rules-form" onSubmit={(event) => submit(event, project.groupId)}>

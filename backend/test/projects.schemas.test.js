@@ -7,6 +7,11 @@ import {
   reviewSubmissionSchema,
   studentSubmissionSchema,
 } from '../src/modules/projects/projects.schemas.js'
+import {
+  projectDocumentSchema,
+  projectMessageSchema,
+  titleRecommendationSchema,
+} from '../src/modules/projects/collaboration.schemas.js'
 
 const groupId = 'c2c19332-c272-4225-9f31-cf643e4d8857'
 const advisorId = 'a2c19332-c272-4225-9f31-cf643e4d8857'
@@ -60,4 +65,16 @@ test('advisor assignment and defense scheduling require valid IDs and timezone-a
     scheduledAt: '2027-01-01T10:00',
     venue: 'Room 1',
   }).success, false)
+})
+
+test('student collaboration requests validate title ideas, messages, and document categories', () => {
+  assert.equal(titleRecommendationSchema.safeParse({
+    description: 'A detailed idea describing a specific campus service problem.',
+  }).success, true)
+  assert.equal(titleRecommendationSchema.safeParse({ description: 'too short' }).success, false)
+  assert.equal(titleRecommendationSchema.safeParse({ description: 'x'.repeat(10001) }).success, false)
+  assert.equal(projectMessageSchema.safeParse({ message: 'Please review my proposal.' }).success, true)
+  assert.equal(projectMessageSchema.safeParse({ message: '   ' }).success, false)
+  assert.equal(projectDocumentSchema.safeParse({ documentType: 'defense_correction' }).success, true)
+  assert.equal(projectDocumentSchema.safeParse({ documentType: 'unrestricted' }).success, false)
 })
