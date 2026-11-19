@@ -42,7 +42,11 @@ function normalizeHeader(value) {
 
 async function parseWorkbook(buffer) {
   const workbook = new ExcelJS.Workbook()
-  await workbook.xlsx.load(buffer)
+  try {
+    await workbook.xlsx.load(buffer)
+  } catch {
+    throw new HttpError(400, 'The uploaded file is not a valid .xlsx workbook')
+  }
   const sheet = workbook.worksheets[0]
   if (!sheet || sheet.rowCount < 2) throw new HttpError(400, 'The workbook must contain a header and at least one student row')
   if (sheet.rowCount > 2001) throw new HttpError(400, 'A student import may contain at most 2,000 rows')
