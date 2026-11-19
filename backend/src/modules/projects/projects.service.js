@@ -647,6 +647,11 @@ export async function listExaminerDefenses(actor) {
   return repository.listExaminerDefenses(pool, actor.id)
 }
 
+export async function listAdvisorProjects(actor) {
+  if (actor.role !== 'academic_advisor') throw new HttpError(403, 'Academic Advisor access is required')
+  return repository.listAdvisorProjects(pool, actor.id)
+}
+
 export async function submitAssessment(scheduleId, data, actor) {
   if (actor.role !== 'examiner') throw new HttpError(403, 'Examiner access is required')
   await withTransaction(pool, async (connection) => {

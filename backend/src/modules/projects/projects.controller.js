@@ -188,6 +188,11 @@ export const projectsController = {
       response.json({ success: true, data: await service.listExaminerDefenses(actor(request)) })
     } catch (error) { next(error) }
   },
+  listAdvisorProjects: async (request, response, next) => {
+    try {
+      response.json({ success: true, data: await service.listAdvisorProjects(actor(request)) })
+    } catch (error) { next(error) }
+  },
   submitAssessment: async (request, response, next) => {
     try {
       const scheduleId = parse(uuid, request.params.scheduleId)

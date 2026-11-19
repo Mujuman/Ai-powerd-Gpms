@@ -51,6 +51,39 @@ export async function listStudentGroups(connection, studentUserId) {
   return rows
 }
 
+export async function listAdvisorProjects(connection, advisorUserId) {
+  const [rows] = await connection.execute(
+    `SELECT g.id AS groupId, g.name AS groupName, d.name AS departmentName,
+            ay.label AS academicYear,
+            ps.title, ps.description, ps.status AS submissionStatus,
+            ps.review_note AS reviewNote
+       FROM project_advisor_assignments aa
+       JOIN student_groups g ON g.id = aa.group_id
+       JOIN departments d ON d.id = g.department_id
+       JOIN academic_years ay ON ay.id = g.academic_year_id
+       LEFT JOIN project_submissions ps ON ps.group_id = g.id
+        AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest
+                           WHERE latest.group_id = g.id)
+      WHERE aa.advisor_user_id = ? AND aa.is_active = TRUE AND g.is_active = TRUE
+      ORDER BY g.updated_at DESC`,
+    [advisorUserId],
+  )
+  if (!rows.length) return rows
+  const placeholders = rows.map(() => '?').join(', ')
+  const [members] = await connection.execute(
+    `SELECT gm.group_id AS groupId, u.full_name AS fullName, sp.student_id AS studentId
+       FROM student_group_members gm
+       JOIN users u ON u.id = gm.student_user_id
+       LEFT JOIN student_profiles sp ON sp.user_id = u.id
+      WHERE gm.group_id IN (${placeholders}) AND gm.is_active = TRUE
+      ORDER BY u.full_name`,
+    rows.map((row) => row.groupId),
+  )
+  const membersByGroup = new Map(rows.map((row) => [row.groupId, []]))
+  for (const member of members) membersByGroup.get(member.groupId).push(member)
+  return rows.map((row) => ({ ...row, members: membersByGroup.get(row.groupId) }))
+}
+
 export async function getLatestSubmission(connection, groupId, lock = false) {
   const [rows] = await connection.execute(
     `SELECT id, group_id AS groupId, version, title, description, status,
