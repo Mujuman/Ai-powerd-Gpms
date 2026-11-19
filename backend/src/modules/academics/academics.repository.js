@@ -7,7 +7,8 @@ export async function listAcademicYears(databasePool, { page, limit, isActive })
     params,
   )
   const [rows] = await databasePool.execute(
-    `SELECT id, label, start_date AS startDate, end_date AS endDate,
+    `SELECT id, label, DATE_FORMAT(start_date, '%Y-%m-%d') AS startDate,
+            DATE_FORMAT(end_date, '%Y-%m-%d') AS endDate,
             is_active AS isActive, created_at AS createdAt
        FROM academic_years ${where}
       ORDER BY start_date DESC
@@ -19,7 +20,8 @@ export async function listAcademicYears(databasePool, { page, limit, isActive })
 
 export async function findAcademicYear(connection, id, lock = false) {
   const [rows] = await connection.execute(
-    `SELECT id, label, start_date AS startDate, end_date AS endDate,
+    `SELECT id, label, DATE_FORMAT(start_date, '%Y-%m-%d') AS startDate,
+            DATE_FORMAT(end_date, '%Y-%m-%d') AS endDate,
             is_active AS isActive
        FROM academic_years WHERE id = ?${lock ? ' FOR UPDATE' : ''}`,
     [id],
@@ -61,7 +63,8 @@ export async function listSemesters(databasePool, academicYearId) {
   const params = academicYearId ? [academicYearId] : []
   const [rows] = await databasePool.execute(
     `SELECT s.id, s.academic_year_id AS academicYearId, ay.label AS academicYear,
-            s.name, s.start_date AS startDate, s.end_date AS endDate,
+            s.name, DATE_FORMAT(s.start_date, '%Y-%m-%d') AS startDate,
+            DATE_FORMAT(s.end_date, '%Y-%m-%d') AS endDate,
             s.status, s.created_at AS createdAt
        FROM semesters s
        JOIN academic_years ay ON ay.id = s.academic_year_id
@@ -75,7 +78,8 @@ export async function listSemesters(databasePool, academicYearId) {
 export async function findSemester(connection, id, lock = false) {
   const [rows] = await connection.execute(
     `SELECT id, academic_year_id AS academicYearId, name,
-            start_date AS startDate, end_date AS endDate, status
+            DATE_FORMAT(start_date, '%Y-%m-%d') AS startDate,
+            DATE_FORMAT(end_date, '%Y-%m-%d') AS endDate, status
        FROM semesters WHERE id = ?${lock ? ' FOR UPDATE' : ''}`,
     [id],
   )

@@ -31,12 +31,14 @@ export async function updateAcademicYear(id, changes, actorId) {
     const next = { ...year, ...changes }
     if (next.startDate >= next.endDate) throw new HttpError(400, 'End date must be after start date')
     const [semesters] = await connection.execute(
-      'SELECT MIN(start_date) AS first_date, MAX(end_date) AS last_date FROM semesters WHERE academic_year_id = ?',
+      `SELECT DATE_FORMAT(MIN(start_date), '%Y-%m-%d') AS first_date,
+              DATE_FORMAT(MAX(end_date), '%Y-%m-%d') AS last_date
+         FROM semesters WHERE academic_year_id = ?`,
       [id],
     )
     if (semesters[0].first_date && (
-      next.startDate > String(semesters[0].first_date).slice(0, 10)
-      || next.endDate < String(semesters[0].last_date).slice(0, 10)
+      next.startDate > semesters[0].first_date
+      || next.endDate < semesters[0].last_date
     )) {
       throw new HttpError(400, 'Academic year dates must contain all configured semester dates')
     }
