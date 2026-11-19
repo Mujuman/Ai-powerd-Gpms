@@ -14,9 +14,11 @@ import ExaminerDashboard from './pages/examiner/ExaminerDashboard'
 import StudentDashboard from './pages/student/StudentDashboard'
 import AcademicRecordPage from './pages/student/AcademicRecordPage'
 import { RoleRedirect } from './components/auth/RoleRedirect'
+import { RouteErrorPage } from './components/RouteErrorPage'
 
 export const router = createBrowserRouter([
   {
+    errorElement: <RouteErrorPage />,
     // AuthProvider renders <Outlet /> so useNavigate is available inside it
     element: <AuthProvider />,
     children: [
