@@ -61,12 +61,13 @@ test('student registration accepts passwords with at least five characters', () 
     fullName: 'Test Student',
     password: 'a@wru',
     studentId: 'a',
+    gpa: 3.5,
   }
   assert.equal(registerStudentSchema.safeParse(student).success, true)
   assert.equal(registerStudentSchema.safeParse({ ...student, password: '1234' }).success, false)
 })
 
-test('student registration accepts an optional GPA within the supported range', () => {
+test('student registration requires a GPA within the supported range', () => {
   const student = {
     departmentId,
     academicYearId,
@@ -75,10 +76,12 @@ test('student registration accepts an optional GPA within the supported range', 
     fullName: 'Test Student',
     password: 'a@wru',
     studentId: 'student-1',
+    gpa: 3.5,
   }
-  assert.equal(registerStudentSchema.safeParse({ ...student, gpa: 3.5 }).success, true)
-  assert.equal(registerStudentSchema.safeParse({ ...student, gpa: 100 }).success, false)
   assert.equal(registerStudentSchema.safeParse(student).success, true)
+  assert.equal(registerStudentSchema.safeParse({ ...student, gpa: null }).success, false)
+  assert.equal(registerStudentSchema.safeParse({ ...student, gpa: 100 }).success, false)
+  assert.equal(registerStudentSchema.safeParse({ ...student, gpa: undefined }).success, false)
 })
 
 test('GPA-ranked students are distributed across balanced groups in a snake pattern', () => {

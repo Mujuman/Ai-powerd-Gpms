@@ -147,7 +147,7 @@ export default function StudentsPage() {
       academicYearId,
       semesterId,
       yearLevel: studentForm.yearLevel ? Number(studentForm.yearLevel) : null,
-      gpa: studentForm.gpa === '' ? null : Number(studentForm.gpa),
+      gpa: Number(studentForm.gpa),
     })).data.data,
     onSuccess: () => {
       setStudentForm({ fullName: '', email: '', password: '', studentId: '', cohort: '', yearLevel: '', gpa: '' })
@@ -297,8 +297,8 @@ export default function StudentsPage() {
                 <label className="form-field"><span className="form-label">Year level</span>
                   <input className="form-input" type="number" min={1} max={255} value={studentForm.yearLevel}
                     onChange={(event) => setStudentForm({ ...studentForm, yearLevel: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">GPA (optional)</span>
-                  <input className="form-input" type="number" min={0} max={99.99} step={0.01}
+                <label className="form-field"><span className="form-label">GPA</span>
+                  <input className="form-input" type="number" min={0} max={99.99} step={0.01} required
                     value={studentForm.gpa}
                     onChange={(event) => setStudentForm({ ...studentForm, gpa: event.target.value })} /></label>
               </div>
