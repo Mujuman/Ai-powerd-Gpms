@@ -107,5 +107,6 @@ export const registerStudentSchema = z.object({
   program: z.string().trim().max(120).optional().default(''),
   cohort: z.string().trim().max(32).optional().default(''),
   yearLevel: z.number().int().positive().max(255).nullable().optional(),
+  gpa: z.number().min(0).max(99.99).nullable().optional(),
   phone: z.string().trim().max(32).optional().default(''),
 }).strict()

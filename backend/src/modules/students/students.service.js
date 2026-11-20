@@ -300,7 +300,7 @@ export async function registerStudent(data, actor) {
         `INSERT INTO student_profiles
            (user_id, student_id, department_id, program, cohort, year_level, phone,
             academic_year, semester, enrollment_status, gpa)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`,
         [
           userId,
           data.studentId,
@@ -311,13 +311,14 @@ export async function registerStudent(data, actor) {
           data.phone || null,
           context.year.label,
           context.semester.name,
+          data.gpa ?? null,
         ],
       )
       await connection.execute(
         `INSERT INTO student_academic_records
-           (student_user_id, semester_id, year_level, enrollment_status)
-         VALUES (?, ?, ?, 'active')`,
-        [userId, data.semesterId, data.yearLevel ?? null],
+           (student_user_id, semester_id, gpa, year_level, enrollment_status)
+         VALUES (?, ?, ?, ?, 'active')`,
+        [userId, data.semesterId, data.gpa ?? null, data.yearLevel ?? null],
       )
       await setUserDepartments(connection, userId, [departmentId], actor.id)
       await recordAudit(connection, {

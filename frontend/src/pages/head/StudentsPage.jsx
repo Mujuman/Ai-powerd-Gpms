@@ -50,7 +50,7 @@ export default function StudentsPage() {
   const [importResult, setImportResult] = useState(null)
   const [editingStudent, setEditingStudent] = useState(null)
   const [studentForm, setStudentForm] = useState({
-    fullName: '', email: '', password: '', studentId: '', cohort: '', yearLevel: '',
+    fullName: '', email: '', password: '', studentId: '', cohort: '', yearLevel: '', gpa: '',
   })
   const [passwordCustomized, setPasswordCustomized] = useState(false)
 
@@ -147,9 +147,10 @@ export default function StudentsPage() {
       academicYearId,
       semesterId,
       yearLevel: studentForm.yearLevel ? Number(studentForm.yearLevel) : null,
+      gpa: studentForm.gpa === '' ? null : Number(studentForm.gpa),
     })).data.data,
     onSuccess: () => {
-      setStudentForm({ fullName: '', email: '', password: '', studentId: '', cohort: '', yearLevel: '' })
+      setStudentForm({ fullName: '', email: '', password: '', studentId: '', cohort: '', yearLevel: '', gpa: '' })
       setPasswordCustomized(false)
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['student-batch-options', departmentId] })
@@ -296,6 +297,10 @@ export default function StudentsPage() {
                 <label className="form-field"><span className="form-label">Year level</span>
                   <input className="form-input" type="number" min={1} max={255} value={studentForm.yearLevel}
                     onChange={(event) => setStudentForm({ ...studentForm, yearLevel: event.target.value })} /></label>
+                <label className="form-field"><span className="form-label">GPA (optional)</span>
+                  <input className="form-input" type="number" min={0} max={99.99} step={0.01}
+                    value={studentForm.gpa}
+                    onChange={(event) => setStudentForm({ ...studentForm, gpa: event.target.value })} /></label>
               </div>
               <button className="btn-primary" disabled={!selectedYear?.isActive || selectedSemester?.status !== 'active' || registerStudentMutation.isPending}>
                 {registerStudentMutation.isPending ? 'Registering…' : 'Register student'}
