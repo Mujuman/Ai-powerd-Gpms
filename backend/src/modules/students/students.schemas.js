@@ -61,6 +61,7 @@ export const addGroupMembersSchema = z.object({
 })
 
 export const updateStudentSchema = z.object({
+  departmentId: uuid.optional(),
   fullName: z.string().trim().min(1).max(160),
   email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
   studentId: z.string().trim().min(1).max(32),
@@ -68,6 +69,8 @@ export const updateStudentSchema = z.object({
   cohort: z.string().trim().max(32).nullable(),
   yearLevel: z.number().int().positive().max(255).nullable(),
   gpa: z.number().min(0).max(99.99).nullable(),
+  academicYearId: uuid,
+  semesterId: uuid,
 }).strict()
 
 export const generateGroupsSchema = z.object({

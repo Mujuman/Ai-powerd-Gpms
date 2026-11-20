@@ -5,6 +5,7 @@ import {
   importStudentsSchema,
   saveRulesSchema,
 } from '../src/modules/students/students.schemas.js'
+import { planGpaBalancedGroups } from '../src/modules/students/students.service.js'
 
 const departmentId = 'c2c19332-c272-4225-9f31-cf643e4d8857'
 const academicYearId = 'a2c19332-c272-4225-9f31-cf643e4d8857'
@@ -35,4 +36,22 @@ test('department rules reject contradictory GPA ranges', () => {
 test('student import requires an academic year and semester', () => {
   assert.equal(importStudentsSchema.safeParse({ departmentId, academicYearId }).success, false)
   assert.equal(importStudentsSchema.safeParse({ departmentId, academicYearId, semesterId }).success, true)
+})
+
+test('GPA-ranked students are distributed across balanced groups in a snake pattern', () => {
+  const students = Array.from({ length: 6 }, (_value, index) => ({ id: index + 1, gpa: 4 - index * 0.1 }))
+  const groups = planGpaBalancedGroups(students, { minimumGroupSize: 2, maximumGroupSize: 2 })
+
+  assert.deepEqual(groups.map((group) => group.map((student) => student.id)), [
+    [1, 6],
+    [2, 5],
+    [3, 4],
+  ])
+})
+
+test('automatic grouping rejects populations that cannot satisfy configured size limits', () => {
+  assert.throws(
+    () => planGpaBalancedGroups([{}, {}, {}], { minimumGroupSize: 2, maximumGroupSize: 2 }),
+    { status: 409 },
+  )
 })

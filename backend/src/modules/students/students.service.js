@@ -166,7 +166,7 @@ export async function listStudents(filters, actor) {
 }
 
 export async function updateStudent(userId, data, actor) {
-  const departmentId = await resolveDepartment(actor)
+  const departmentId = await resolveDepartment(actor, data.departmentId)
   await withTransaction(pool, async (connection) => {
     const student = await repository.findStudentForUpdate(connection, userId)
     if (!student || student.role !== 'student') throw new HttpError(404, 'Student not found')
@@ -198,6 +198,8 @@ export async function updateStudent(userId, data, actor) {
 
     await repository.updateStudent(connection, userId, {
       ...data,
+      academicYear: context.year.label,
+      semester: context.semester.name,
       enrollmentStatus: student.enrollmentStatus,
     }, departmentId)
     await recordAudit(connection, {
@@ -212,8 +214,8 @@ export async function updateStudent(userId, data, actor) {
   return repository.findStudent(pool, userId)
 }
 
-export async function deleteStudent(userId, actor) {
-  const departmentId = await resolveDepartment(actor)
+export async function deleteStudent(userId, actor, requestedDepartmentId) {
+  const departmentId = await resolveDepartment(actor, requestedDepartmentId)
   await withTransaction(pool, async (connection) => {
     const student = await repository.findStudentForUpdate(connection, userId)
     if (!student || student.role !== 'student') throw new HttpError(404, 'Student not found')
@@ -465,24 +467,26 @@ export async function confirmStudentImport(batchId, actor) {
     }
 
     let imported = 0
+    let created = 0
     for (const row of batch.importRows) {
-        let user = await repository.findStudentAccountForImport(connection, row)
-        if (user && (user.role !== 'student' || !user.is_active)) {
-          throw new HttpError(409, `Account ${row.email} is inactive or has the wrong role`)
-        }
-        if (!user) {
-          const userId = randomUUID()
-          const passwordHash = await bcrypt.hash(randomBytes(32).toString('hex'), PASSWORD_HASH_ROUNDS)
-          await insertUser(connection, {
-            id: userId,
-            email: row.email,
-            fullName: row.fullName,
-            passwordHash,
-            role: 'student',
-          })
-          await setUserDepartments(connection, userId, [departmentId], actor.id)
-          user = { id: userId, role: 'student', is_active: true }
-        }
+      let user = await repository.findStudentAccountForImport(connection, row)
+      if (user && (user.role !== 'student' || !user.is_active)) {
+        throw new HttpError(409, `Account ${row.email} is inactive or has the wrong role`)
+      }
+      if (!user) {
+        const userId = randomUUID()
+        const passwordHash = await bcrypt.hash(randomBytes(32).toString('hex'), PASSWORD_HASH_ROUNDS)
+        await insertUser(connection, {
+          id: userId,
+          email: row.email,
+          fullName: row.fullName,
+          passwordHash,
+          role: 'student',
+        })
+        await setUserDepartments(connection, userId, [departmentId], actor.id)
+        user = { id: userId, role: 'student', is_active: true }
+        created += 1
+      }
       if (user.studentId && user.studentId !== row.studentId) {
         throw new HttpError(409, `Student account ${row.email} has a different student ID`)
       }
@@ -512,9 +516,9 @@ export async function confirmStudentImport(batchId, actor) {
       targetType: 'student_import_batch',
       targetId: batchId,
       remoteAddress: actor.remoteAddress,
-      metadata: { imported },
+      metadata: { imported, created },
     })
-    return { batchId, imported }
+    return { batchId, imported, created }
   })
 }
 

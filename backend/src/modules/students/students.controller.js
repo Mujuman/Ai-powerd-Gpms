@@ -5,9 +5,11 @@ import {
   createGroupSchema,
   departmentQuerySchema,
   eligibilityQuerySchema,
+  generateGroupsSchema,
   importStudentsSchema,
   registerStudentSchema,
   saveRulesSchema,
+  updateStudentSchema,
 } from './students.schemas.js'
 import * as service from './students.service.js'
 
@@ -51,6 +53,26 @@ export const studentsController = {
     try {
       const userId = parse(uuidSchema, request.params.userId)
       response.json({ success: true, data: { student: await service.getStudent(userId, actor(request)) } })
+    } catch (error) { next(error) }
+  },
+  updateStudent: async (request, response, next) => {
+    try {
+      const userId = parse(uuidSchema, request.params.userId)
+      const data = parse(updateStudentSchema, request.body)
+      response.json({
+        success: true,
+        data: { student: await service.updateStudent(userId, data, actor(request)) },
+      })
+    } catch (error) { next(error) }
+  },
+  deleteStudent: async (request, response, next) => {
+    try {
+      const userId = parse(uuidSchema, request.params.userId)
+      const departmentId = request.query.departmentId
+        ? parse(uuidSchema, request.query.departmentId)
+        : undefined
+      await service.deleteStudent(userId, actor(request), departmentId)
+      response.json({ success: true, message: 'Student deactivated' })
     } catch (error) { next(error) }
   },
   getMe: async (request, response, next) => {
@@ -106,6 +128,15 @@ export const studentsController = {
       const data = parse(createGroupSchema, request.body)
       const id = await service.createGroup(data, actor(request))
       response.status(201).json({ success: true, data: { id } })
+    } catch (error) { next(error) }
+  },
+  generateGroups: async (request, response, next) => {
+    try {
+      const data = parse(generateGroupsSchema, request.body)
+      response.status(201).json({
+        success: true,
+        data: await service.generateGroups(data, actor(request)),
+      })
     } catch (error) { next(error) }
   },
   replaceGroupMembers: async (request, response, next) => {

@@ -20,6 +20,26 @@ const upload = multer({
 export const studentsRoutes = Router()
 studentsRoutes.use(requireAuth)
 
-// Students can access their own info
+const departmentManagers = requireRoles('department_head', 'system_administrator')
+
+studentsRoutes.get('/', departmentManagers, studentsController.listStudents)
+studentsRoutes.post('/register', departmentManagers, studentsController.registerStudent)
 studentsRoutes.get('/me', requireRoles('student'), studentsController.getMe)
-studentsRoutes.get('/eligibility', requireRoles('student'), studentsController.listEligibility)
+studentsRoutes.get('/rules/:departmentId', departmentManagers, studentsController.getRules)
+studentsRoutes.put('/rules/:departmentId', departmentManagers, studentsController.saveRules)
+studentsRoutes.post(
+  '/imports/preview',
+  departmentManagers,
+  upload.single('excelFile'),
+  studentsController.previewImport,
+)
+studentsRoutes.post('/imports/:batchId/confirm', departmentManagers, studentsController.confirmImport)
+studentsRoutes.get('/groups', departmentManagers, studentsController.listGroups)
+studentsRoutes.post('/groups', departmentManagers, studentsController.createGroup)
+studentsRoutes.post('/groups/generate', departmentManagers, studentsController.generateGroups)
+studentsRoutes.put('/groups/:groupId/members', departmentManagers, studentsController.replaceGroupMembers)
+studentsRoutes.post('/eligibility/evaluate', departmentManagers, studentsController.evaluateEligibility)
+studentsRoutes.get('/eligibility', studentsController.listEligibility)
+studentsRoutes.get('/:userId', departmentManagers, studentsController.getStudent)
+studentsRoutes.put('/:userId', departmentManagers, studentsController.updateStudent)
+studentsRoutes.delete('/:userId', departmentManagers, studentsController.deleteStudent)

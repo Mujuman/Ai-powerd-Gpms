@@ -44,6 +44,8 @@ export default function StudentsPage() {
   const [semesterId, setSemesterId] = useState('')
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
+  const [importResult, setImportResult] = useState(null)
+  const [editingStudent, setEditingStudent] = useState(null)
   const [studentForm, setStudentForm] = useState({
     fullName: '', email: '', password: '', studentId: '', program: '', cohort: '', yearLevel: '',
   })
@@ -149,8 +151,10 @@ export default function StudentsPage() {
       if (variables.action === 'confirm') {
         setPreview(null)
         setFile(null)
+        setImportResult(data)
         void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
         void queryClient.invalidateQueries({ queryKey: ['student-groups'] })
+        void queryClient.invalidateQueries({ queryKey: ['eligibility'] })
         return
       }
       setPreview(data)
@@ -174,6 +178,17 @@ export default function StudentsPage() {
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
     },
   })
+  const generateGroupsMutation = useMutation({
+    mutationFn: async () => (await api.post('/students/groups/generate', {
+      departmentId,
+      academicYearId,
+      semesterId,
+    })).data.data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
+      void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+    },
+  })
   const registerStudentMutation = useMutation({
     mutationFn: async () => (await api.post('/students/register', {
       ...studentForm,
@@ -194,6 +209,23 @@ export default function StudentsPage() {
     onSuccess: () => {
       setEditingGroup(null)
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
+    },
+  })
+  const updateStudentMutation = useMutation({
+    mutationFn: async ({ userId, ...body }) =>
+      (await api.put(`/students/${userId}`, body)).data.data.student,
+    onSuccess: () => {
+      setEditingStudent(null)
+      void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+    },
+  })
+  const deleteStudentMutation = useMutation({
+    mutationFn: async ({ userId, departmentId: scopedDepartmentId }) =>
+      (await api.delete(`/students/${userId}`, { params: { departmentId: scopedDepartmentId } })).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
+      void queryClient.invalidateQueries({ queryKey: ['eligibility'] })
     },
   })
 
@@ -223,6 +255,7 @@ export default function StudentsPage() {
   function uploadPreview(event) {
     event.preventDefault()
     setPreview(null)
+    setImportResult(null)
     importMutation.mutate({ action: 'preview' })
   }
 
@@ -231,12 +264,32 @@ export default function StudentsPage() {
     groupMutation.mutate({ departmentId, academicYearId, name: groupName, projectType, studentUserIds: memberIds })
   }
 
+  function saveStudent(event) {
+    event.preventDefault()
+    updateStudentMutation.mutate({
+      ...editingStudent,
+      program: editingStudent.program || null,
+      cohort: editingStudent.cohort || null,
+      yearLevel: numberOrNull(editingStudent.yearLevel),
+      gpa: numberOrNull(editingStudent.gpa),
+      academicYearId,
+      semesterId,
+    })
+  }
+
+  function deleteStudent(student) {
+    if (window.confirm(`Deactivate ${student.fullName}? Their academic and project history will be retained.`)) {
+      deleteStudentMutation.mutate({ userId: student.userId, departmentId })
+    }
+  }
+
   const students = studentsQuery.data?.data ?? []
   const eligibilityResults = Array.isArray(eligibilityQuery.data)
     ? eligibilityQuery.data
     : eligibilityQuery.data?.results ?? []
   const formError = rulesMutation.error ?? evaluateMutation.error ?? groupMutation.error
-    ?? registerStudentMutation.error ?? groupMembersMutation.error
+    ?? generateGroupsMutation.error ?? registerStudentMutation.error ?? groupMembersMutation.error
+    ?? updateStudentMutation.error ?? deleteStudentMutation.error
 
   return (
     <div className="page-content">
@@ -268,7 +321,7 @@ export default function StudentsPage() {
             <div className="page-header">
               <div>
                 <h2 className="section-title">Students</h2>
-                <p className="page-subtitle">Student accounts must already exist before they can be imported.</p>
+                <p className="page-subtitle">Import creates new student accounts and updates matching student records.</p>
               </div>
               <div className="filter-bar">
                 <select className="form-input" aria-label="Academic year" value={academicYearId}
@@ -322,16 +375,23 @@ export default function StudentsPage() {
               <label className="form-field">
                 <span className="form-label">Excel workbook (.xlsx, max 5 MB)</span>
                 <input className="form-input file-input" type="file" accept=".xlsx" required
-                  onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+                  onChange={(event) => {
+                    setFile(event.target.files?.[0] ?? null)
+                    setImportResult(null)
+                  }} />
               </label>
               <button className="btn-primary" disabled={!file || !selectedYear?.isActive || selectedSemester?.status !== 'active' || importMutation.isPending}>
                 {importMutation.isPending && importMutation.variables?.action !== 'confirm' ? 'Validating…' : 'Preview import'}
               </button>
             </form>
             <p className="muted-copy">
-              Imports update profiles for existing active student accounts; they do not create login accounts.
-              Register students above first, using the same email address as the workbook.
+              New imported accounts receive a random initial password. Students can set their password through the password-reset option on the sign-in page.
             </p>
+            {importResult && (
+              <p className="status-active" role="status">
+                Imported {importResult.imported} student records; created {importResult.created} new student accounts.
+              </p>
+            )}
             <ErrorMessage error={importMutation.error} fallback="Could not preview the student import" />
             {preview && (
               <div className="import-preview">
@@ -349,11 +409,11 @@ export default function StudentsPage() {
                 {preview.preview.length > 0 && (
                   <div className="table-wrapper">
                     <table className="data-table">
-                      <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Program</th><th>Year level</th></tr></thead>
+                      <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Program</th><th>Year level</th><th>GPA</th></tr></thead>
                       <tbody>{preview.preview.map((student) => (
                         <tr key={`${student.rowNumber}-${student.email}`}>
                           <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                          <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td>
+                          <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td><td>{student.gpa ?? '—'}</td>
                         </tr>
                       ))}</tbody>
                     </table>
@@ -362,7 +422,7 @@ export default function StudentsPage() {
                 {preview.invalidRows > 0 && (
                   <p className="table-error" role="alert">
                     Confirmation is disabled until all {preview.invalidRows} invalid rows are corrected.
-                    Check the Problems column above; each email must match an active student account.
+                    Check the Problems column above and fix the workbook before uploading it again.
                   </p>
                 )}
                 <div className="action-row">
@@ -379,16 +439,59 @@ export default function StudentsPage() {
             {studentsQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
-                  <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Program</th><th>Year</th><th>GPA</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Program</th><th>Year</th><th>GPA</th><th>Status</th><th>Actions</th></tr></thead>
                   <tbody>
                     {students.map((student) => (
                       <tr key={student.userId}>
-                        <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                        <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td>
-                        <td>{student.gpa ?? '—'}</td><td>{student.enrollmentStatus}</td>
+                        {editingStudent?.userId === student.userId ? (
+                          <>
+                            <td><input className="form-input" aria-label="Student ID" value={editingStudent.studentId}
+                              onChange={(event) => setEditingStudent({ ...editingStudent, studentId: event.target.value })} /></td>
+                            <td><input className="form-input" aria-label="Full name" value={editingStudent.fullName}
+                              onChange={(event) => setEditingStudent({ ...editingStudent, fullName: event.target.value })} /></td>
+                            <td><input className="form-input" type="email" aria-label="Email" value={editingStudent.email}
+                              onChange={(event) => setEditingStudent({ ...editingStudent, email: event.target.value })} /></td>
+                            <td><input className="form-input" aria-label="Program" value={editingStudent.program}
+                              onChange={(event) => setEditingStudent({ ...editingStudent, program: event.target.value })} /></td>
+                            <td><input className="form-input" type="number" min="1" aria-label="Year level" value={editingStudent.yearLevel}
+                              onChange={(event) => setEditingStudent({ ...editingStudent, yearLevel: event.target.value })} /></td>
+                            <td><input className="form-input" type="number" min="0" max="99.99" step="0.01" aria-label="GPA" value={editingStudent.gpa}
+                              onChange={(event) => setEditingStudent({ ...editingStudent, gpa: event.target.value })} /></td>
+                          </>
+                        ) : (
+                          <>
+                            <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
+                            <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td>
+                            <td>{student.gpa ?? '—'}</td><td>{student.isActive ? student.enrollmentStatus : 'inactive'}</td>
+                          </>
+                        )}
+                        {editingStudent?.userId === student.userId ? (
+                          <td><div className="action-row">
+                            <button className="btn-primary" disabled={updateStudentMutation.isPending || !semesterId}
+                              onClick={saveStudent}>{updateStudentMutation.isPending ? 'Saving…' : 'Save'}</button>
+                            <button className="btn-secondary" onClick={() => setEditingStudent(null)}>Cancel</button>
+                          </div></td>
+                        ) : (
+                          <td><div className="action-row">
+                            <button className="btn-secondary" disabled={!student.isActive}
+                              onClick={() => setEditingStudent({
+                                userId: student.userId,
+                                departmentId,
+                                studentId: student.studentId,
+                                fullName: student.fullName,
+                                email: student.email,
+                                program: student.program ?? '',
+                                cohort: student.cohort ?? '',
+                                yearLevel: student.yearLevel ?? '',
+                                gpa: student.gpa ?? '',
+                              })}>Edit</button>
+                            <button className="btn-secondary" disabled={!student.isActive || deleteStudentMutation.isPending}
+                              onClick={() => deleteStudent(student)}>Delete</button>
+                          </div></td>
+                        )}
                       </tr>
                     ))}
-                    {students.length === 0 && <tr><td className="table-empty" colSpan={7}>No students are assigned to this department.</td></tr>}
+                    {students.length === 0 && <tr><td className="table-empty" colSpan={8}>No students are assigned to this department.</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -469,7 +572,22 @@ export default function StudentsPage() {
           </section>
 
           <section className="academic-card">
-            <h2 className="section-title">Project groups</h2>
+            <div className="page-header">
+              <div>
+                <h2 className="section-title">Project groups</h2>
+                <p className="page-subtitle">Generate balanced groups from eligible, unassigned students ranked by GPA (highest first).</p>
+              </div>
+              <button className="btn-primary" disabled={!selectedYear?.isActive || selectedSemester?.status !== 'active'
+                || !semesterId || generateGroupsMutation.isPending}
+                onClick={() => generateGroupsMutation.mutate()}>
+                {generateGroupsMutation.isPending ? 'Generating…' : 'Generate groups'}
+              </button>
+            </div>
+            {generateGroupsMutation.data && (
+              <p className="status-active" role="status">
+                Created {generateGroupsMutation.data.groups.length} groups for {generateGroupsMutation.data.studentCount} eligible students.
+              </p>
+            )}
             <form className="group-form" onSubmit={createGroup}>
               <label className="form-field"><span className="form-label">Group name</span>
                 <input className="form-input" required maxLength="120" value={groupName}
