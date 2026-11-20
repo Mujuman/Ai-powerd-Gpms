@@ -659,18 +659,40 @@ textarea.form-input {
 }
 
 .staff-import-form {
-  display: grid;
-  justify-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 0.75rem;
   max-width: 720px;
 }
 
-.staff-import-form .form-field {
+.staff-form-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
   width: 100%;
 }
 
+.staff-form-fields > .form-field {
+  flex: 1 1 220px;
+  min-width: min(100%, 220px);
+}
+
+.staff-import-form .form-field {
+  flex: 1 1 300px;
+  width: 100%;
+  min-width: min(100%, 220px);
+}
+
 .staff-import-form > .muted-copy {
+  flex-basis: 100%;
   line-height: 1.5;
+}
+
+.staff-import-form > .table-error,
+.staff-import-form > .status-active {
+  flex-basis: 100%;
 }
 
 .import-form {

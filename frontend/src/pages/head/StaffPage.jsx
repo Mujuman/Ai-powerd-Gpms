@@ -210,7 +210,7 @@ export default function StaffPage() {
           <section className="academic-card">
             <h2 className="section-title">Add one advisor or examiner</h2>
             <form className="rules-form" onSubmit={submitStaff}>
-              <div className="rules-grid">
+              <div className="staff-form-fields">
                 <label className="form-field">
                   <span className="form-label">Staff role</span>
                   <select className="form-input" value={form.role}
