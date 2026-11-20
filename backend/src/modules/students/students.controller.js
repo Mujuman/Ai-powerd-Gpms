@@ -141,6 +141,13 @@ export const studentsController = {
       })
     } catch (error) { next(error) }
   },
+  deleteGroup: async (request, response, next) => {
+    try {
+      const groupId = parse(uuidSchema, request.params.groupId)
+      await service.deleteGroup(groupId, actor(request))
+      response.json({ success: true, message: 'Group deleted' })
+    } catch (error) { next(error) }
+  },
   replaceGroupMembers: async (request, response, next) => {
     try {
       const groupId = parse(uuidSchema, request.params.groupId)

@@ -137,7 +137,7 @@ export async function listSubmissions(connection, departmentId, status) {
        JOIN student_groups g ON g.id = ps.group_id
        LEFT JOIN users submitter ON submitter.id = ps.submitted_by
        LEFT JOIN users reviewer ON reviewer.id = ps.reviewed_by
-      WHERE g.department_id = ? ${statusFilter}
+      WHERE g.department_id = ? AND g.is_active = TRUE ${statusFilter}
       ORDER BY ps.submitted_at DESC`,
     params,
   )
@@ -175,7 +175,7 @@ export async function listDepartmentGroups(connection, departmentId) {
               JOIN defense_schedules ds ON ds.id = da.schedule_id
               WHERE ds.group_id = g.id) AS assessmentCount
        FROM student_groups g
-      WHERE g.department_id = ?
+      WHERE g.department_id = ? AND g.is_active = TRUE
       ORDER BY g.created_at DESC`,
     [departmentId],
   )

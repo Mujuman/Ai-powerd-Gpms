@@ -611,6 +611,24 @@ export async function createGroup(data, actor) {
   return id
 }
 
+export async function deleteGroup(groupId, actor) {
+  await withTransaction(pool, async (connection) => {
+    const group = await repository.findGroup(connection, groupId, true)
+    if (!group) throw new HttpError(404, 'Student group not found')
+    if (!group.isActive) throw new HttpError(409, 'This student group is already deleted')
+    const departmentId = await resolveDepartment(actor, group.departmentId)
+    await repository.deactivateGroup(connection, groupId)
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'student_groups.deleted',
+      targetType: 'student_group',
+      targetId: groupId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { departmentId, groupName: group.name },
+    })
+  })
+}
+
 export function planGpaBalancedGroups(students, groupingRules = {}) {
   const minimumGroupSize = groupingRules.minimumGroupSize ?? 1
   const maximumGroupSize = groupingRules.maximumGroupSize ?? 5

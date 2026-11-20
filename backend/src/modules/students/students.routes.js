@@ -37,6 +37,7 @@ studentsRoutes.post('/imports/:batchId/confirm', departmentManagers, studentsCon
 studentsRoutes.get('/groups', departmentManagers, studentsController.listGroups)
 studentsRoutes.post('/groups', departmentManagers, studentsController.createGroup)
 studentsRoutes.post('/groups/generate', departmentManagers, studentsController.generateGroups)
+studentsRoutes.delete('/groups/:groupId', departmentManagers, studentsController.deleteGroup)
 studentsRoutes.put('/groups/:groupId/members', departmentManagers, studentsController.replaceGroupMembers)
 studentsRoutes.post('/eligibility/evaluate', departmentManagers, studentsController.evaluateEligibility)
 studentsRoutes.get('/eligibility', studentsController.listEligibility)

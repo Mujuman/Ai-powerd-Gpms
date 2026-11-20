@@ -37,6 +37,7 @@ export default function GroupsPage() {
   const [projectType, setProjectType] = useState('group')
   const [memberIds, setMemberIds] = useState([])
   const [editingGroup, setEditingGroup] = useState(null)
+  const [memberSearch, setMemberSearch] = useState('')
 
   useEffect(() => {
     if (!departmentId && departments.length === 1) setDepartmentId(departments[0].id)
@@ -65,7 +66,12 @@ export default function GroupsPage() {
     : []
   const editableStudents = students.filter((student) => (
     !groupedStudentIds.has(student.userId) || editingGroup?.memberIds.includes(student.userId)
+  )).filter((student) => (
+    `${student.studentId} ${student.fullName} ${student.email}`
+      .toLowerCase()
+      .includes(memberSearch.trim().toLowerCase())
   ))
+  const editingGroupRecord = visibleGroups.find((group) => group.id === editingGroup?.id)
 
   const groupMutation = useMutation({
     mutationFn: async (body) => (await api.post('/students/groups', body)).data.data,
@@ -91,8 +97,21 @@ export default function GroupsPage() {
     })).data.data,
     onSuccess: () => {
       setEditingGroup(null)
+      setMemberSearch('')
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
+    },
+  })
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (groupId) => (await api.delete(`/students/groups/${groupId}`)).data,
+    onSuccess: () => {
+      setEditingGroup(null)
+      setMemberIds([])
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
+      void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
+      void queryClient.invalidateQueries({ queryKey: ['advisor-projects'] })
     },
   })
 
@@ -104,6 +123,13 @@ export default function GroupsPage() {
       projectType,
       studentUserIds: memberIds,
     })
+  }
+
+  function deleteGroup(group) {
+    const confirmed = window.confirm(
+      `Delete "${group.name}"? Its students will be available for grouping again. Project history will be kept, and any scheduled defenses will be cancelled.`,
+    )
+    if (confirmed) deleteGroupMutation.mutate(group.id)
   }
 
   return (
@@ -199,6 +225,8 @@ export default function GroupsPage() {
             <h2 className="section-title">Existing groups</h2>
             {groupsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading groups…</div>}
             {groupsQuery.isError && <ErrorMessage error={groupsQuery.error} fallback="Could not load groups" />}
+            <ErrorMessage error={groupMembersMutation.error} fallback="Could not update group members" />
+            <ErrorMessage error={deleteGroupMutation.error} fallback="Could not delete group" />
             {groupsQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
@@ -208,43 +236,21 @@ export default function GroupsPage() {
                       <tr key={group.id}>
                         <td>{group.name}</td>
                         <td>{group.projectType}</td>
-                        <td>{editingGroup?.id === group.id ? (
-                          <select className="form-input member-select" multiple={group.projectType === 'group'}
-                            aria-label={`Members of ${group.name}`}
-                            value={group.projectType === 'individual'
-                              ? (editingGroup.memberIds[0] ?? '')
-                              : editingGroup.memberIds}
-                            onChange={(event) => setEditingGroup({
-                              ...editingGroup,
-                              memberIds: group.projectType === 'individual'
-                                ? (event.target.value ? [event.target.value] : [])
-                                : Array.from(event.target.selectedOptions, (option) => option.value),
-                            })}>
-                            {editableStudents.map((student) => (
-                              <option key={student.userId} value={student.userId}>
-                                {student.studentId} — {student.fullName}
-                              </option>
-                            ))}
-                          </select>
-                        ) : group.members.map((member) => member.fullName).join(', ') || '—'}</td>
-                        <td><div className="action-row">
-                          {editingGroup?.id === group.id ? (
-                            <>
-                              <button className="btn-primary" disabled={groupMembersMutation.isPending
-                                || (group.projectType === 'individual'
-                                  ? editingGroup.memberIds.length !== 1
-                                  : !editingGroup.memberIds.length)}
-                                onClick={() => groupMembersMutation.mutate()}>
-                                {groupMembersMutation.isPending ? 'Saving…' : 'Save members'}
-                              </button>
-                              <button className="btn-secondary" onClick={() => setEditingGroup(null)}>Cancel</button>
-                            </>
-                          ) : (
-                            <button className="btn-secondary" onClick={() => setEditingGroup({
+                        <td>{group.members.map((member) => member.fullName).join(', ') || '—'}</td>
+                        <td><div className="action-row group-row-actions">
+                          <button className="btn-secondary" onClick={() => {
+                            setMemberSearch('')
+                            setEditingGroup({
                               id: group.id,
                               memberIds: group.members.map((member) => member.userId),
-                            })}>Edit members</button>
-                          )}
+                            })
+                          }}>Edit members</button>
+                          <button className="btn-secondary" disabled={deleteGroupMutation.isPending}
+                            onClick={() => deleteGroup(group)}>
+                            {deleteGroupMutation.isPending && deleteGroupMutation.variables === group.id
+                              ? 'Deleting…'
+                              : 'Delete'}
+                          </button>
                         </div></td>
                       </tr>
                     ))}
@@ -256,6 +262,63 @@ export default function GroupsPage() {
               </div>
             )}
           </section>
+
+          {editingGroupRecord && (
+            <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-group-members-title">
+              <div className="modal-card group-members-modal">
+                <h2 id="edit-group-members-title" className="modal-title">
+                  Edit members: {editingGroupRecord.name}
+                </h2>
+                <label className="form-field">
+                  <span className="form-label">Find students</span>
+                  <input className="form-input" type="search" value={memberSearch}
+                    placeholder="Search by student ID, name, or email"
+                    onChange={(event) => setMemberSearch(event.target.value)} />
+                </label>
+                <p className="muted-copy">
+                  {editingGroup.memberIds.length} student{editingGroup.memberIds.length === 1 ? '' : 's'} selected.
+                </p>
+                <div className="group-members-list" role="group" aria-label="Available students">
+                  {editableStudents.map((student) => (
+                    <label className="group-member-option" key={student.userId}>
+                      <input type="checkbox" checked={editingGroup.memberIds.includes(student.userId)}
+                        onChange={(event) => {
+                          const checked = event.target.checked
+                          setEditingGroup((current) => ({
+                            ...current,
+                            memberIds: editingGroupRecord.projectType === 'individual'
+                              ? (checked ? [student.userId] : [])
+                              : checked
+                                ? [...current.memberIds, student.userId]
+                                : current.memberIds.filter((userId) => userId !== student.userId),
+                          }))
+                        }} />
+                      <span>{student.studentId} — {student.fullName}</span>
+                    </label>
+                  ))}
+                  {editableStudents.length === 0 && (
+                    <p className="muted-copy">No available students match this search.</p>
+                  )}
+                </div>
+                <ErrorMessage error={groupMembersMutation.error} fallback="Could not update group members" />
+                <div className="modal-actions">
+                  <button type="button" className="btn-secondary" disabled={groupMembersMutation.isPending}
+                    onClick={() => {
+                      setEditingGroup(null)
+                      setMemberSearch('')
+                    }}>Cancel</button>
+                  <button type="button" className="btn-primary"
+                    disabled={groupMembersMutation.isPending
+                      || (editingGroupRecord.projectType === 'individual'
+                        ? editingGroup.memberIds.length !== 1
+                        : editingGroup.memberIds.length === 0)}
+                    onClick={() => groupMembersMutation.mutate()}>
+                    {groupMembersMutation.isPending ? 'Saving…' : 'Save members'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -363,7 +363,7 @@ export async function saveRules(connection, departmentId, rules, actorId) {
 }
 
 export async function listGroups(databasePool, { departmentId }) {
-  const clauses = []
+  const clauses = ['g.is_active = TRUE']
   const params = []
   if (departmentId) {
     clauses.push('g.department_id = ?')
@@ -430,7 +430,7 @@ export async function findUngroupedStudents(connection, departmentId) {
 export async function listGroupNames(connection, departmentId) {
   const [rows] = await connection.execute(
     `SELECT name FROM student_groups
-      WHERE department_id = ? FOR UPDATE`,
+      WHERE department_id = ? AND is_active = TRUE FOR UPDATE`,
     [departmentId],
   )
   return rows.map((row) => row.name)
@@ -453,6 +453,37 @@ export async function insertGroup(connection, group) {
        (id, department_id, name, project_type, created_by)
      VALUES (?, ?, ?, ?, ?)`,
     [group.id, group.departmentId, group.name, group.projectType, group.createdBy],
+  )
+}
+
+export async function deactivateGroup(connection, groupId) {
+  await connection.execute(
+    'UPDATE student_groups SET is_active = FALSE WHERE id = ? AND is_active = TRUE',
+    [groupId],
+  )
+  await connection.execute(
+    `UPDATE student_group_members
+        SET is_active = FALSE, left_at = CURRENT_TIMESTAMP(3)
+      WHERE group_id = ? AND is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `UPDATE project_advisor_assignments
+        SET is_active = FALSE, ended_at = CURRENT_TIMESTAMP(3)
+      WHERE group_id = ? AND is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `UPDATE defense_schedule_examiners de
+       JOIN defense_schedules ds ON ds.id = de.schedule_id
+        SET de.is_active = FALSE, de.ended_at = CURRENT_TIMESTAMP(3)
+      WHERE ds.group_id = ? AND de.is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `UPDATE defense_schedules SET status = 'cancelled'
+      WHERE group_id = ? AND status = 'scheduled'`,
+    [groupId],
   )
 }
 
