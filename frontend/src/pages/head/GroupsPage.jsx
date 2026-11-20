@@ -55,6 +55,15 @@ export default function GroupsPage() {
       params: { departmentId },
     })).data.data,
   })
+  const groupedStudentIds = new Set((groupsQuery.data ?? [])
+    .filter((group) => group.isActive)
+    .flatMap((group) => group.members.map((member) => member.userId)))
+  const availableStudents = groupsQuery.data
+    ? students.filter((student) => !groupedStudentIds.has(student.userId))
+    : []
+  const editableStudents = students.filter((student) => (
+    !groupedStudentIds.has(student.userId) || editingGroup?.memberIds.includes(student.userId)
+  ))
 
   const groupMutation = useMutation({
     mutationFn: async (body) => (await api.post('/students/groups', body)).data.data,
@@ -68,6 +77,7 @@ export default function GroupsPage() {
   const generateGroupsMutation = useMutation({
     mutationFn: async () => (await api.post('/students/groups/generate', { departmentId })).data.data,
     onSuccess: () => {
+      setMemberIds([])
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
@@ -108,6 +118,8 @@ export default function GroupsPage() {
           <select className="form-input" value={departmentId} onChange={(event) => {
             setDepartmentId(event.target.value)
             setEditingGroup(null)
+            setGroupName('')
+            setMemberIds([])
           }}>
             <option value="">Select a department</option>
             {departments.map((department) => (
@@ -160,10 +172,11 @@ export default function GroupsPage() {
               </label>
               <label className="form-field member-select"><span className="form-label">Members</span>
                 <select className="form-input" multiple value={memberIds}
+                  disabled={!availableStudents.length || groupsQuery.isLoading || groupsQuery.isError}
                   onChange={(event) => setMemberIds(
                     Array.from(event.target.selectedOptions, (option) => option.value),
                   )}>
-                  {students.map((student) => (
+                  {availableStudents.map((student) => (
                     <option key={student.userId} value={student.userId}>
                       {student.studentId} — {student.fullName}
                     </option>
@@ -171,6 +184,7 @@ export default function GroupsPage() {
                 </select>
               </label>
               <button className="btn-primary" disabled={memberIds.length === 0
+                || groupsQuery.isLoading || groupsQuery.isError
                 || (projectType === 'individual' && memberIds.length !== 1) || groupMutation.isPending}>
                 {groupMutation.isPending ? 'Creating…' : 'Create selected group'}
               </button>
@@ -204,7 +218,7 @@ export default function GroupsPage() {
                                 ? (event.target.value ? [event.target.value] : [])
                                 : Array.from(event.target.selectedOptions, (option) => option.value),
                             })}>
-                            {students.map((student) => (
+                            {editableStudents.map((student) => (
                               <option key={student.userId} value={student.userId}>
                                 {student.studentId} — {student.fullName}
                               </option>

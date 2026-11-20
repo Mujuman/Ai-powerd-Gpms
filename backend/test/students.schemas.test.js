@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   createGroupSchema,
+  departmentQuerySchema,
   generateGroupsSchema,
   importStudentsSchema,
   registerStudentSchema,
@@ -31,6 +32,7 @@ test('group validation rejects duplicate members and oversized policy values', (
   assert.equal(groupWithAcademicYear.success, false)
   assert.equal(generateGroupsSchema.safeParse({ departmentId }).success, true)
   assert.equal(generateGroupsSchema.safeParse({ departmentId, semesterId }).success, false)
+  assert.equal(departmentQuerySchema.safeParse({ departmentId, academicYearId }).success, false)
 
   const oversizedRule = saveRulesSchema.safeParse({
     grouping: { maximumGroupSize: 101 },
