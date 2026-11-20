@@ -37,6 +37,40 @@ test('student lists sort by highest GPA first with missing GPAs last', async () 
   assert.match(queries[1], /ORDER BY sp\.gpa IS NULL, sp\.gpa DESC, u\.full_name/)
 })
 
+test('student list filters by name, year level, and batch', async () => {
+  const queries = []
+  const parameters = []
+  const databasePool = {
+    async execute(query, values) {
+      queries.push(query)
+      parameters.push(values)
+      return queries.length === 1 ? [[{ total: 0 }]] : [[]]
+    },
+  }
+
+  await listStudents(databasePool, {
+    departmentId: 'department-id',
+    page: 1,
+    limit: 50,
+    search: 'Ada',
+    yearLevel: 3,
+    cohort: '2025',
+  })
+
+  assert.match(queries[0], /u\.full_name LIKE/)
+  assert.match(queries[0], /sp\.year_level = \?/)
+  assert.match(queries[0], /sp\.cohort LIKE \?/)
+  assert.deepEqual(parameters[0], [
+    'student',
+    'department-id',
+    '%Ada%',
+    '%Ada%',
+    '%Ada%',
+    3,
+    '%2025%',
+  ])
+})
+
 test('permanent student deletion removes restricted dependents before the user row', async () => {
   const statements = []
   const connection = {

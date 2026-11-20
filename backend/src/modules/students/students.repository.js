@@ -1,12 +1,20 @@
 import { HttpError } from '../../utils/http-error.js'
 
-export async function listStudents(databasePool, { departmentId, page, limit, search }) {
+export async function listStudents(databasePool, { departmentId, page, limit, search, yearLevel, cohort }) {
   const clauses = ['r.code = ?', 'sp.department_id = ?']
   const params = ['student', departmentId]
   if (search) {
     clauses.push('(u.full_name LIKE ? OR u.email LIKE ? OR sp.student_id LIKE ?)')
     const query = `%${search}%`
     params.push(query, query, query)
+  }
+  if (yearLevel !== undefined) {
+    clauses.push('sp.year_level = ?')
+    params.push(yearLevel)
+  }
+  if (cohort) {
+    clauses.push('sp.cohort LIKE ?')
+    params.push(`%${cohort}%`)
   }
   const where = clauses.join(' AND ')
   const offset = (page - 1) * limit

@@ -42,6 +42,9 @@ export default function StudentsPage() {
   const [departmentId, setDepartmentId] = useState('')
   const [academicYearId, setAcademicYearId] = useState('')
   const [semesterId, setSemesterId] = useState('')
+  const [nameSearch, setNameSearch] = useState('')
+  const [yearLevelSearch, setYearLevelSearch] = useState('')
+  const [batchSearch, setBatchSearch] = useState('')
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [importResult, setImportResult] = useState(null)
@@ -81,9 +84,17 @@ export default function StudentsPage() {
   }, [semesterId, semesters])
 
   const studentsQuery = useQuery({
-    queryKey: ['students', departmentId],
+    queryKey: ['students', departmentId, nameSearch, yearLevelSearch, batchSearch],
     enabled: Boolean(departmentId),
-    queryFn: async () => (await api.get('/students', { params: { departmentId, limit: 100 } })).data.data,
+    queryFn: async () => (await api.get('/students', {
+      params: {
+        departmentId,
+        limit: 100,
+        search: nameSearch || undefined,
+        yearLevel: yearLevelSearch || undefined,
+        cohort: batchSearch || undefined,
+      },
+    })).data.data,
   })
   const importMutation = useMutation({
     mutationFn: async ({ action, batchId }) => {
@@ -314,17 +325,37 @@ export default function StudentsPage() {
                 </div>
               </div>
             )}
+            <div className="student-search-grid" role="search" aria-label="Search students">
+              <label className="form-field">
+                <span className="form-label">Student name</span>
+                <input className="form-input" type="search" value={nameSearch}
+                  placeholder="Search by name"
+                  onChange={(event) => setNameSearch(event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span className="form-label">Year level</span>
+                <input className="form-input" type="number" min="1" max="255" value={yearLevelSearch}
+                  placeholder="Any year"
+                  onChange={(event) => setYearLevelSearch(event.target.value)} />
+              </label>
+              <label className="form-field">
+                <span className="form-label">Batch</span>
+                <input className="form-input" type="search" value={batchSearch}
+                  placeholder="Search by batch"
+                  onChange={(event) => setBatchSearch(event.target.value)} />
+              </label>
+            </div>
             {studentsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading students…</div>}
             {studentsQuery.isError && <ErrorMessage error={studentsQuery.error} fallback="Could not load students" />}
             {studentsQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
-                  <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Program</th><th>Year</th><th>GPA</th><th>Status</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Program</th><th>Year</th><th>Batch</th><th>GPA</th><th>Status</th><th>Actions</th></tr></thead>
                   <tbody>
                     {students.map((student) => (
                       <tr key={student.userId}>
                         <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                        <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td>
+                        <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td><td>{student.cohort || '—'}</td>
                         <td>{student.gpa ?? '—'}</td><td>{student.isActive ? student.enrollmentStatus : 'inactive'}</td>
                         <td><div className="action-row">
                           <button className="btn-secondary" disabled={!student.isActive}
@@ -344,7 +375,7 @@ export default function StudentsPage() {
                         </div></td>
                       </tr>
                     ))}
-                    {students.length === 0 && <tr><td className="table-empty" colSpan={8}>No students are assigned to this department.</td></tr>}
+                    {students.length === 0 && <tr><td className="table-empty" colSpan={9}>No students match these filters.</td></tr>}
                   </tbody>
                 </table>
               </div>
