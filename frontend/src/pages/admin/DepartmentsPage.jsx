@@ -306,7 +306,7 @@ export default function DepartmentsPage() {
       )}
 
       {/* Modals */}
-      {showCreate && <CreateDeptModal onClose={() => setShowCreate(false)} />}
+      {showCreate && <CreateDeptModal departmentHeads={headsQuery.data?.data || []} onClose={() => setShowCreate(false)} />}
       {editDept && <EditDeptModal dept={editDept} onClose={() => setEditDept(null)} />}
     </div>
   )
