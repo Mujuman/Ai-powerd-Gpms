@@ -48,13 +48,6 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient()
   const departments = Array.isArray(user?.departments) ? user.departments : []
   const [departmentId, setDepartmentId] = useState('')
-  const [staffFile, setStaffFile] = useState(null)
-  const [staffImportResult, setStaffImportResult] = useState(null)
-  const [staffForm, setStaffForm] = useState({
-    fullName: '', email: '', password: '', role: 'academic_advisor',
-    title: '', specialization: '', maxGroups: '5',
-  })
-  const [staffEdit, setStaffEdit] = useState(null)
   const [reviewNotes, setReviewNotes] = useState({})
   const [scheduleForm, setScheduleForm] = useState({
     groupId: '', defenseType: 'proposal', scheduledAt: '', venue: '', notes: '',
@@ -80,19 +73,6 @@ export default function ProjectsPage() {
   const assessmentsQuery = useQuery(queryOptions('head-project-assessments', '/projects/assessments'))
   const reportsQuery = useQuery(queryOptions('head-project-reports', '/projects/reports'))
   const similarityQuery = useQuery(queryOptions('head-project-similarity', '/projects/similarity'))
-  const staffImportMutation = useMutation({
-    mutationFn: async () => {
-      const body = new FormData()
-      body.append('departmentId', departmentId)
-      body.append('excelFile', staffFile)
-      return (await api.post('/projects/staff/import', body)).data.data
-    },
-    onSuccess: (result) => {
-      setStaffFile(null)
-      setStaffImportResult(result)
-      invalidateWorkspaces()
-    },
-  })
 
   const groups = groupsQuery.data ?? []
   const staff = staffQuery.data ?? []
@@ -119,20 +99,6 @@ export default function ProjectsPage() {
 
   const mutation = useMutation({
     mutationFn: async ({ action, ...variables }) => {
-      if (action === 'create-staff') {
-        return (await api.post('/projects/staff', { ...variables, departmentId })).data.data
-      }
-      if (action === 'update-staff') {
-        const { id, role, changes } = variables
-        return (await api.patch(`/projects/staff/${id}`, changes, {
-          params: { departmentId, role },
-        })).data.data
-      }
-      if (action === 'delete-staff') {
-        return (await api.delete(`/projects/staff/${variables.id}`, {
-          params: { departmentId, role: variables.role },
-        })).data.data
-      }
       if (action === 'review') {
         return (await api.post(`/projects/submissions/${variables.id}/review`, {
           decision: variables.decision,
@@ -182,13 +148,6 @@ export default function ProjectsPage() {
       throw new Error('Unsupported Department Head action')
     },
     onSuccess: (_data, variables) => {
-      if (variables.action === 'create-staff') {
-        setStaffForm({
-          fullName: '', email: '', password: '', role: 'academic_advisor',
-          title: '', specialization: '', maxGroups: '5',
-        })
-      }
-      if (variables.action === 'update-staff') setStaffEdit(null)
       if (variables.action === 'create-defense') {
         setScheduleForm({ groupId: '', defenseType: 'proposal', scheduledAt: '', venue: '', notes: '' })
       }
@@ -208,15 +167,6 @@ export default function ProjectsPage() {
   const comparisons = useMemo(() => similarity?.results?.comparisons ?? [], [similarity])
   const report = reportsQuery.data
   const mutationError = mutation.error
-
-  function submitStaff(event) {
-    event.preventDefault()
-    mutation.mutate({
-      action: 'create-staff',
-      ...staffForm,
-      maxGroups: Number(staffForm.maxGroups),
-    })
-  }
 
   function submitDefense(event) {
     event.preventDefault()
