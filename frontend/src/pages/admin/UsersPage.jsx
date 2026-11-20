@@ -101,8 +101,13 @@ function CreateUserModal({ departments, onClose }) {
 
   async function onSubmit(raw) {
     setServerError(null)
-    const result = createUserSchema.safeParse(raw)
-    if (!result.success) return
+    // Add role manually since the field is disabled and won't be in form data
+    const data = { ...raw, role: 'department_head', departmentIds: selectedDepts }
+    const result = createUserSchema.safeParse(data)
+    if (!result.success) {
+      console.error('Validation errors:', result.error.errors)
+      return
+    }
     await mutation.mutateAsync(result.data)
   }
 
