@@ -295,8 +295,8 @@ export default function StudentsPage() {
     <div className="page-content">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Department Academics</h1>
-          <p className="page-subtitle">Manage student records, import spreadsheets, eligibility, and project groups.</p>
+          <h1 className="page-title">Students</h1>
+          <p className="page-subtitle">Create and manage student records, imports, GPA, eligibility, and group assignments.</p>
         </div>
       </div>
       {departments.length > 1 && (
