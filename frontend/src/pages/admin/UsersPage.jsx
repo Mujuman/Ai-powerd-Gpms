@@ -76,11 +76,13 @@ function CreateUserModal({ departments, onClose }) {
   const mutation = useMutation({
     mutationFn: async (values) => {
       const { departmentIds, ...rest } = values
-      const user = await createUser(rest)
-      if (departmentIds?.length) {
-        await setDepartments(user.data.user.id, departmentIds)
+      const response = await createUser(rest)
+      // Extract user from response - response.data contains { user: {...} }
+      const userId = response.data?.user?.id
+      if (userId && departmentIds?.length) {
+        await setDepartments(userId, departmentIds)
       }
-      return user
+      return response
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['users'] })
