@@ -55,6 +55,8 @@ export default function GroupsPage() {
       params: { departmentId },
     })).data.data,
   })
+  const visibleGroups = (groupsQuery.data ?? [])
+    .filter((group) => group.name.trim().toLowerCase() !== 'demo project team')
   const groupedStudentIds = new Set((groupsQuery.data ?? [])
     .filter((group) => group.isActive)
     .flatMap((group) => group.members.map((member) => member.userId)))
@@ -202,7 +204,7 @@ export default function GroupsPage() {
                 <table className="data-table">
                   <thead><tr><th>Group</th><th>Project</th><th>Members</th><th>Actions</th></tr></thead>
                   <tbody>
-                    {groupsQuery.data.map((group) => (
+                    {visibleGroups.map((group) => (
                       <tr key={group.id}>
                         <td>{group.name}</td>
                         <td>{group.projectType}</td>
@@ -246,7 +248,7 @@ export default function GroupsPage() {
                         </div></td>
                       </tr>
                     ))}
-                    {groupsQuery.data.length === 0 && (
+                    {visibleGroups.length === 0 && (
                       <tr><td className="table-empty" colSpan={4}>No project groups found.</td></tr>
                     )}
                   </tbody>
