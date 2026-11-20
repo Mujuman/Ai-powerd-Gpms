@@ -76,19 +76,27 @@ function CreateUserModal({ departments, onClose }) {
 
   const mutation = useMutation({
     mutationFn: async (values) => {
+      console.log('Creating user with values:', values)
       const response = await createUser(values)
-      // Extract user from response
-      const userId = response.data?.user?.id
+      console.log('Create user response:', response)
+      
+      // Backend returns: { success: true, data: { user } }
+      const userId = response?.data?.user?.id
+      console.log('Extracted userId:', userId)
+      
       if (userId && selectedDepts.length > 0) {
+        console.log('Setting departments:', selectedDepts)
         await setDepartments(userId, selectedDepts)
       }
       return response
     },
     onSuccess: () => {
+      console.log('Mutation success - invalidating queries and closing')
       void qc.invalidateQueries({ queryKey: ['users'] })
       onClose()
     },
     onError: (err) => {
+      console.error('Mutation error:', err)
       setServerError(err?.response?.data?.message ?? 'Failed to create user')
     },
   })
@@ -100,14 +108,19 @@ function CreateUserModal({ departments, onClose }) {
   } = useForm({ defaultValues: { role: 'department_head' } })
 
   async function onSubmit(raw) {
+    console.log('Form submitted with raw data:', raw)
     setServerError(null)
     // Add role manually since the field is disabled and won't be in form data
     const data = { ...raw, role: 'department_head', departmentIds: selectedDepts }
+    console.log('Complete form data with role and departments:', data)
     const result = createUserSchema.safeParse(data)
+    console.log('Zod validation result:', result)
     if (!result.success) {
       console.error('Validation errors:', result.error.errors)
+      setServerError('Validation error: ' + result.error.errors.map(e => e.message).join(', '))
       return
     }
+    console.log('Validation passed, sending to mutation...')
     await mutation.mutateAsync(result.data)
   }
 
