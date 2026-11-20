@@ -398,7 +398,7 @@ export default function StudentsPage() {
 
           {editingStudent && (
             <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-student-title">
-              <div className="modal-card">
+              <div className="modal-card student-edit-modal">
                 <h2 id="edit-student-title" className="modal-title">Edit student</h2>
                 <ErrorMessage error={updateStudentMutation.error} fallback="Could not update student" />
                 <form className="modal-form" onSubmit={saveStudent}>
