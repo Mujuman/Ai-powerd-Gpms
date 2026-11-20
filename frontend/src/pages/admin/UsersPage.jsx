@@ -116,8 +116,9 @@ function CreateUserModal({ departments, onClose }) {
     const result = createUserSchema.safeParse(data)
     console.log('Zod validation result:', result)
     if (!result.success) {
-      console.error('Validation errors:', result.error.errors)
-      setServerError('Validation error: ' + result.error.errors.map(e => e.message).join(', '))
+      const errorMessages = result.error.errors.map(e => e.message).join(', ')
+      console.error('Validation failed:', errorMessages)
+      setServerError('Validation error: ' + errorMessages)
       return
     }
     console.log('Validation passed, sending to mutation...')
