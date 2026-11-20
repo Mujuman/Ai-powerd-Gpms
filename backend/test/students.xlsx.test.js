@@ -18,7 +18,7 @@ test('student import parser accepts a valid XLSX workbook', async () => {
   assert.deepEqual(student.errors, [])
 })
 
-test('student import parser explains when a renamed non-XLSX file is uploaded', async () => {
+test('student import parser rejects non-Excel file contents', async () => {
   await assert.rejects(
     parseStudentWorkbook(Buffer.from('studentId,fullName,email')),
     {
