@@ -2,9 +2,6 @@ import { ZodError, z } from 'zod'
 import {
   createUserSchema,
   updateUserSchema,
-  updateStudentProfileSchema,
-  updateAdvisorProfileSchema,
-  updateExaminerProfileSchema,
   listUsersQuerySchema,
 } from './users.schemas.js'
 import {
@@ -12,9 +9,7 @@ import {
   updateUser,
   listUsers,
   getUserById,
-  updateProfile,
   setDepartments,
-  getRoleSummary,
 } from './users.service.js'
 import { HttpError } from '../../utils/http-error.js'
 
@@ -56,24 +51,17 @@ function parseBody(schema, body) {
 
 export const usersController = {
   /**
-   * GET /users — list users (admin only)
+   * POST /users/department-heads — create department head account (admin only)
    */
-  listUsers: async (request, response, next) => {
-    try {
-      const filters = parseQuery(listUsersQuerySchema, request.query)
-      const result = await listUsers(filters)
-      response.json({ success: true, data: result })
-    } catch (error) {
-      next(error)
-    }
-  },
-
-  /**
-   * POST /users — create user (admin only)
-   */
-  createUser: async (request, response, next) => {
+  createDepartmentHead: async (request, response, next) => {
     try {
       const data = parseBody(createUserSchema, request.body)
+      
+      // Ensure only department_head role is being created
+      if (data.role !== 'department_head') {
+        throw new HttpError(400, 'This endpoint only creates department_head accounts')
+      }
+      
       const user = await createUser(data, requestInfo(request))
       response.status(201).json({ success: true, data: { user } })
     } catch (error) {
@@ -82,19 +70,80 @@ export const usersController = {
   },
 
   /**
-   * GET /users/role-summary — role counts (admin only)
+   * GET /users/department-heads — list all department heads (admin only)
    */
-  getRoleSummary: async (_request, response, next) => {
+  listDepartmentHeads: async (request, response, next) => {
     try {
-      const summary = await getRoleSummary()
-      response.json({ success: true, data: { summary } })
+      const filters = { role: 'department_head', ...request.query }
+      const result = await listUsers(filters)
+      response.json({ success: true, data: result })
     } catch (error) {
       next(error)
     }
   },
 
   /**
-   * GET /users/:id — get user (admin: any; others: own only)
+   * GET /users/department-heads/:id — get specific department head (admin only)
+   */
+  getDepartmentHead: async (request, response, next) => {
+    try {
+      const { id } = request.params
+      const user = await getUserById(id)
+      
+      if (user.role !== 'department_head') {
+        throw new HttpError(404, 'Department head not found')
+      }
+      
+      response.json({ success: true, data: { user } })
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
+   * PATCH /users/department-heads/:id — update department head (admin only)
+   */
+  updateDepartmentHead: async (request, response, next) => {
+    try {
+      const { id } = request.params
+      
+      const user = await getUserById(id)
+      if (user.role !== 'department_head') {
+        throw new HttpError(404, 'Department head not found')
+      }
+      
+      const data = parseBody(updateUserSchema, request.body)
+      
+      const updatedUser = await updateUser(id, data, requestInfo(request))
+      response.json({ success: true, data: { user: updatedUser } })
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
+   * DELETE /users/department-heads/:id — delete department head (admin only)
+   */
+  deleteDepartmentHead: async (request, response, next) => {
+    try {
+      const { id } = request.params
+      
+      const user = await getUserById(id)
+      if (user.role !== 'department_head') {
+        throw new HttpError(404, 'Department head not found')
+      }
+      
+      // Soft delete by setting isActive to false
+      await updateUser(id, { isActive: false }, requestInfo(request))
+      
+      response.status(204).end()
+    } catch (error) {
+      next(error)
+    }
+  },
+
+  /**
+   * GET /users/:id — get user (self-access or admin)
    */
   getUser: async (request, response, next) => {
     try {
@@ -113,7 +162,7 @@ export const usersController = {
   },
 
   /**
-   * PATCH /users/:id — update user (admin: any; self: own fields only)
+   * PATCH /users/:id — update user (self-access: own fields only)
    */
   updateUser: async (request, response, next) => {
     try {
@@ -137,53 +186,6 @@ export const usersController = {
       }
 
       const user = await updateUser(id, data, requestInfo(request))
-      response.json({ success: true, data: { user } })
-    } catch (error) {
-      next(error)
-    }
-  },
-
-  /**
-   * PATCH /users/:id/profile — update role-specific profile
-   */
-  updateProfile: async (request, response, next) => {
-    try {
-      const { id } = request.params
-      const actor = request.user
-
-      const targetUser = await getUserById(id)
-
-      let schema
-      if (targetUser.role === 'student') {
-        schema = updateStudentProfileSchema
-      } else if (targetUser.role === 'academic_advisor') {
-        schema = updateAdvisorProfileSchema
-      } else if (targetUser.role === 'examiner') {
-        schema = updateExaminerProfileSchema
-      } else {
-        throw new HttpError(400, 'This user role does not have an extended profile')
-      }
-
-      const profileData = parseBody(schema, request.body)
-      const user = await updateProfile(id, targetUser.role, profileData, requestInfo(request))
-      response.json({ success: true, data: { user } })
-    } catch (error) {
-      next(error)
-    }
-  },
-
-  /**
-   * PUT /users/:id/departments — set department assignments (admin only)
-   */
-  setDepartments: async (request, response, next) => {
-    try {
-      const { id } = request.params
-      const actor = request.user
-
-      const setDeptsSchema = z.object({ departmentIds: z.array(z.string().uuid()) }).strict()
-      const body = parseBody(setDeptsSchema, request.body)
-
-      const user = await setDepartments(id, body.departmentIds, actor.id, requestInfo(request))
       response.json({ success: true, data: { user } })
     } catch (error) {
       next(error)

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, ToggleLeft, ToggleRight, Search } from 'lucide-react'
+import { Plus, Pencil, ToggleLeft, ToggleRight, Search, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 import api from '../../lib/api'
@@ -8,11 +8,7 @@ import { RoleBadge } from '../../components/ui/RoleBadge'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const ROLES = [
-  'system_administrator',
   'department_head',
-  'academic_advisor',
-  'examiner',
-  'student',
 ]
 
 const ROLE_LABELS = {
@@ -28,7 +24,7 @@ const createUserSchema = z.object({
   email: z.string().min(1, 'Required').email('Invalid email'),
   fullName: z.string().min(2, 'At least 2 characters'),
   password: z.string().min(12, 'At least 12 characters'),
-  role: z.enum(['system_administrator', 'department_head', 'academic_advisor', 'examiner', 'student']),
+  role: z.enum(['department_head']),
   departmentIds: z.array(z.string()).optional(),
 })
 
@@ -41,11 +37,10 @@ const editUserSchema = z.object({
 // ── API helpers ───────────────────────────────────────────────────────────────
 async function fetchUsers({ page, limit, role, departmentId, search, isActive }) {
   const params = new URLSearchParams({ page, limit })
-  if (role) params.set('role', role)
-  if (departmentId) params.set('departmentId', departmentId)
   if (search) params.set('search', search)
-  if (isActive !== '') params.set('isActive', isActive)
-  const { data } = await api.get(`/users?${params}`)
+  // Department heads endpoint doesn't support filtering by role/dept/status in query
+  // but we can filter client-side if needed
+  const { data } = await api.get(`/users/department-heads?${params}`)
   return data.data
 }
 
@@ -55,17 +50,21 @@ async function fetchDepartments() {
 }
 
 async function createUser(body) {
-  const { data } = await api.post('/users', body)
+  const { data } = await api.post('/users/department-heads', body)
   return data
 }
 
 async function updateUser(id, body) {
-  const { data } = await api.patch(`/users/${id}`, body)
+  const { data } = await api.patch(`/users/department-heads/${id}`, body)
   return data
 }
 
+async function deleteUser(id) {
+  await api.delete(`/users/department-heads/${id}`)
+}
+
 async function setDepartments(id, departmentIds) {
-  const { data } = await api.put(`/users/${id}/departments`, { departmentIds })
+  const { data } = await api.patch(`/users/department-heads/${id}`, { departmentIds })
   return data
 }
 
@@ -96,7 +95,7 @@ function CreateUserModal({ departments, onClose }) {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ defaultValues: { role: 'student', departmentIds: [] } })
+  } = useForm({ defaultValues: { role: 'department_head', departmentIds: [] } })
 
   async function onSubmit(raw) {
     setServerError(null)
@@ -258,15 +257,12 @@ export default function UsersPage() {
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [roleFilter, setRoleFilter] = useState('')
-  const [deptFilter, setDeptFilter] = useState('')
-  const [activeFilter, setActiveFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [editUser, setEditUser] = useState(null)
 
   const usersQuery = useQuery({
-    queryKey: ['users', page, search, roleFilter, deptFilter, activeFilter],
-    queryFn: () => fetchUsers({ page, limit: 20, role: roleFilter, departmentId: deptFilter, search, isActive: activeFilter }),
+    queryKey: ['users', page, search],
+    queryFn: () => fetchUsers({ page, limit: 20, search }),
   })
 
   const deptsQuery = useQuery({
@@ -276,6 +272,11 @@ export default function UsersPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, isActive }) => updateUser(id, { isActive: !isActive }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['users'] }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => deleteUser(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['users'] }),
   })
 
@@ -289,15 +290,15 @@ export default function UsersPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Users</h1>
-          <p className="page-subtitle">Manage system accounts and role assignments</p>
+          <h1 className="page-title">Department Heads</h1>
+          <p className="page-subtitle">Manage department head accounts and assignments</p>
         </div>
         <button className="btn-primary" onClick={() => setShowCreate(true)}>
-          <Plus size={16} /> New User
+          <Plus size={16} /> New Department Head
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Search Filter */}
       <div className="filter-bar">
         <div style={{ position: 'relative', flex: '1', minWidth: '180px' }}>
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#8290a6', pointerEvents: 'none' }} />
@@ -308,22 +309,9 @@ export default function UsersPage() {
             style={{ paddingLeft: '2.2rem' }}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            aria-label="Search users"
+            aria-label="Search department heads"
           />
         </div>
-        <select className="form-input" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1) }} aria-label="Filter by role" style={{ width: 'auto' }}>
-          <option value="">All roles</option>
-          {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-        </select>
-        <select className="form-input" value={deptFilter} onChange={(e) => { setDeptFilter(e.target.value); setPage(1) }} aria-label="Filter by department" style={{ width: 'auto' }}>
-          <option value="">All departments</option>
-          {departments.map((d) => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
-        </select>
-        <select className="form-input" value={activeFilter} onChange={(e) => { setActiveFilter(e.target.value); setPage(1) }} aria-label="Filter by status" style={{ width: 'auto' }}>
-          <option value="">All statuses</option>
-          <option value="true">Active</option>
-          <option value="false">Inactive</option>
-        </select>
       </div>
 
       {/* Loading / Error */}
@@ -385,6 +373,19 @@ export default function UsersPage() {
                           {u.isActive
                             ? <ToggleRight size={16} style={{ color: '#059669' }} />
                             : <ToggleLeft size={16} style={{ color: '#8290a6' }} />}
+                        </button>
+                        <button
+                          className="btn-icon-sm"
+                          aria-label={`Delete ${u.fullName}`}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to delete ${u.fullName}? This action cannot be undone.`)) {
+                              deleteMutation.mutate(u.id)
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                          style={{ color: '#dc2626' }}
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>

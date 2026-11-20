@@ -8,34 +8,43 @@ export const usersRoutes = Router()
 // All routes require authentication
 usersRoutes.use(requireAuth)
 
-// Admin-only routes
-usersRoutes.get(
-  '/',
-  requireRoles('system_administrator'),
-  usersController.listUsers,
-)
-
+// Department Head Management (Admin only)
+// Create department head account
 usersRoutes.post(
-  '/',
+  '/department-heads',
   requireRoles('system_administrator'),
-  usersController.createUser,
+  usersController.createDepartmentHead,
 )
 
+// List department heads
 usersRoutes.get(
-  '/role-summary',
+  '/department-heads',
   requireRoles('system_administrator'),
-  usersController.getRoleSummary,
+  usersController.listDepartmentHeads,
 )
 
-// User-specific routes (self-access or admin)
+// Get specific department head
+usersRoutes.get(
+  '/department-heads/:id',
+  requireRoles('system_administrator'),
+  usersController.getDepartmentHead,
+)
+
+// Update department head
+usersRoutes.patch(
+  '/department-heads/:id',
+  requireRoles('system_administrator'),
+  usersController.updateDepartmentHead,
+)
+
+// Delete department head
+usersRoutes.delete(
+  '/department-heads/:id',
+  requireRoles('system_administrator'),
+  usersController.deleteDepartmentHead,
+)
+
+// User-specific routes (self-access only)
 usersRoutes.get('/:id', usersController.getUser)
 
 usersRoutes.patch('/:id', usersController.updateUser)
-
-usersRoutes.patch('/:id/profile', usersController.updateProfile)
-
-usersRoutes.put(
-  '/:id/departments',
-  requireRoles('system_administrator'),
-  usersController.setDepartments,
-)
