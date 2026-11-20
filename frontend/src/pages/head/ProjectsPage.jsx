@@ -8,7 +8,22 @@ function message(error, fallback) {
 }
 
 function ErrorNotice({ error, fallback }) {
-  return error ? <div className="table-error" role="alert">{message(error, fallback)}</div> : null
+  if (!error) return null
+  const details = Array.isArray(error?.response?.data?.errors) ? error.response.data.errors : []
+  return (
+    <div className="table-error" role="alert">
+      {message(error, fallback)}
+      {details.length > 0 && (
+        <ul>
+          {details.map((detail, index) => (
+            <li key={`${detail.path ?? 'error'}-${index}`}>
+              {detail.path ? `${detail.path}: ` : ''}{detail.message}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 function Section({ id, title, description, children }) {
@@ -33,6 +48,8 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient()
   const departments = Array.isArray(user?.departments) ? user.departments : []
   const [departmentId, setDepartmentId] = useState('')
+  const [staffFile, setStaffFile] = useState(null)
+  const [staffImportResult, setStaffImportResult] = useState(null)
   const [staffForm, setStaffForm] = useState({
     fullName: '', email: '', password: '', role: 'academic_advisor',
     title: '', specialization: '', maxGroups: '5',
@@ -63,6 +80,19 @@ export default function ProjectsPage() {
   const assessmentsQuery = useQuery(queryOptions('head-project-assessments', '/projects/assessments'))
   const reportsQuery = useQuery(queryOptions('head-project-reports', '/projects/reports'))
   const similarityQuery = useQuery(queryOptions('head-project-similarity', '/projects/similarity'))
+  const staffImportMutation = useMutation({
+    mutationFn: async () => {
+      const body = new FormData()
+      body.append('departmentId', departmentId)
+      body.append('excelFile', staffFile)
+      return (await api.post('/projects/staff/import', body)).data.data
+    },
+    onSuccess: (result) => {
+      setStaffFile(null)
+      setStaffImportResult(result)
+      invalidateWorkspaces()
+    },
+  })
 
   const groups = groupsQuery.data ?? []
   const staff = staffQuery.data ?? []
@@ -255,6 +285,40 @@ export default function ProjectsPage() {
           </Section>
 
           <Section id="advisor-management" title="Advisors and examiners" description="Create staff accounts, update profiles, deactivate accounts, and assign approved projects.">
+            <form className="staff-import-form" onSubmit={(event) => {
+              event.preventDefault()
+              setStaffImportResult(null)
+              staffImportMutation.mutate()
+            }}>
+              <p className="muted-copy">
+                Import up to 100 staff members from Excel (.xls, .xlsx, .xlsm, or .xlsb).
+                Required columns: <strong>fullName, email, password, role</strong>.
+                Optional columns: <strong>title, specialization, maxGroups</strong>.
+                Role values can be <strong>advisor</strong>, <strong>academic_advisor</strong>, or <strong>examiner</strong>.
+              </p>
+              <label className="form-field">
+                <span className="form-label">Excel workbook</span>
+                <input key={staffFile?.name ?? 'staff-file'} className="form-input file-input"
+                  type="file" accept=".xls,.xlsx,.xlsm,.xlsb" required
+                  onChange={(event) => {
+                    setStaffFile(event.target.files?.[0] ?? null)
+                    setStaffImportResult(null)
+                  }} />
+              </label>
+              <button className="btn-secondary" type="submit"
+                disabled={!staffFile || staffImportMutation.isPending}>
+                {staffImportMutation.isPending ? 'Importing staff…' : 'Import staff from Excel'}
+              </button>
+              <ErrorNotice error={staffImportMutation.error} fallback="Could not import staff" />
+              {staffImportResult && (
+                <p className="status-active" role="status">
+                  Imported {staffImportResult.imported} staff members
+                  ({staffImportResult.advisors} advisors, {staffImportResult.examiners} examiners).
+                </p>
+              )}
+            </form>
+
+            <h3 className="section-title">Add one advisor or examiner</h3>
             <form className="rules-form" onSubmit={submitStaff}>
               <div className="rules-grid">
                 <label className="form-field"><span className="form-label">Staff role</span>

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
+import * as XLSX from '@e965/xlsx'
 import { pool } from '../../database/pool.js'
 import { withTransaction } from '../../database/transaction.js'
 import { recordAudit } from '../audit/audit.repository.js'
@@ -11,10 +12,43 @@ import {
 } from '../users/users.repository.js'
 import { HttpError } from '../../utils/http-error.js'
 import { analyzeSimilarity } from './ai-client.js'
+import { createStaffSchema } from './projects.schemas.js'
 import * as repository from './projects.repository.js'
 import * as collaborationRepository from './collaboration.repository.js'
 
 const PASSWORD_HASH_ROUNDS = 12
+const STAFF_IMPORT_MAX_ROWS = 100
+const STAFF_HEADER_ALIASES = new Map([
+  ['fullname', 'fullName'],
+  ['name', 'fullName'],
+  ['email', 'email'],
+  ['emailaddress', 'email'],
+  ['password', 'password'],
+  ['initialpassword', 'password'],
+  ['temporarypassword', 'password'],
+  ['role', 'role'],
+  ['staffrole', 'role'],
+  ['title', 'title'],
+  ['specialization', 'specialization'],
+  ['maxgroups', 'maxGroups'],
+  ['maximumgroups', 'maxGroups'],
+  ['maxactivegroups', 'maxGroups'],
+])
+
+function cellText(value) {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') {
+    if ('formula' in value || 'sharedFormula' in value) return ''
+    if ('text' in value) return String(value.text).trim()
+    if ('result' in value) return String(value.result ?? '').trim()
+    return ''
+  }
+  return String(value).trim()
+}
+
+function normalizeHeader(value) {
+  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+}
 
 function assertDepartmentAccess(actor, requestedDepartmentId) {
   if (actor.role === 'system_administrator') {
@@ -43,6 +77,109 @@ async function assertActiveDepartment(connection, departmentId) {
     [departmentId],
   )
   if (!rows[0]) throw new HttpError(404, 'Department not found')
+}
+
+export async function parseStaffWorkbook(buffer) {
+  const zipSignature = Buffer.from([0x50, 0x4b, 0x03, 0x04])
+  const oleSignature = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
+  const isZipWorkbook = Buffer.isBuffer(buffer) && buffer.length >= zipSignature.length
+    && buffer.subarray(0, zipSignature.length).equals(zipSignature)
+  const isLegacyWorkbook = Buffer.isBuffer(buffer) && buffer.length >= oleSignature.length
+    && buffer.subarray(0, oleSignature.length).equals(oleSignature)
+  if (!isZipWorkbook && !isLegacyWorkbook) {
+    throw new HttpError(400, 'The file content is not a supported Excel workbook (.xls, .xlsx, .xlsm, or .xlsb).')
+  }
+
+  let workbook
+  try {
+    workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false })
+  } catch (error) {
+    console.error('Excel parser could not read the staff workbook', {
+      name: error.name,
+      code: error.code,
+    })
+    throw new HttpError(400, 'Excel could not open this workbook. It may be damaged or password-protected.')
+  }
+
+  const sheet = workbook.Sheets[workbook.SheetNames[0]]
+  if (!sheet?.['!ref']) throw new HttpError(400, 'The workbook must contain headers and at least one staff row')
+  const range = XLSX.utils.decode_range(sheet['!ref'])
+  const rowCount = range.e.r - range.s.r + 1
+  if (rowCount < 2) throw new HttpError(400, 'The workbook must contain headers and at least one staff row')
+  if (rowCount > STAFF_IMPORT_MAX_ROWS + 1) {
+    throw new HttpError(400, `A staff import may contain at most ${STAFF_IMPORT_MAX_ROWS} rows`)
+  }
+
+  function getRowValues(rowIndex) {
+    const values = []
+    for (let columnIndex = range.s.c; columnIndex <= range.e.c; columnIndex += 1) {
+      const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })]
+      values.push(cell?.f || cell?.F ? '' : cellText(cell?.v))
+    }
+    return values
+  }
+
+  const columns = getRowValues(range.s.r).map((header) => (
+    STAFF_HEADER_ALIASES.get(normalizeHeader(header)) ?? null
+  ))
+  const required = ['fullName', 'email', 'password', 'role']
+  const missing = required.filter((field) => !columns.includes(field))
+  if (missing.length) throw new HttpError(400, `Missing required Excel columns: ${missing.join(', ')}`)
+
+  const rows = []
+  for (let rowIndex = range.s.r + 1; rowIndex <= range.e.r; rowIndex += 1) {
+    const values = getRowValues(rowIndex)
+    if (!values.some((value) => value !== '')) continue
+    const row = { rowNumber: rowIndex + 1 }
+    columns.forEach((column, index) => {
+      if (column) row[column] = values[index]
+    })
+
+    const role = normalizeHeader(row.role)
+    if (role === 'advisor' || role === 'academicadvisor') row.role = 'academic_advisor'
+    else if (role === 'examiner') row.role = 'examiner'
+
+    if (row.maxGroups !== undefined && row.maxGroups !== '') {
+      const maxGroups = Number(row.maxGroups)
+      row.maxGroups = Number.isFinite(maxGroups) ? maxGroups : row.maxGroups
+    } else {
+      delete row.maxGroups
+    }
+    rows.push(row)
+  }
+  if (!rows.length) throw new HttpError(400, 'The workbook must contain at least one staff row')
+  return rows
+}
+
+async function insertDepartmentStaff(connection, { id, data, departmentId, passwordHash, actor }) {
+  await insertUser(connection, {
+    id,
+    email: data.email,
+    fullName: data.fullName,
+    passwordHash,
+    role: data.role,
+  })
+  if (data.role === 'academic_advisor') {
+    await upsertAdvisorProfile(connection, id, {
+      title: data.title || null,
+      specialization: data.specialization || null,
+      maxGroups: data.maxGroups,
+    })
+  } else {
+    await upsertExaminerProfile(connection, id, {
+      title: data.title || null,
+      specialization: data.specialization || null,
+    })
+  }
+  await setUserDepartments(connection, id, [departmentId], actor.id)
+  await recordAudit(connection, {
+    userId: actor.id,
+    action: 'department_staff.create',
+    targetType: 'user',
+    targetId: id,
+    remoteAddress: actor.remoteAddress,
+    metadata: { role: data.role, departmentId },
+  })
 }
 
 export async function listDepartmentGroups(filters, actor) {
@@ -143,33 +280,12 @@ export async function createStaff(data, actor) {
   try {
     await withTransaction(pool, async (connection) => {
       await assertActiveDepartment(connection, departmentId)
-      await insertUser(connection, {
+      await insertDepartmentStaff(connection, {
         id,
-        email: data.email,
-        fullName: data.fullName,
+        data,
+        departmentId,
         passwordHash,
-        role: data.role,
-      })
-      if (data.role === 'academic_advisor') {
-        await upsertAdvisorProfile(connection, id, {
-          title: data.title || null,
-          specialization: data.specialization || null,
-          maxGroups: data.maxGroups,
-        })
-      } else {
-        await upsertExaminerProfile(connection, id, {
-          title: data.title || null,
-          specialization: data.specialization || null,
-        })
-      }
-      await setUserDepartments(connection, id, [departmentId], actor.id)
-      await recordAudit(connection, {
-        userId: actor.id,
-        action: 'department_staff.create',
-        targetType: 'user',
-        targetId: id,
-        remoteAddress: actor.remoteAddress,
-        metadata: { role: data.role, departmentId },
+        actor,
       })
     })
   } catch (error) {
@@ -178,6 +294,68 @@ export async function createStaff(data, actor) {
   }
 
   return { id, fullName: data.fullName, email: data.email, role: data.role, departmentId }
+}
+
+export async function importStaffWorkbook({ buffer, departmentId: requestedDepartmentId }, actor) {
+  if (actor.role !== 'department_head') throw new HttpError(403, 'Only a Department Head may add departmental staff')
+  const departmentId = assertDepartmentAccess(actor, requestedDepartmentId)
+  const rows = await parseStaffWorkbook(buffer)
+  const emails = new Set()
+  const staffRows = []
+  const errors = []
+
+  for (const row of rows) {
+    const parsed = createStaffSchema.safeParse({ ...row, departmentId })
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        errors.push({
+          path: `row ${row.rowNumber}.${issue.path.join('.')}`,
+          message: issue.message,
+        })
+      }
+      continue
+    }
+    if (emails.has(parsed.data.email)) {
+      errors.push({
+        path: `row ${row.rowNumber}.email`,
+        message: 'This email is duplicated in the workbook',
+      })
+      continue
+    }
+    emails.add(parsed.data.email)
+    staffRows.push({ id: randomUUID(), data: parsed.data })
+  }
+
+  if (errors.length) throw new HttpError(400, 'Correct the staff rows and upload the workbook again', errors)
+
+  const preparedRows = await Promise.all(staffRows.map(async (row) => ({
+    ...row,
+    passwordHash: await bcrypt.hash(row.data.password, PASSWORD_HASH_ROUNDS),
+  })))
+
+  try {
+    await withTransaction(pool, async (connection) => {
+      await assertActiveDepartment(connection, departmentId)
+      for (const row of preparedRows) {
+        await insertDepartmentStaff(connection, {
+          ...row,
+          departmentId,
+          actor,
+        })
+      }
+    })
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      throw new HttpError(409, 'One or more email addresses already belong to an account; no staff were imported')
+    }
+    throw error
+  }
+
+  return {
+    imported: preparedRows.length,
+    advisors: preparedRows.filter((row) => row.data.role === 'academic_advisor').length,
+    examiners: preparedRows.filter((row) => row.data.role === 'examiner').length,
+  }
 }
 
 export async function updateStaff(userId, changes, actor) {

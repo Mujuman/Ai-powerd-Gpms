@@ -79,6 +79,19 @@ export const projectsController = {
       response.status(201).json({ success: true, data: { staff: await service.createStaff(data, actor(request)) } })
     } catch (error) { next(error) }
   },
+  importStaff: async (request, response, next) => {
+    try {
+      if (!request.file) {
+        throw new HttpError(400, 'Upload an .xls, .xlsx, .xlsm, or .xlsb workbook using the excelFile field')
+      }
+      const filters = parse(departmentQuerySchema, request.body)
+      const result = await service.importStaffWorkbook({
+        ...filters,
+        buffer: request.file.buffer,
+      }, actor(request))
+      response.status(201).json({ success: true, data: result })
+    } catch (error) { next(error) }
+  },
   updateStaff: async (request, response, next) => {
     try {
       const userId = parse(uuid, request.params.userId)
