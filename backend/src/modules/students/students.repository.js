@@ -151,12 +151,14 @@ export async function createImportBatch(connection, batch) {
 export async function findImportBatch(connection, batchId, lock = false) {
   const [rows] = await connection.execute(
     `SELECT id, department_id AS departmentId, academic_year_id AS academicYearId,
-            semester_id AS semesterId, status, import_rows AS rows
+            semester_id AS semesterId, status, import_rows AS importRows
        FROM student_import_batches WHERE id = ?${lock ? ' FOR UPDATE' : ''}`,
     [batchId],
   )
   const batch = rows[0] ?? null
-  if (batch?.rows && typeof batch.rows === 'string') batch.rows = JSON.parse(batch.rows)
+  if (batch?.importRows && typeof batch.importRows === 'string') {
+    batch.importRows = JSON.parse(batch.importRows)
+  }
   return batch
 }
 

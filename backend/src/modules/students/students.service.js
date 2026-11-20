@@ -397,7 +397,7 @@ export async function confirmStudentImport(batchId, actor) {
     }
 
     let imported = 0
-    for (const row of batch.rows) {
+    for (const row of batch.importRows) {
       const user = await repository.findStudentAccountForImport(connection, row)
       if (!user || user.role !== 'student' || !user.is_active) {
         throw new HttpError(409, `Student account ${row.email} is missing, inactive, or has the wrong role`)

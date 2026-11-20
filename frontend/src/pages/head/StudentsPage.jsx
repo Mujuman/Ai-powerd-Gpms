@@ -328,6 +328,10 @@ export default function StudentsPage() {
                 {importMutation.isPending && importMutation.variables?.action !== 'confirm' ? 'Validating…' : 'Preview import'}
               </button>
             </form>
+            <p className="muted-copy">
+              Imports update profiles for existing active student accounts; they do not create login accounts.
+              Register students above first, using the same email address as the workbook.
+            </p>
             <ErrorMessage error={importMutation.error} fallback="Could not preview the student import" />
             {preview && (
               <div className="import-preview">
@@ -354,6 +358,12 @@ export default function StudentsPage() {
                       ))}</tbody>
                     </table>
                   </div>
+                )}
+                {preview.invalidRows > 0 && (
+                  <p className="table-error" role="alert">
+                    Confirmation is disabled until all {preview.invalidRows} invalid rows are corrected.
+                    Check the Problems column above; each email must match an active student account.
+                  </p>
                 )}
                 <div className="action-row">
                   <button className="btn-secondary" onClick={() => setPreview(null)}>Discard preview</button>
