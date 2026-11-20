@@ -108,20 +108,32 @@ function CreateUserModal({ departments, onClose }) {
   } = useForm({ defaultValues: { role: 'department_head' } })
 
   async function onSubmit(raw) {
-    console.log('Form submitted with raw data:', raw)
+    console.log('📝 Form submitted:', raw)
     setServerError(null)
-    // Add role manually since the field is disabled and won't be in form data
+    
     const data = { ...raw, role: 'department_head', departmentIds: selectedDepts }
-    console.log('Complete form data with role and departments:', data)
+    console.log('📦 Complete data:', data)
+    
     const result = createUserSchema.safeParse(data)
-    console.log('Zod validation result:', result)
-    if (!result.success) {
-      const errorMessages = result.error.errors.map(e => e.message).join(', ')
-      console.error('Validation failed:', errorMessages)
-      setServerError('Validation error: ' + errorMessages)
+    console.log('✓ Validation result success:', result.success)
+    
+    if (result.success === false) {
+      console.error('❌ Validation failed')
+      console.error('Error object:', result.error)
+      const errors = result.error?.errors || []
+      const messages = errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ')
+      console.error('Messages:', messages)
+      setServerError(messages || 'Validation failed')
       return
     }
-    console.log('Validation passed, sending to mutation...')
+    
+    if (result.success !== true) {
+      console.error('⚠️ Unexpected result state:', result)
+      setServerError('Unexpected validation result')
+      return
+    }
+    
+    console.log('✅ Validation passed, mutating...')
     await mutation.mutateAsync(result.data)
   }
 
