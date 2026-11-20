@@ -119,11 +119,21 @@ function CreateUserModal({ departments, onClose }) {
     
     if (result.success === false) {
       console.error('❌ Validation failed')
-      console.error('Error object:', result.error)
+      console.error('Full error:', result.error)
+      
+      // Extract error messages from ZodError
       const errors = result.error?.errors || []
-      const messages = errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ')
-      console.error('Messages:', messages)
-      setServerError(messages || 'Validation failed')
+      console.error('Errors array:', errors)
+      
+      const messages = errors
+        .map((e) => {
+          const field = e.path.length > 0 ? e.path.join('.') : 'unknown'
+          return `${field}: ${e.message}`
+        })
+        .join('; ')
+      
+      console.error('Error messages:', messages)
+      setServerError(messages || 'Validation error - check console')
       return
     }
     
