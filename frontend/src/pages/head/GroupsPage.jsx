@@ -28,6 +28,13 @@ function ErrorMessage({ error, fallback }) {
   )
 }
 
+function getGroupLeader(members) {
+  return members.reduce((leader, member) => {
+    if (member.gpa == null || !Number.isFinite(Number(member.gpa))) return leader
+    return !leader || Number(member.gpa) > Number(leader.gpa) ? member : leader
+  }, null)
+}
+
 export default function GroupsPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -59,6 +66,10 @@ export default function GroupsPage() {
   })
   const visibleGroups = (groupsQuery.data ?? [])
     .filter((group) => group.name.trim().toLowerCase() !== 'demo project team')
+  const groupLeaders = new Map(visibleGroups.map((group) => [
+    group.id,
+    getGroupLeader(group.members),
+  ]))
   const groupedStudentIds = new Set((groupsQuery.data ?? [])
     .filter((group) => group.isActive)
     .flatMap((group) => group.members.map((member) => member.userId)))
@@ -270,7 +281,20 @@ export default function GroupsPage() {
                       <tr key={group.id}>
                         <td>{group.name}</td>
                         <td>{group.projectType}</td>
-                        <td>{group.members.map((member) => member.fullName).join(', ') || '—'}</td>
+                        <td>
+                          {group.members.length > 0 ? (
+                            <div className="group-member-names">
+                              {group.members.map((member) => (
+                                <span className="group-member-name" key={member.userId}>
+                                  {member.fullName}
+                                  {member.userId === groupLeaders.get(group.id)?.userId && (
+                                    <span className="group-leader-badge">Leader</span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          ) : '—'}
+                        </td>
                         <td><div className="action-row group-row-actions">
                           <button className="btn-secondary" onClick={() => {
                             setMemberSearch('')

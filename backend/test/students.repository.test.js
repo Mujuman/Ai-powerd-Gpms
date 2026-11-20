@@ -126,6 +126,29 @@ test('groups are listed and created without academic-year dependencies', async (
   assert.deepEqual(insertParameters, ['group-id', 'department-id', 'Group A', 'group', 'head-id'])
 })
 
+test('group members include GPA and sort highest first for leader selection', async () => {
+  const queries = []
+  const databasePool = {
+    async execute(query) {
+      queries.push(query)
+      if (queries.length === 1) {
+        return [[{ id: 'group-id', name: 'Group 1' }]]
+      }
+      return [[{
+        groupId: 'group-id',
+        userId: 'student-id',
+        fullName: 'Ada Student',
+        gpa: 4.0,
+      }]]
+    },
+  }
+
+  const groups = await listGroups(databasePool, { departmentId: 'department-id' })
+  assert.match(queries[1], /sp\.gpa/)
+  assert.match(queries[1], /ORDER BY sp\.gpa IS NULL, sp\.gpa DESC/)
+  assert.equal(groups[0].members[0].gpa, 4.0)
+})
+
 test('group deletion releases members and cancels attached active work', async () => {
   const statements = []
   const connection = {

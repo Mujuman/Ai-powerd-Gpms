@@ -386,12 +386,12 @@ export async function listGroups(databasePool, { departmentId }) {
   const placeholders = rows.map(() => '?').join(', ')
   const [members] = await databasePool.execute(
     `SELECT gm.group_id AS groupId, u.id AS userId, sp.student_id AS studentId,
-            u.full_name AS fullName, u.email
+           u.full_name AS fullName, u.email, sp.gpa
        FROM student_group_members gm
        JOIN users u ON u.id = gm.student_user_id
        LEFT JOIN student_profiles sp ON sp.user_id = u.id
       WHERE gm.is_active = TRUE AND gm.group_id IN (${placeholders})
-      ORDER BY u.full_name`,
+      ORDER BY sp.gpa IS NULL, sp.gpa DESC, u.full_name`,
     rows.map((row) => row.id),
   )
   const membersByGroup = new Map(rows.map((row) => [row.id, []]))
