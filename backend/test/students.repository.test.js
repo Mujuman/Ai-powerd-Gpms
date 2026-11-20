@@ -59,7 +59,7 @@ test('student list filters by name, year level, and batch', async () => {
 
   assert.match(queries[0], /u\.full_name LIKE/)
   assert.match(queries[0], /sp\.year_level = \?/)
-  assert.match(queries[0], /sp\.cohort LIKE \?/)
+  assert.match(queries[0], /sp\.cohort = \?/)
   assert.deepEqual(parameters[0], [
     'student',
     'department-id',
@@ -67,7 +67,7 @@ test('student list filters by name, year level, and batch', async () => {
     '%Ada%',
     '%Ada%',
     3,
-    '%2025%',
+    '2025',
   ])
 })
 

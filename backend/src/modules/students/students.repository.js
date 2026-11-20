@@ -13,8 +13,8 @@ export async function listStudents(databasePool, { departmentId, page, limit, se
     params.push(yearLevel)
   }
   if (cohort) {
-    clauses.push('sp.cohort LIKE ?')
-    params.push(`%${cohort}%`)
+    clauses.push('sp.cohort = ?')
+    params.push(cohort)
   }
   const where = clauses.join(' AND ')
   const offset = (page - 1) * limit

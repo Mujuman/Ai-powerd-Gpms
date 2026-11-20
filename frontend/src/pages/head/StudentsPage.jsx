@@ -96,6 +96,17 @@ export default function StudentsPage() {
       },
     })).data.data,
   })
+  const batchOptionsQuery = useQuery({
+    queryKey: ['student-batch-options', departmentId],
+    enabled: Boolean(departmentId),
+    queryFn: async () => (await api.get('/students', {
+      params: { departmentId, limit: 100 },
+    })).data.data.data,
+  })
+  const batches = [...new Set((batchOptionsQuery.data ?? [])
+    .map((student) => student.cohort)
+    .filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }))
   const importMutation = useMutation({
     mutationFn: async ({ action, batchId }) => {
       if (action === 'confirm') return (await api.post(`/students/imports/${batchId}/confirm`)).data.data
@@ -112,6 +123,7 @@ export default function StudentsPage() {
         setFile(null)
         setImportResult(data)
         void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+        void queryClient.invalidateQueries({ queryKey: ['student-batch-options', departmentId] })
         void queryClient.invalidateQueries({ queryKey: ['student-groups'] })
         return
       }
@@ -129,6 +141,7 @@ export default function StudentsPage() {
     onSuccess: () => {
       setStudentForm({ fullName: '', email: '', password: '', studentId: '', program: '', cohort: '', yearLevel: '' })
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-batch-options', departmentId] })
     },
   })
   const updateStudentMutation = useMutation({
@@ -137,6 +150,7 @@ export default function StudentsPage() {
     onSuccess: () => {
       setEditingStudent(null)
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-batch-options', departmentId] })
     },
   })
   const deleteStudentMutation = useMutation({
@@ -144,6 +158,7 @@ export default function StudentsPage() {
       (await api.delete(`/students/${userId}`, { params: { departmentId: scopedDepartmentId } })).data,
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-batch-options', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
     },
@@ -340,9 +355,11 @@ export default function StudentsPage() {
               </label>
               <label className="form-field">
                 <span className="form-label">Batch</span>
-                <input className="form-input" type="search" value={batchSearch}
-                  placeholder="Search by batch"
-                  onChange={(event) => setBatchSearch(event.target.value)} />
+                <select className="form-input" value={batchSearch}
+                  onChange={(event) => setBatchSearch(event.target.value)}>
+                  <option value="">All batches</option>
+                  {batches.map((batch) => <option key={batch} value={batch}>{batch}</option>)}
+                </select>
               </label>
             </div>
             {studentsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading students…</div>}
