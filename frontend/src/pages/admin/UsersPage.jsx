@@ -72,15 +72,15 @@ async function setDepartments(id, departmentIds) {
 function CreateUserModal({ departments, onClose }) {
   const qc = useQueryClient()
   const [serverError, setServerError] = useState(null)
+  const [selectedDepts, setSelectedDepts] = useState([])
 
   const mutation = useMutation({
     mutationFn: async (values) => {
-      const { departmentIds, ...rest } = values
-      const response = await createUser(rest)
-      // Extract user from response - response.data contains { user: {...} }
+      const response = await createUser(values)
+      // Extract user from response
       const userId = response.data?.user?.id
-      if (userId && departmentIds?.length) {
-        await setDepartments(userId, departmentIds)
+      if (userId && selectedDepts.length > 0) {
+        await setDepartments(userId, selectedDepts)
       }
       return response
     },
@@ -97,7 +97,7 @@ function CreateUserModal({ departments, onClose }) {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ defaultValues: { role: 'department_head', departmentIds: [] } })
+  } = useForm({ defaultValues: { role: 'department_head' } })
 
   async function onSubmit(raw) {
     setServerError(null)
@@ -106,10 +106,15 @@ function CreateUserModal({ departments, onClose }) {
     await mutation.mutateAsync(result.data)
   }
 
+  function handleDeptSelect(e) {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
+    setSelectedDepts(selectedOptions)
+  }
+
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="create-user-title">
       <div className="modal-card">
-        <h2 id="create-user-title" className="modal-title">Create User</h2>
+        <h2 id="create-user-title" className="modal-title">Create Department Head</h2>
         {serverError && <div className="form-error-banner" role="alert">{serverError}</div>}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="modal-form">
@@ -133,17 +138,22 @@ function CreateUserModal({ departments, onClose }) {
 
           <div className="form-field">
             <label htmlFor="cu-role" className="form-label">Role</label>
-            <select id="cu-role" className="form-input" {...register('role')}>
-              {ROLES.map((r) => (
-                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-              ))}
+            <select id="cu-role" className="form-input" {...register('role')} disabled>
+              <option value="department_head">Department Head</option>
             </select>
           </div>
 
           {departments.length > 0 && (
             <div className="form-field">
-              <label htmlFor="cu-depts" className="form-label">Departments</label>
-              <select id="cu-depts" className="form-input" multiple style={{ height: '100px' }} {...register('departmentIds')}>
+              <label htmlFor="cu-depts" className="form-label">Departments (Optional)</label>
+              <select 
+                id="cu-depts" 
+                className="form-input" 
+                multiple 
+                style={{ height: '100px' }} 
+                onChange={handleDeptSelect}
+                value={selectedDepts}
+              >
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>{d.code} — {d.name}</option>
                 ))}
@@ -155,7 +165,7 @@ function CreateUserModal({ departments, onClose }) {
           <div className="modal-actions">
             <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn-primary" disabled={mutation.isPending}>
-              {mutation.isPending ? 'Creating…' : 'Create user'}
+              {mutation.isPending ? 'Creating…' : 'Create Department Head'}
             </button>
           </div>
         </form>
