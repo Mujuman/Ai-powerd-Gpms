@@ -75,6 +75,7 @@ export const updateStudentSchema = z.object({
 
 export const generateGroupsSchema = z.object({
   departmentId: uuid.optional(),
+  groupCount: z.number().int().positive().max(100),
 }).strict()
 
 export const eligibilityQuerySchema = z.object({

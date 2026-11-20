@@ -710,6 +710,17 @@ textarea.form-input {
   overflow: hidden;
 }
 
+.group-count-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.group-count-modal .modal-title,
+.group-count-modal > p {
+  margin: 0;
+}
+
 .group-members-modal .modal-title {
   margin-bottom: 0;
 }

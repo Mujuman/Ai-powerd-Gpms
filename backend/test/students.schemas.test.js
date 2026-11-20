@@ -30,8 +30,9 @@ test('group validation rejects duplicate members and oversized policy values', (
     studentUserIds: [studentId],
   })
   assert.equal(groupWithAcademicYear.success, false)
-  assert.equal(generateGroupsSchema.safeParse({ departmentId }).success, true)
-  assert.equal(generateGroupsSchema.safeParse({ departmentId, semesterId }).success, false)
+  assert.equal(generateGroupsSchema.safeParse({ departmentId, groupCount: 3 }).success, true)
+  assert.equal(generateGroupsSchema.safeParse({ departmentId, groupCount: 101 }).success, false)
+  assert.equal(generateGroupsSchema.safeParse({ departmentId, groupCount: 3, semesterId }).success, false)
   assert.equal(departmentQuerySchema.safeParse({ departmentId, academicYearId }).success, false)
 
   const oversizedRule = saveRulesSchema.safeParse({
@@ -95,9 +96,24 @@ test('GPA-ranked students are distributed across balanced groups in a snake patt
   ])
 })
 
+test('automatic grouping creates the requested number of balanced snake groups', () => {
+  const students = Array.from({ length: 10 }, (_value, index) => ({ id: index + 1, gpa: 4 - index * 0.1 }))
+  const groups = planGpaBalancedGroups(students, { minimumGroupSize: 1, maximumGroupSize: 4 }, 3)
+
+  assert.deepEqual(groups.map((group) => group.map((student) => student.id)), [
+    [1, 6, 7],
+    [2, 5, 8],
+    [3, 4, 9, 10],
+  ])
+})
+
 test('automatic grouping rejects populations that cannot satisfy configured size limits', () => {
   assert.throws(
     () => planGpaBalancedGroups([{}, {}, {}], { minimumGroupSize: 2, maximumGroupSize: 2 }),
+    { status: 409 },
+  )
+  assert.throws(
+    () => planGpaBalancedGroups([{}, {}, {}], { minimumGroupSize: 1, maximumGroupSize: 2 }, 1),
     { status: 409 },
   )
 })

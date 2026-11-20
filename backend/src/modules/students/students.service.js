@@ -629,16 +629,20 @@ export async function deleteGroup(groupId, actor) {
   })
 }
 
-export function planGpaBalancedGroups(students, groupingRules = {}) {
+export function planGpaBalancedGroups(students, groupingRules = {}, requestedGroupCount) {
   const minimumGroupSize = groupingRules.minimumGroupSize ?? 1
   const maximumGroupSize = groupingRules.maximumGroupSize ?? 5
   if (!students.length) throw new HttpError(409, 'No active, ungrouped students are available')
 
-  const groupCount = Math.ceil(students.length / maximumGroupSize)
-  if (Math.floor(students.length / groupCount) < minimumGroupSize) {
+  const groupCount = requestedGroupCount ?? Math.ceil(students.length / maximumGroupSize)
+  if (!Number.isInteger(groupCount) || groupCount < 1 || groupCount > students.length) {
+    throw new HttpError(400, 'Group count must be between 1 and the number of ungrouped students')
+  }
+  if (Math.floor(students.length / groupCount) < minimumGroupSize
+    || Math.ceil(students.length / groupCount) > maximumGroupSize) {
     throw new HttpError(
       409,
-      `${students.length} students cannot be grouped within the configured group size limits`,
+      `${students.length} students cannot be balanced into ${groupCount} groups within the configured group size limits`,
     )
   }
 
@@ -666,7 +670,7 @@ export async function generateGroups(data, actor) {
     const groups = planGpaBalancedGroups(students, {
       minimumGroupSize: 1,
       maximumGroupSize: groupingRules.maximumGroupSize ?? 5,
-    })
+    }, data.groupCount)
     const existingNames = new Set(await repository.listGroupNames(connection, departmentId))
     let nextName = 1
     const createdGroups = []

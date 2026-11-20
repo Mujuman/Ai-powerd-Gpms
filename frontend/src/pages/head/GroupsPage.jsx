@@ -38,6 +38,8 @@ export default function GroupsPage() {
   const [memberIds, setMemberIds] = useState([])
   const [editingGroup, setEditingGroup] = useState(null)
   const [memberSearch, setMemberSearch] = useState('')
+  const [showGroupCountDialog, setShowGroupCountDialog] = useState(false)
+  const [requestedGroupCount, setRequestedGroupCount] = useState('')
 
   useEffect(() => {
     if (!departmentId && departments.length === 1) setDepartmentId(departments[0].id)
@@ -83,8 +85,11 @@ export default function GroupsPage() {
     },
   })
   const generateGroupsMutation = useMutation({
-    mutationFn: async () => (await api.post('/students/groups/generate', { departmentId })).data.data,
+    mutationFn: async (groupCount) =>
+      (await api.post('/students/groups/generate', { departmentId, groupCount })).data.data,
     onSuccess: () => {
+      setShowGroupCountDialog(false)
+      setRequestedGroupCount('')
       setMemberIds([])
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
@@ -170,17 +175,53 @@ export default function GroupsPage() {
               </div>
               <button className="btn-primary"
                 disabled={generateGroupsMutation.isPending}
-                onClick={() => generateGroupsMutation.mutate()}>
+                onClick={() => {
+                  generateGroupsMutation.reset()
+                  setRequestedGroupCount('')
+                  setShowGroupCountDialog(true)
+                }}>
                 {generateGroupsMutation.isPending ? 'Creating groups…' : 'Create groups automatically'}
               </button>
             </div>
-            <ErrorMessage error={generateGroupsMutation.error} fallback="Could not generate groups" />
+            {!showGroupCountDialog && (
+              <ErrorMessage error={generateGroupsMutation.error} fallback="Could not generate groups" />
+            )}
             {generateGroupsMutation.data && (
               <p className="status-active" role="status">
                 Created {generateGroupsMutation.data.groups.length} groups for {generateGroupsMutation.data.studentCount} active students.
               </p>
             )}
           </section>
+
+          {showGroupCountDialog && (
+            <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="group-count-title">
+              <form className="modal-card group-count-modal" onSubmit={(event) => {
+                event.preventDefault()
+                generateGroupsMutation.mutate(Number(requestedGroupCount))
+              }}>
+                <h2 id="group-count-title" className="modal-title">Create groups automatically</h2>
+                <p className="muted-copy">
+                  Choose how many groups to create. Students are ranked by GPA and assigned in a balanced snake (zigzag) pattern.
+                </p>
+                <label className="form-field">
+                  <span className="form-label">Number of groups</span>
+                  <input className="form-input" type="number" min={1} max={100} step={1} required
+                    value={requestedGroupCount}
+                    onChange={(event) => setRequestedGroupCount(event.target.value)} />
+                </label>
+                <ErrorMessage error={generateGroupsMutation.error} fallback="Could not generate groups" />
+                <div className="modal-actions">
+                  <button type="button" className="btn-secondary" disabled={generateGroupsMutation.isPending}
+                    onClick={() => setShowGroupCountDialog(false)}>Cancel</button>
+                  <button type="submit" className="btn-primary"
+                    disabled={generateGroupsMutation.isPending || !requestedGroupCount
+                      || Number(requestedGroupCount) < 1 || Number(requestedGroupCount) > 100}>
+                    {generateGroupsMutation.isPending ? 'Creating groups…' : 'Create groups'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           <section className="academic-card">
             <h2 className="section-title">Create a group manually</h2>
