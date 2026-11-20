@@ -33,7 +33,6 @@ export default function GroupsPage() {
   const queryClient = useQueryClient()
   const departments = Array.isArray(user?.departments) ? user.departments : []
   const [departmentId, setDepartmentId] = useState('')
-  const [groupName, setGroupName] = useState('')
   const [projectType, setProjectType] = useState('group')
   const [memberIds, setMemberIds] = useState([])
   const [editingGroup, setEditingGroup] = useState(null)
@@ -78,7 +77,6 @@ export default function GroupsPage() {
   const groupMutation = useMutation({
     mutationFn: async (body) => (await api.post('/students/groups', body)).data.data,
     onSuccess: () => {
-      setGroupName('')
       setMemberIds([])
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
@@ -125,7 +123,6 @@ export default function GroupsPage() {
     event.preventDefault()
     groupMutation.mutate({
       departmentId,
-      name: groupName,
       projectType,
       studentUserIds: memberIds,
     })
@@ -153,7 +150,6 @@ export default function GroupsPage() {
             setDepartmentId(event.target.value)
             setEditingGroup(null)
             setMemberSearch('')
-            setGroupName('')
             setMemberIds([])
           }}>
             <option value="">Select a department</option>
@@ -226,10 +222,6 @@ export default function GroupsPage() {
           <section className="academic-card">
             <h2 className="section-title">Create a group manually</h2>
             <form className="group-form" onSubmit={createGroup}>
-              <label className="form-field"><span className="form-label">Group name</span>
-                <input className="form-input" required maxLength={120} value={groupName}
-                  onChange={(event) => setGroupName(event.target.value)} />
-              </label>
               <label className="form-field"><span className="form-label">Project type</span>
                 <select className="form-input" value={projectType} onChange={(event) => {
                   setProjectType(event.target.value)

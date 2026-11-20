@@ -45,7 +45,6 @@ export const saveRulesSchema = z.object({
 
 export const createGroupSchema = z.object({
   departmentId: uuid.optional(),
-  name: z.string().trim().min(1).max(120),
   projectType: z.enum(['individual', 'group']).default('group'),
   studentUserIds: z.array(uuid).min(1).max(100),
 }).strict().refine((value) => new Set(value.studentUserIds).size === value.studentUserIds.length, {

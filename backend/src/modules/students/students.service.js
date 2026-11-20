@@ -570,6 +570,14 @@ async function validateGroupMembers(connection, studentUserIds, departmentId, ru
   if (existingMemberships.length) throw new HttpError(409, 'A student is already assigned to an active group')
 }
 
+export function nextGroupName(existingNames) {
+  let number = 1
+  while (existingNames.has(`Group ${number}`)) number += 1
+  const name = `Group ${number}`
+  existingNames.add(name)
+  return name
+}
+
 export async function createGroup(data, actor) {
   const departmentId = await resolveDepartment(actor, data.departmentId)
   const id = randomUUID()
@@ -586,14 +594,13 @@ export async function createGroup(data, actor) {
     if (data.projectType === 'individual' && data.studentUserIds.length !== 1) {
       throw new HttpError(400, 'An individual project group must contain exactly one student')
     }
-    if ((await repository.listGroupNames(connection, departmentId)).includes(data.name)) {
-      throw new HttpError(409, 'A group with this name already exists in this department')
-    }
+    const name = nextGroupName(new Set(await repository.listGroupNames(connection, departmentId)))
     await validateGroupMembers(connection, data.studentUserIds, departmentId, rules, undefined, data.projectType)
     await repository.insertGroup(connection, {
       ...data,
       id,
       departmentId,
+      name,
       createdBy: actor.id,
     })
     for (const studentUserId of data.studentUserIds) {
@@ -672,16 +679,10 @@ export async function generateGroups(data, actor) {
       maximumGroupSize: groupingRules.maximumGroupSize ?? 5,
     }, data.groupCount)
     const existingNames = new Set(await repository.listGroupNames(connection, departmentId))
-    let nextName = 1
     const createdGroups = []
 
     for (const members of groups) {
-      let name
-      do {
-        name = `GPA Group ${nextName}`
-        nextName += 1
-      } while (existingNames.has(name))
-      existingNames.add(name)
+      const name = nextGroupName(existingNames)
 
       const id = randomUUID()
       await repository.insertGroup(connection, {

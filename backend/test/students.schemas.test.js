@@ -8,7 +8,7 @@ import {
   registerStudentSchema,
   saveRulesSchema,
 } from '../src/modules/students/students.schemas.js'
-import { planGpaBalancedGroups } from '../src/modules/students/students.service.js'
+import { nextGroupName, planGpaBalancedGroups } from '../src/modules/students/students.service.js'
 
 const departmentId = 'c2c19332-c272-4225-9f31-cf643e4d8857'
 const academicYearId = 'a2c19332-c272-4225-9f31-cf643e4d8857'
@@ -18,18 +18,22 @@ const studentId = 'd2c19332-c272-4225-9f31-cf643e4d8857'
 test('group validation rejects duplicate members and oversized policy values', () => {
   const duplicateMembers = createGroupSchema.safeParse({
     departmentId,
-    name: 'Group A',
     studentUserIds: [studentId, studentId],
   })
   assert.equal(duplicateMembers.success, false)
 
   const groupWithAcademicYear = createGroupSchema.safeParse({
     departmentId,
-    name: 'Group A',
     academicYearId,
     studentUserIds: [studentId],
   })
   assert.equal(groupWithAcademicYear.success, false)
+  assert.equal(createGroupSchema.safeParse({ departmentId, studentUserIds: [studentId] }).success, true)
+  assert.equal(createGroupSchema.safeParse({
+    departmentId,
+    name: 'Custom group',
+    studentUserIds: [studentId],
+  }).success, false)
   assert.equal(generateGroupsSchema.safeParse({ departmentId, groupCount: 3 }).success, true)
   assert.equal(generateGroupsSchema.safeParse({ departmentId, groupCount: 101 }).success, false)
   assert.equal(generateGroupsSchema.safeParse({ departmentId, groupCount: 3, semesterId }).success, false)
@@ -37,6 +41,12 @@ test('group validation rejects duplicate members and oversized policy values', (
 
   const oversizedRule = saveRulesSchema.safeParse({
     grouping: { maximumGroupSize: 101 },
+  })
+
+  test('group names use the next available sequential number', () => {
+    const existingNames = new Set(['Group 1', 'Group 3'])
+    assert.equal(nextGroupName(existingNames), 'Group 2')
+    assert.equal(nextGroupName(existingNames), 'Group 4')
   })
   assert.equal(oversizedRule.success, false)
 })
