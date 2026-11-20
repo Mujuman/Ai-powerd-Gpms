@@ -3,9 +3,11 @@ import assert from 'node:assert/strict'
 import {
   findUngroupedStudents,
   findImportBatch,
+  deactivateGroup,
   insertGroup,
   listStudents,
   listGroups,
+  listGroupNames,
   permanentlyDeleteStudent,
 } from '../src/modules/students/students.repository.js'
 
@@ -102,6 +104,7 @@ test('groups are listed and created without academic-year dependencies', async (
   }
   await listGroups(databasePool, { departmentId: 'department-id' })
   assert.doesNotMatch(listQueries[0], /academic_year/i)
+  assert.match(listQueries[0], /g\.is_active = TRUE/)
 
   let insertQuery = ''
   let insertParameters = []
@@ -121,6 +124,40 @@ test('groups are listed and created without academic-year dependencies', async (
   })
   assert.doesNotMatch(insertQuery, /academic_year/i)
   assert.deepEqual(insertParameters, ['group-id', 'department-id', 'Group A', 'group', 'head-id'])
+})
+
+test('group deletion releases members and cancels attached active work', async () => {
+  const statements = []
+  const connection = {
+    async execute(query, parameters) {
+      statements.push({ query, parameters })
+      return [{ affectedRows: 1 }]
+    },
+  }
+
+  await deactivateGroup(connection, 'group-id')
+  assert.equal(statements.length, 5)
+  assert.match(statements[0].query, /UPDATE student_groups SET is_active = FALSE/)
+  assert.match(statements[1].query, /UPDATE student_group_members/)
+  assert.match(statements[2].query, /UPDATE project_advisor_assignments/)
+  assert.match(statements[3].query, /UPDATE defense_schedule_examiners/)
+  assert.match(statements[3].query, /ds\.status = 'scheduled'/)
+  assert.match(statements[4].query, /status = 'cancelled'/)
+  assert.ok(statements.every(({ parameters }) => parameters[0] === 'group-id'))
+})
+
+test('deleted group names can be reused', async () => {
+  let query = ''
+  const connection = {
+    async execute(statement) {
+      query = statement
+      return [[{ name: 'Active group' }]]
+    },
+  }
+
+  const names = await listGroupNames(connection, 'department-id')
+  assert.match(query, /is_active = TRUE/)
+  assert.deepEqual(names, ['Active group'])
 })
 
 test('permanent student deletion removes restricted dependents before the user row', async () => {

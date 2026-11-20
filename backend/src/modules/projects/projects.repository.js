@@ -591,15 +591,15 @@ export async function getDepartmentReport(connection, departmentId) {
        (SELECT COUNT(*) FROM student_groups WHERE department_id = ? AND is_active = TRUE) AS totalGroups,
        (SELECT COUNT(DISTINCT ps.group_id)
           FROM project_submissions ps JOIN student_groups g ON g.id = ps.group_id
-         WHERE g.department_id = ? AND ps.status = 'submitted'
+         WHERE g.department_id = ? AND g.is_active = TRUE AND ps.status = 'submitted'
            AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest WHERE latest.group_id = g.id)) AS pendingSubmissions,
        (SELECT COUNT(DISTINCT ps.group_id)
           FROM project_submissions ps JOIN student_groups g ON g.id = ps.group_id
-         WHERE g.department_id = ? AND ps.status = 'approved'
+         WHERE g.department_id = ? AND g.is_active = TRUE AND ps.status = 'approved'
            AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest WHERE latest.group_id = g.id)) AS approvedProjects,
        (SELECT COUNT(*) FROM project_advisor_assignments aa
           JOIN student_groups g ON g.id = aa.group_id
-         WHERE g.department_id = ? AND aa.is_active = TRUE) AS assignedAdvisors,
+         WHERE g.department_id = ? AND g.is_active = TRUE AND aa.is_active = TRUE) AS assignedAdvisors,
        (SELECT COUNT(*) FROM defense_schedules ds
          WHERE ds.department_id = ? AND ds.status = 'scheduled') AS scheduledDefenses,
        (SELECT COUNT(*) FROM defense_assessments da

@@ -477,7 +477,7 @@ export async function deactivateGroup(connection, groupId) {
     `UPDATE defense_schedule_examiners de
        JOIN defense_schedules ds ON ds.id = de.schedule_id
         SET de.is_active = FALSE, de.ended_at = CURRENT_TIMESTAMP(3)
-      WHERE ds.group_id = ? AND de.is_active = TRUE`,
+      WHERE ds.group_id = ? AND ds.status = 'scheduled' AND de.is_active = TRUE`,
     [groupId],
   )
   await connection.execute(

@@ -112,6 +112,7 @@ export default function GroupsPage() {
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
       void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
       void queryClient.invalidateQueries({ queryKey: ['advisor-projects'] })
+      void queryClient.invalidateQueries({ queryKey: ['student-defenses'] })
     },
   })
 
@@ -146,6 +147,7 @@ export default function GroupsPage() {
           <select className="form-input" value={departmentId} onChange={(event) => {
             setDepartmentId(event.target.value)
             setEditingGroup(null)
+            setMemberSearch('')
             setGroupName('')
             setMemberIds([])
           }}>
@@ -225,7 +227,6 @@ export default function GroupsPage() {
             <h2 className="section-title">Existing groups</h2>
             {groupsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading groups…</div>}
             {groupsQuery.isError && <ErrorMessage error={groupsQuery.error} fallback="Could not load groups" />}
-            <ErrorMessage error={groupMembersMutation.error} fallback="Could not update group members" />
             <ErrorMessage error={deleteGroupMutation.error} fallback="Could not delete group" />
             {groupsQuery.data && (
               <div className="table-wrapper">
