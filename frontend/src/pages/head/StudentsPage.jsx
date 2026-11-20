@@ -171,7 +171,7 @@ export default function StudentsPage() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['student-batch-options', departmentId] })
-      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
     },
   })

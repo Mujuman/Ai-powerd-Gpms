@@ -72,7 +72,7 @@ export default function ProjectSubmissionPage() {
             <div className="page-header">
               <div>
                 <h2 className="section-title">{project.groupName}</h2>
-                <p className="page-subtitle">{project.departmentCode} · {project.departmentName} · {project.academicYear}</p>
+                <p className="page-subtitle">{project.departmentCode} · {project.departmentName}</p>
                 <p className="muted-copy">Advisor: {project.advisorName ?? 'Not assigned yet'}</p>
               </div>
               <span className={status === 'approved' ? 'status-active' : status === 'rejected' ? 'status-inactive' : 'dept-chip'}>

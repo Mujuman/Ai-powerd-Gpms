@@ -548,10 +548,10 @@ export async function confirmStudentImport(batchId, actor) {
 
 export async function listGroups(filters, actor) {
   const departmentId = await resolveDepartment(actor, filters.departmentId)
-  return repository.listGroups(pool, { ...filters, departmentId })
+  return repository.listGroups(pool, { departmentId })
 }
 
-async function validateGroupMembers(connection, studentUserIds, departmentId, academicYearId, rules, excludeGroupId, projectType = 'group') {
+async function validateGroupMembers(connection, studentUserIds, departmentId, rules, excludeGroupId, projectType = 'group') {
   const groupRules = rules.grouping ?? {}
   if (projectType === 'group'
     && ((groupRules.minimumGroupSize != null && studentUserIds.length < groupRules.minimumGroupSize)
@@ -567,9 +567,7 @@ async function validateGroupMembers(connection, studentUserIds, departmentId, ac
     throw new HttpError(400, 'Every member must be an active student in this department')
   }
   const existingMemberships = await repository.findActiveMemberships(connection, studentUserIds, excludeGroupId)
-  if (existingMemberships.some((membership) => membership.academicYearId === academicYearId)) {
-    throw new HttpError(409, 'A student is already assigned to a group in this academic year')
-  }
+  if (existingMemberships.length) throw new HttpError(409, 'A student is already assigned to an active group')
 }
 
 export async function createGroup(data, actor) {
@@ -581,11 +579,6 @@ export async function createGroup(data, actor) {
       [departmentId],
     )
     if (!departments[0]) throw new HttpError(404, 'Department not found')
-    const [years] = await connection.execute(
-      'SELECT id FROM academic_years WHERE id = ? AND is_active = TRUE FOR UPDATE',
-      [data.academicYearId],
-    )
-    if (!years[0]) throw new HttpError(409, 'Select an active academic year')
     const rules = await repository.getRules(connection, departmentId)
     if (data.projectType === 'individual' && rules.grouping?.allowIndividualProjects !== true) {
       throw new HttpError(400, 'Individual projects are not enabled by this department')
@@ -593,7 +586,10 @@ export async function createGroup(data, actor) {
     if (data.projectType === 'individual' && data.studentUserIds.length !== 1) {
       throw new HttpError(400, 'An individual project group must contain exactly one student')
     }
-    await validateGroupMembers(connection, data.studentUserIds, departmentId, data.academicYearId, rules, undefined, data.projectType)
+    if ((await repository.listGroupNames(connection, departmentId)).includes(data.name)) {
+      throw new HttpError(409, 'A group with this name already exists in this department')
+    }
+    await validateGroupMembers(connection, data.studentUserIds, departmentId, rules, undefined, data.projectType)
     await repository.insertGroup(connection, {
       ...data,
       id,
@@ -609,7 +605,7 @@ export async function createGroup(data, actor) {
       targetType: 'student_group',
       targetId: id,
       remoteAddress: actor.remoteAddress,
-      metadata: { departmentId, academicYearId: data.academicYearId, memberCount: data.studentUserIds.length },
+      metadata: { departmentId, memberCount: data.studentUserIds.length },
     })
   })
   return id
@@ -640,22 +636,6 @@ export function planGpaBalancedGroups(students, groupingRules = {}) {
 
 export async function generateGroups(data, actor) {
   const departmentId = await resolveDepartment(actor, data.departmentId)
-  const context = await repository.findImportContext(
-    pool,
-    departmentId,
-    data.academicYearId,
-    data.semesterId,
-  )
-  if (!context.department || !context.year || !context.semester) {
-    throw new HttpError(404, 'Department, academic year, or semester not found')
-  }
-  if (!context.year.isActive || context.semester.status !== 'active') {
-    throw new HttpError(409, 'Select an active academic year and semester')
-  }
-  if (context.semester.academicYearId !== data.academicYearId) {
-    throw new HttpError(400, 'Semester does not belong to the selected academic year')
-  }
-
   return withTransaction(pool, async (connection) => {
     const [departments] = await connection.execute(
       'SELECT id FROM departments WHERE id = ? AND is_active = TRUE FOR UPDATE',
@@ -663,22 +643,13 @@ export async function generateGroups(data, actor) {
     )
     if (!departments[0]) throw new HttpError(404, 'Department not found')
     const rules = await repository.getRules(connection, departmentId)
-    const students = await repository.findUngroupedStudents(
-      connection,
-      departmentId,
-      data.academicYearId,
-      data.semesterId,
-    )
+    const students = await repository.findUngroupedStudents(connection, departmentId)
     const groupingRules = rules.grouping ?? {}
     const groups = planGpaBalancedGroups(students, {
       minimumGroupSize: 1,
       maximumGroupSize: groupingRules.maximumGroupSize ?? 5,
     })
-    const existingNames = new Set(await repository.listGroupNames(
-      connection,
-      departmentId,
-      data.academicYearId,
-    ))
+    const existingNames = new Set(await repository.listGroupNames(connection, departmentId))
     let nextName = 1
     const createdGroups = []
 
@@ -694,7 +665,6 @@ export async function generateGroups(data, actor) {
       await repository.insertGroup(connection, {
         id,
         departmentId,
-        academicYearId: data.academicYearId,
         name,
         projectType: 'group',
         createdBy: actor.id,
@@ -715,8 +685,6 @@ export async function generateGroups(data, actor) {
       targetId: departmentId,
       remoteAddress: actor.remoteAddress,
       metadata: {
-        academicYearId: data.academicYearId,
-        semesterId: data.semesterId,
         studentCount: students.length,
         groupCount: createdGroups.length,
       },
@@ -742,7 +710,6 @@ export async function replaceGroupMembers(groupId, studentUserIds, actor) {
       connection,
       studentUserIds,
       departmentId,
-      group.academicYearId,
       rules,
       groupId,
       group.projectType,

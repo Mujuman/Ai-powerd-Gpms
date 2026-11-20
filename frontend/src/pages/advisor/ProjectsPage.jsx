@@ -23,11 +23,11 @@ export default function AdvisorProjectsPage() {
       {projectsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading assigned projects…</div>}
       <div className="table-wrapper">
         <table className="data-table">
-          <thead><tr><th>Project group</th><th>Department / year</th><th>Project proposal</th><th>Status / feedback</th><th>Students</th></tr></thead>
+          <thead><tr><th>Project group</th><th>Department</th><th>Project proposal</th><th>Status / feedback</th><th>Students</th></tr></thead>
           <tbody>{projects.map((project) => (
             <tr key={project.groupId}>
               <td>{project.groupName}</td>
-              <td>{project.departmentName}<br />{project.academicYear}</td>
+              <td>{project.departmentName}</td>
               <td>{project.title ?? 'Not submitted'}<br /><span className="muted-copy">{project.description ?? ''}</span></td>
               <td>{project.submissionStatus ?? 'No submission'}<br /><span className="muted-copy">{project.reviewNote ?? ''}</span></td>
               <td>{project.members.map((member) => `${member.fullName} (${member.studentId ?? 'no ID'})`).join(', ')}</td>

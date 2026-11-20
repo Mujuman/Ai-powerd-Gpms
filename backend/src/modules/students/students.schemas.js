@@ -46,7 +46,6 @@ export const saveRulesSchema = z.object({
 
 export const createGroupSchema = z.object({
   departmentId: uuid.optional(),
-  academicYearId: uuid,
   name: z.string().trim().min(1).max(120),
   projectType: z.enum(['individual', 'group']).default('group'),
   studentUserIds: z.array(uuid).min(1).max(100),
@@ -77,8 +76,6 @@ export const updateStudentSchema = z.object({
 
 export const generateGroupsSchema = z.object({
   departmentId: uuid.optional(),
-  academicYearId: uuid,
-  semesterId: uuid,
 }).strict()
 
 export const eligibilityQuerySchema = z.object({

@@ -1,8 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  findUngroupedStudents,
   findImportBatch,
+  insertGroup,
   listStudents,
+  listGroups,
   permanentlyDeleteStudent,
 } from '../src/modules/students/students.repository.js'
 
@@ -69,6 +72,55 @@ test('student list filters by name, year level, and batch', async () => {
     3,
     '2025',
   ])
+})
+
+test('group generation reads active department students without academic-period filters', async () => {
+  let query = ''
+  let parameters = []
+  const connection = {
+    async execute(statement, values) {
+      query = statement
+      parameters = values
+      return [[]]
+    },
+  }
+
+  await findUngroupedStudents(connection, 'department-id')
+  assert.match(query, /sp\.gpa/)
+  assert.match(query, /NOT EXISTS/)
+  assert.doesNotMatch(query, /academic_year|semester_id/i)
+  assert.deepEqual(parameters, ['department-id'])
+})
+
+test('groups are listed and created without academic-year dependencies', async () => {
+  const listQueries = []
+  const databasePool = {
+    async execute(query) {
+      listQueries.push(query)
+      return [[]]
+    },
+  }
+  await listGroups(databasePool, { departmentId: 'department-id' })
+  assert.doesNotMatch(listQueries[0], /academic_year/i)
+
+  let insertQuery = ''
+  let insertParameters = []
+  const connection = {
+    async execute(query, parameters) {
+      insertQuery = query
+      insertParameters = parameters
+      return [{ affectedRows: 1 }]
+    },
+  }
+  await insertGroup(connection, {
+    id: 'group-id',
+    departmentId: 'department-id',
+    name: 'Group A',
+    projectType: 'group',
+    createdBy: 'head-id',
+  })
+  assert.doesNotMatch(insertQuery, /academic_year/i)
+  assert.deepEqual(insertParameters, ['group-id', 'department-id', 'Group A', 'group', 'head-id'])
 })
 
 test('permanent student deletion removes restricted dependents before the user row', async () => {

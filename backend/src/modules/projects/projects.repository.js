@@ -9,7 +9,7 @@ function parseJson(value, fallback) {
 
 export async function findStudentGroup(connection, groupId, studentUserId, lock = false) {
   const [rows] = await connection.execute(
-    `SELECT g.id, g.department_id AS departmentId, g.academic_year_id AS academicYearId,
+    `SELECT g.id, g.department_id AS departmentId,
             g.is_active AS isActive, g.project_type AS projectType
        FROM student_groups g
        JOIN student_group_members gm ON gm.group_id = g.id AND gm.is_active = TRUE
@@ -24,7 +24,6 @@ export async function listStudentGroups(connection, studentUserId) {
   const [rows] = await connection.execute(
     `SELECT g.id AS groupId, g.name AS groupName, g.department_id AS departmentId,
             d.name AS departmentName, d.code AS departmentCode,
-            g.academic_year_id AS academicYearId, ay.label AS academicYear,
             (SELECT ps.id FROM project_submissions ps
               WHERE ps.group_id = g.id ORDER BY ps.version DESC LIMIT 1) AS submissionId,
             (SELECT ps.title FROM project_submissions ps
@@ -43,7 +42,6 @@ export async function listStudentGroups(connection, studentUserId) {
        FROM student_group_members gm
        JOIN student_groups g ON g.id = gm.group_id
        JOIN departments d ON d.id = g.department_id
-       JOIN academic_years ay ON ay.id = g.academic_year_id
       WHERE gm.student_user_id = ? AND gm.is_active = TRUE AND g.is_active = TRUE
       ORDER BY g.created_at DESC`,
     [studentUserId],
@@ -54,13 +52,11 @@ export async function listStudentGroups(connection, studentUserId) {
 export async function listAdvisorProjects(connection, advisorUserId) {
   const [rows] = await connection.execute(
     `SELECT g.id AS groupId, g.name AS groupName, d.name AS departmentName,
-            ay.label AS academicYear,
             ps.title, ps.description, ps.status AS submissionStatus,
             ps.review_note AS reviewNote
        FROM project_advisor_assignments aa
        JOIN student_groups g ON g.id = aa.group_id
        JOIN departments d ON d.id = g.department_id
-       JOIN academic_years ay ON ay.id = g.academic_year_id
        LEFT JOIN project_submissions ps ON ps.group_id = g.id
         AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest
                            WHERE latest.group_id = g.id)
@@ -148,13 +144,9 @@ export async function listSubmissions(connection, departmentId, status) {
   return rows
 }
 
-export async function listDepartmentGroups(connection, departmentId, academicYearId) {
-  const params = [departmentId]
-  const yearFilter = academicYearId ? 'AND g.academic_year_id = ?' : ''
-  if (academicYearId) params.push(academicYearId)
+export async function listDepartmentGroups(connection, departmentId) {
   const [groups] = await connection.execute(
     `SELECT g.id, g.name, g.project_type AS projectType,
-            g.academic_year_id AS academicYearId, ay.label AS academicYear,
             g.is_active AS isActive,
             (SELECT ps.id FROM project_submissions ps
               WHERE ps.group_id = g.id ORDER BY ps.version DESC LIMIT 1) AS submissionId,
@@ -183,10 +175,9 @@ export async function listDepartmentGroups(connection, departmentId, academicYea
               JOIN defense_schedules ds ON ds.id = da.schedule_id
               WHERE ds.group_id = g.id) AS assessmentCount
        FROM student_groups g
-       JOIN academic_years ay ON ay.id = g.academic_year_id
-      WHERE g.department_id = ? ${yearFilter}
+      WHERE g.department_id = ?
       ORDER BY g.created_at DESC`,
-    params,
+    [departmentId],
   )
   if (!groups.length) return groups
 

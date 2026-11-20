@@ -362,29 +362,23 @@ export async function saveRules(connection, departmentId, rules, actorId) {
   )
 }
 
-export async function listGroups(databasePool, { departmentId, academicYearId }) {
+export async function listGroups(databasePool, { departmentId }) {
   const clauses = []
   const params = []
   if (departmentId) {
     clauses.push('g.department_id = ?')
     params.push(departmentId)
   }
-  if (academicYearId) {
-    clauses.push('g.academic_year_id = ?')
-    params.push(academicYearId)
-  }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
   const [rows] = await databasePool.execute(
     `SELECT g.id, g.department_id AS departmentId, d.code AS departmentCode,
-            g.academic_year_id AS academicYearId, ay.label AS academicYear,
             g.name, g.project_type AS projectType, g.is_active AS isActive,
             (SELECT COUNT(*) FROM student_group_members gm
               WHERE gm.group_id = g.id AND gm.is_active = TRUE) AS memberCount
        FROM student_groups g
        JOIN departments d ON d.id = g.department_id
-       JOIN academic_years ay ON ay.id = g.academic_year_id
        ${where}
-      ORDER BY ay.start_date DESC, d.name, g.name`,
+      ORDER BY d.name, g.name`,
     params,
   )
   if (!rows.length) return []
@@ -408,40 +402,36 @@ export async function listGroups(databasePool, { departmentId, academicYearId })
   }))
 }
 
-export async function findUngroupedStudents(connection, departmentId, academicYearId, semesterId) {
+export async function findUngroupedStudents(connection, departmentId) {
   const [rows] = await connection.execute(
     `SELECT sp.user_id AS userId, sp.student_id AS studentId,
-            u.full_name AS fullName, sar.gpa, sar.year_level AS yearLevel,
-            sar.enrollment_status AS enrollmentStatus, ay.label AS academicYear,
-            sem.name AS semester
+            u.full_name AS fullName, sp.gpa, sp.year_level AS yearLevel,
+            sp.enrollment_status AS enrollmentStatus
        FROM student_profiles sp
        JOIN users u ON u.id = sp.user_id
        JOIN roles r ON r.id = u.role_id
-       JOIN student_academic_records sar ON sar.student_user_id = sp.user_id
-       JOIN semesters sem ON sem.id = sar.semester_id
-       JOIN academic_years ay ON ay.id = sem.academic_year_id
-      WHERE sp.department_id = ? AND sem.academic_year_id = ? AND sem.id = ?
+      WHERE sp.department_id = ?
         AND r.code = 'student' AND u.is_active = TRUE
-        AND sp.enrollment_status = 'active' AND sar.enrollment_status = 'active'
+        AND sp.enrollment_status = 'active'
         AND NOT EXISTS (
           SELECT 1
             FROM student_group_members gm
             JOIN student_groups g ON g.id = gm.group_id
            WHERE gm.student_user_id = sp.user_id AND gm.is_active = TRUE
-             AND g.is_active = TRUE AND g.academic_year_id = ?
+             AND g.is_active = TRUE
         )
-      ORDER BY sar.gpa IS NULL, sar.gpa DESC, u.full_name
+      ORDER BY sp.gpa IS NULL, sp.gpa DESC, u.full_name
       FOR UPDATE`,
-    [departmentId, academicYearId, semesterId, academicYearId],
+    [departmentId],
   )
   return rows
 }
 
-export async function listGroupNames(connection, departmentId, academicYearId) {
+export async function listGroupNames(connection, departmentId) {
   const [rows] = await connection.execute(
     `SELECT name FROM student_groups
-      WHERE department_id = ? AND academic_year_id = ? FOR UPDATE`,
-    [departmentId, academicYearId],
+      WHERE department_id = ? FOR UPDATE`,
+    [departmentId],
   )
   return rows.map((row) => row.name)
 }
@@ -449,7 +439,7 @@ export async function listGroupNames(connection, departmentId, academicYearId) {
 export async function findGroup(connection, groupId, lock = false) {
   const [rows] = await connection.execute(
     `SELECT id, department_id AS departmentId,
-            academic_year_id AS academicYearId, name, project_type AS projectType,
+            name, project_type AS projectType,
             is_active AS isActive
        FROM student_groups WHERE id = ?${lock ? ' FOR UPDATE' : ''}`,
     [groupId],
@@ -460,9 +450,9 @@ export async function findGroup(connection, groupId, lock = false) {
 export async function insertGroup(connection, group) {
   await connection.execute(
     `INSERT INTO student_groups
-       (id, department_id, academic_year_id, name, project_type, created_by)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [group.id, group.departmentId, group.academicYearId, group.name, group.projectType, group.createdBy],
+       (id, department_id, name, project_type, created_by)
+     VALUES (?, ?, ?, ?, ?)`,
+    [group.id, group.departmentId, group.name, group.projectType, group.createdBy],
   )
 }
 
@@ -485,8 +475,7 @@ export async function findStudentsForGroup(connection, studentUserIds, departmen
 export async function findActiveMemberships(connection, studentUserIds, excludeGroupId) {
   const placeholders = studentUserIds.map(() => '?').join(', ')
   const [rows] = await connection.execute(
-    `SELECT gm.student_user_id AS userId, gm.group_id AS groupId,
-            g.academic_year_id AS academicYearId
+    `SELECT gm.student_user_id AS userId, gm.group_id AS groupId
        FROM student_group_members gm
        JOIN student_groups g ON g.id = gm.group_id
       WHERE gm.student_user_id IN (${placeholders}) AND gm.is_active = TRUE

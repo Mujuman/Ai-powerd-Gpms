@@ -4,7 +4,6 @@ const uuid = z.string().uuid()
 
 export const departmentQuerySchema = z.object({
   departmentId: uuid.optional(),
-  academicYearId: uuid.optional(),
 }).strict()
 
 export const staffQuerySchema = departmentQuerySchema.extend({

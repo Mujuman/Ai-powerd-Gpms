@@ -33,8 +33,6 @@ export default function GroupsPage() {
   const queryClient = useQueryClient()
   const departments = Array.isArray(user?.departments) ? user.departments : []
   const [departmentId, setDepartmentId] = useState('')
-  const [academicYearId, setAcademicYearId] = useState('')
-  const [semesterId, setSemesterId] = useState('')
   const [groupName, setGroupName] = useState('')
   const [projectType, setProjectType] = useState('group')
   const [memberIds, setMemberIds] = useState([])
@@ -44,32 +42,6 @@ export default function GroupsPage() {
     if (!departmentId && departments.length === 1) setDepartmentId(departments[0].id)
   }, [departmentId, departments])
 
-  const yearsQuery = useQuery({
-    queryKey: ['academic-years'],
-    enabled: Boolean(departmentId),
-    queryFn: async () => (await api.get('/academics/years')).data.data.data,
-  })
-  const years = yearsQuery.data ?? []
-  const selectedYear = years.find((year) => year.id === academicYearId)
-  useEffect(() => {
-    if (!academicYearId && years.length) {
-      setAcademicYearId((years.find((year) => year.isActive) ?? years[0]).id)
-    }
-  }, [academicYearId, years])
-
-  const semestersQuery = useQuery({
-    queryKey: ['semesters', academicYearId],
-    enabled: Boolean(academicYearId),
-    queryFn: async () => (await api.get('/academics/semesters', { params: { academicYearId } })).data.data.semesters,
-  })
-  const semesters = semestersQuery.data ?? []
-  const selectedSemester = semesters.find((semester) => semester.id === semesterId)
-  useEffect(() => {
-    if (!semesters.some((semester) => semester.id === semesterId)) {
-      setSemesterId(semesters.find((semester) => semester.status === 'active')?.id ?? '')
-    }
-  }, [semesterId, semesters])
-
   const studentsQuery = useQuery({
     queryKey: ['students', departmentId],
     enabled: Boolean(departmentId),
@@ -77,10 +49,10 @@ export default function GroupsPage() {
   })
   const students = studentsQuery.data?.data ?? []
   const groupsQuery = useQuery({
-    queryKey: ['student-groups', departmentId, academicYearId],
-    enabled: Boolean(departmentId && academicYearId),
+    queryKey: ['student-groups', departmentId],
+    enabled: Boolean(departmentId),
     queryFn: async () => (await api.get('/students/groups', {
-      params: { departmentId, academicYearId },
+      params: { departmentId },
     })).data.data,
   })
 
@@ -89,18 +61,14 @@ export default function GroupsPage() {
     onSuccess: () => {
       setGroupName('')
       setMemberIds([])
-      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
     },
   })
   const generateGroupsMutation = useMutation({
-    mutationFn: async () => (await api.post('/students/groups/generate', {
-      departmentId,
-      academicYearId,
-      semesterId,
-    })).data.data,
+    mutationFn: async () => (await api.post('/students/groups/generate', { departmentId })).data.data,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
     },
@@ -111,7 +79,7 @@ export default function GroupsPage() {
     })).data.data,
     onSuccess: () => {
       setEditingGroup(null)
-      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
     },
   })
@@ -120,7 +88,6 @@ export default function GroupsPage() {
     event.preventDefault()
     groupMutation.mutate({
       departmentId,
-      academicYearId,
       name: groupName,
       projectType,
       studentUserIds: memberIds,
@@ -156,45 +123,11 @@ export default function GroupsPage() {
           <section className="academic-card">
             <div className="page-header">
               <div>
-                <h2 className="section-title">Group settings</h2>
-                <p className="page-subtitle">Select the academic year and active semester for this grouping.</p>
-              </div>
-              <div className="filter-bar">
-                <label className="form-field">
-                  <span className="form-label">Academic year</span>
-                  <select className="form-input" value={academicYearId}
-                    onChange={(event) => setAcademicYearId(event.target.value)}>
-                    <option value="">Select academic year</option>
-                    {years.map((year) => (
-                      <option key={year.id} value={year.id}>{year.label}{year.isActive ? ' (Active)' : ''}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="form-field">
-                  <span className="form-label">Semester</span>
-                  <select className="form-input" value={semesterId}
-                    onChange={(event) => setSemesterId(event.target.value)}>
-                    <option value="">Select semester</option>
-                    {semesters.map((semester) => (
-                      <option key={semester.id} value={semester.id}>{semester.name} — {semester.status}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </div>
-            {yearsQuery.isError && <ErrorMessage error={yearsQuery.error} fallback="Could not load academic years" />}
-            {semestersQuery.isError && <ErrorMessage error={semestersQuery.error} fallback="Could not load semesters" />}
-          </section>
-
-          <section className="academic-card">
-            <div className="page-header">
-              <div>
                 <h2 className="section-title">Create groups automatically</h2>
                 <p className="page-subtitle">Create balanced groups from active, unassigned students ranked by GPA (highest first).</p>
               </div>
               <button className="btn-primary"
-                disabled={!selectedYear?.isActive || selectedSemester?.status !== 'active'
-                  || !semesterId || generateGroupsMutation.isPending}
+                disabled={generateGroupsMutation.isPending}
                 onClick={() => generateGroupsMutation.mutate()}>
                 {generateGroupsMutation.isPending ? 'Creating groups…' : 'Create groups automatically'}
               </button>
@@ -237,7 +170,7 @@ export default function GroupsPage() {
                   ))}
                 </select>
               </label>
-              <button className="btn-primary" disabled={!selectedYear?.isActive || memberIds.length === 0
+              <button className="btn-primary" disabled={memberIds.length === 0
                 || (projectType === 'individual' && memberIds.length !== 1) || groupMutation.isPending}>
                 {groupMutation.isPending ? 'Creating…' : 'Create selected group'}
               </button>
@@ -253,13 +186,12 @@ export default function GroupsPage() {
             {groupsQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
-                  <thead><tr><th>Group</th><th>Project</th><th>Academic year</th><th>Members</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Group</th><th>Project</th><th>Members</th><th>Actions</th></tr></thead>
                   <tbody>
                     {groupsQuery.data.map((group) => (
                       <tr key={group.id}>
                         <td>{group.name}</td>
                         <td>{group.projectType}</td>
-                        <td>{group.academicYear}</td>
                         <td>{editingGroup?.id === group.id ? (
                           <select className="form-input member-select" multiple={group.projectType === 'group'}
                             aria-label={`Members of ${group.name}`}
@@ -301,7 +233,7 @@ export default function GroupsPage() {
                       </tr>
                     ))}
                     {groupsQuery.data.length === 0 && (
-                      <tr><td className="table-empty" colSpan={5}>No project groups found.</td></tr>
+                      <tr><td className="table-empty" colSpan={4}>No project groups found.</td></tr>
                     )}
                   </tbody>
                 </table>

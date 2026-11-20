@@ -47,7 +47,7 @@ async function assertActiveDepartment(connection, departmentId) {
 
 export async function listDepartmentGroups(filters, actor) {
   const departmentId = assertDepartmentAccess(actor, filters.departmentId)
-  return repository.listDepartmentGroups(pool, departmentId, filters.academicYearId)
+  return repository.listDepartmentGroups(pool, departmentId)
 }
 
 export async function listSubmissions(filters, actor) {
@@ -689,7 +689,7 @@ export async function getDepartmentReport(filters, actor) {
   const departmentId = assertDepartmentAccess(actor, filters.departmentId)
   const [summary, projects, similarity] = await Promise.all([
     repository.getDepartmentReport(pool, departmentId),
-    repository.listDepartmentGroups(pool, departmentId, filters.academicYearId),
+    repository.listDepartmentGroups(pool, departmentId),
     repository.listSimilarityAnalyses(pool, departmentId, 1),
   ])
   const projectSummary = Object.fromEntries(

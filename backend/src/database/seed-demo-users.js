@@ -211,43 +211,46 @@ async function seedDemoData() {
       [departmentId, JSON.stringify(rules), adminId],
     )
 
-    if (semester && year.isActive && semester.status === 'active') {
-      const [groupRows] = await connection.execute(
-        `SELECT id FROM student_groups
-          WHERE department_id = ? AND academic_year_id = ? AND name = ?
-          FOR UPDATE`,
-        [departmentId, year.id, 'Demo Project Team'],
-      )
-      const groupId = groupRows[0]?.id ?? randomUUID()
-      if (!groupRows[0]) {
-        await connection.execute(
-          `INSERT INTO student_groups
-             (id, department_id, academic_year_id, name, project_type, created_by)
-           VALUES (?, ?, ?, 'Demo Project Team', 'group', ?)`,
-          [groupId, departmentId, year.id, userIds.get('department_head')],
-        )
-      }
-
-      const [memberships] = await connection.execute(
-        `SELECT gm.group_id AS groupId
-           FROM student_group_members gm
-           JOIN student_groups g ON g.id = gm.group_id
-          WHERE gm.student_user_id = ? AND gm.is_active = TRUE
-            AND g.academic_year_id = ? AND g.is_active = TRUE
-          FOR UPDATE`,
-        [studentUserId, year.id],
-      )
-      if (memberships[0] && memberships[0].groupId !== groupId) {
-        throw new Error('The demo student already belongs to another group in the active academic year.')
-      }
+    const [groupRows] = await connection.execute(
+      `SELECT g.id
+         FROM student_groups g
+         LEFT JOIN student_group_members gm
+           ON gm.group_id = g.id AND gm.student_user_id = ? AND gm.is_active = TRUE
+        WHERE g.department_id = ? AND g.name = ?
+        ORDER BY gm.id IS NOT NULL DESC, g.created_at DESC
+        LIMIT 1 FOR UPDATE`,
+      [studentUserId, departmentId, 'Demo Project Team'],
+    )
+    const groupId = groupRows[0]?.id ?? randomUUID()
+    if (!groupRows[0]) {
       await connection.execute(
-        `INSERT INTO student_group_members
-           (group_id, student_user_id, assigned_by, is_active)
-         VALUES (?, ?, ?, TRUE)
-         ON DUPLICATE KEY UPDATE is_active = TRUE, assigned_by = VALUES(assigned_by), left_at = NULL`,
-        [groupId, studentUserId, userIds.get('department_head')],
+        `INSERT INTO student_groups
+           (id, department_id, name, project_type, created_by)
+         VALUES (?, ?, 'Demo Project Team', 'group', ?)`,
+        [groupId, departmentId, userIds.get('department_head')],
       )
+    }
 
+    const [memberships] = await connection.execute(
+      `SELECT gm.group_id AS groupId
+         FROM student_group_members gm
+         JOIN student_groups g ON g.id = gm.group_id
+        WHERE gm.student_user_id = ? AND gm.is_active = TRUE AND g.is_active = TRUE
+        FOR UPDATE`,
+      [studentUserId],
+    )
+    if (memberships[0] && memberships[0].groupId !== groupId) {
+      throw new Error('The demo student already belongs to another active group.')
+    }
+    await connection.execute(
+      `INSERT INTO student_group_members
+         (group_id, student_user_id, assigned_by, is_active)
+       VALUES (?, ?, ?, TRUE)
+       ON DUPLICATE KEY UPDATE is_active = TRUE, assigned_by = VALUES(assigned_by), left_at = NULL`,
+      [groupId, studentUserId, userIds.get('department_head')],
+    )
+
+    if (semester && year.isActive && semester.status === 'active') {
       const [eligibilityRows] = await connection.execute(
         `SELECT id FROM eligibility_history
           WHERE student_user_id = ? AND semester_id = ?
