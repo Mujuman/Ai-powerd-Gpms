@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 import api from '../../lib/api'
@@ -29,6 +29,10 @@ async function createDepartment(body) {
 async function updateDepartment(id, body) {
   const { data } = await api.patch(`/departments/${id}`, body)
   return data
+}
+
+async function deleteDepartment(id) {
+  await api.delete(`/departments/${id}`)
 }
 
 // ── Create Modal ──────────────────────────────────────────────────────────────
@@ -155,6 +159,11 @@ export default function DepartmentsPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['departments'] }),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => deleteDepartment(id),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['departments'] }),
+  })
+
   const depts = deptsQuery.data
   const departmentRows = Array.isArray(depts?.data) ? depts.data : []
   const departmentsResponseInvalid = depts !== undefined && !Array.isArray(depts.data)
@@ -219,6 +228,19 @@ export default function DepartmentsPage() {
                         {d.isActive
                           ? <ToggleRight size={16} style={{ color: '#059669' }} />
                           : <ToggleLeft size={16} style={{ color: '#8290a6' }} />}
+                      </button>
+                      <button
+                        className="btn-icon-sm"
+                        aria-label={`Delete ${d.name}`}
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete ${d.name}? This action cannot be undone.`)) {
+                            deleteMutation.mutate(d.id)
+                          }
+                        }}
+                        disabled={deleteMutation.isPending}
+                        style={{ color: '#dc2626' }}
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
