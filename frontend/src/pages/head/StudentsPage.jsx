@@ -50,12 +50,19 @@ export default function StudentsPage() {
   const [importResult, setImportResult] = useState(null)
   const [editingStudent, setEditingStudent] = useState(null)
   const [studentForm, setStudentForm] = useState({
-    fullName: '', email: '', password: '', studentId: '', program: '', cohort: '', yearLevel: '',
+    fullName: '', email: '', password: '', studentId: '', cohort: '', yearLevel: '',
   })
+  const [passwordCustomized, setPasswordCustomized] = useState(false)
 
   useEffect(() => {
-    if (!departmentId && departments.length === 1) setDepartmentId(departments[0].id)
-  }, [departmentId, departments])
+    if (!departmentId && departments.length) {
+      const defaultDepartment = user?.role === 'department_head'
+        ? departments[0]
+        : departments.length === 1 ? departments[0] : null
+      if (defaultDepartment) setDepartmentId(defaultDepartment.id)
+    }
+  }, [departmentId, departments, user?.role])
+  const selectedDepartment = departments.find((department) => department.id === departmentId)
 
   const yearsQuery = useQuery({
     queryKey: ['academic-years'],
@@ -139,7 +146,8 @@ export default function StudentsPage() {
       yearLevel: studentForm.yearLevel ? Number(studentForm.yearLevel) : null,
     })).data.data,
     onSuccess: () => {
-      setStudentForm({ fullName: '', email: '', password: '', studentId: '', program: '', cohort: '', yearLevel: '' })
+      setStudentForm({ fullName: '', email: '', password: '', studentId: '', cohort: '', yearLevel: '' })
+      setPasswordCustomized(false)
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['student-batch-options', departmentId] })
     },
@@ -257,15 +265,28 @@ export default function StudentsPage() {
                 <label className="form-field"><span className="form-label">Email</span>
                   <input className="form-input" type="email" required value={studentForm.email}
                     onChange={(event) => setStudentForm({ ...studentForm, email: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Initial password (12+ characters)</span>
-                  <input className="form-input" type="password" minLength={12} required value={studentForm.password}
-                    onChange={(event) => setStudentForm({ ...studentForm, password: event.target.value })} /></label>
                 <label className="form-field"><span className="form-label">Student ID</span>
                   <input className="form-input" required maxLength={32} value={studentForm.studentId}
-                    onChange={(event) => setStudentForm({ ...studentForm, studentId: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Program</span>
-                  <input className="form-input" maxLength={120} value={studentForm.program}
-                    onChange={(event) => setStudentForm({ ...studentForm, program: event.target.value })} /></label>
+                    onChange={(event) => {
+                      const studentId = event.target.value
+                      setStudentForm((current) => ({
+                        ...current,
+                        studentId,
+                        ...(!passwordCustomized
+                          ? { password: studentId.trim() ? `${studentId.trim()}@wru` : '' }
+                          : {}),
+                      }))
+                    }} /></label>
+                <label className="form-field"><span className="form-label">Initial password (5+ characters)</span>
+                  <input className="form-input" type="password" minLength={5} required value={studentForm.password}
+                    onChange={(event) => {
+                      setPasswordCustomized(true)
+                      setStudentForm({ ...studentForm, password: event.target.value })
+                    }} /></label>
+                <label className="form-field"><span className="form-label">Department</span>
+                  <input className="form-input" value={selectedDepartment
+                    ? `${selectedDepartment.code} — ${selectedDepartment.name}`
+                    : ''} readOnly /></label>
                 <label className="form-field"><span className="form-label">Batch</span>
                   <input className="form-input" maxLength={32} value={studentForm.cohort}
                     onChange={(event) => setStudentForm({ ...studentForm, cohort: event.target.value })} /></label>

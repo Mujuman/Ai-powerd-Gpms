@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   createGroupSchema,
   importStudentsSchema,
+  registerStudentSchema,
   saveRulesSchema,
 } from '../src/modules/students/students.schemas.js'
 import { planGpaBalancedGroups } from '../src/modules/students/students.service.js'
@@ -36,6 +37,20 @@ test('department rules reject contradictory GPA ranges', () => {
 test('student import requires an academic year and semester', () => {
   assert.equal(importStudentsSchema.safeParse({ departmentId, academicYearId }).success, false)
   assert.equal(importStudentsSchema.safeParse({ departmentId, academicYearId, semesterId }).success, true)
+})
+
+test('student registration accepts passwords with at least five characters', () => {
+  const student = {
+    departmentId,
+    academicYearId,
+    semesterId,
+    email: 'student@example.com',
+    fullName: 'Test Student',
+    password: 'a@wru',
+    studentId: 'a',
+  }
+  assert.equal(registerStudentSchema.safeParse(student).success, true)
+  assert.equal(registerStudentSchema.safeParse({ ...student, password: '1234' }).success, false)
 })
 
 test('GPA-ranked students are distributed across balanced groups in a snake pattern', () => {

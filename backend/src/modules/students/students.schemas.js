@@ -99,7 +99,7 @@ export const registerStudentSchema = z.object({
   semesterId: uuid,
   email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
   fullName: z.string().trim().min(1).max(160),
-  password: z.string().min(12).refine(
+  password: z.string().min(5, 'Password must be at least 5 characters').refine(
     (value) => Buffer.byteLength(value, 'utf8') <= 72,
     'Password must be at most 72 UTF-8 bytes',
   ),
