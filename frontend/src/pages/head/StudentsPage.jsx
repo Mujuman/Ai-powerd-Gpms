@@ -63,6 +63,9 @@ export default function StudentsPage() {
     }
   }, [departmentId, departments, user?.role])
   const selectedDepartment = departments.find((department) => department.id === departmentId)
+  const selectedDepartmentLabel = selectedDepartment
+    ? `${selectedDepartment.code} — ${selectedDepartment.name}`
+    : ''
 
   const yearsQuery = useQuery({
     queryKey: ['academic-years'],
@@ -336,11 +339,11 @@ export default function StudentsPage() {
                 {preview.preview.length > 0 && (
                   <div className="table-wrapper">
                     <table className="data-table">
-                      <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Program</th><th>Year level</th><th>GPA</th></tr></thead>
+                      <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Department</th><th>Year level</th><th>GPA</th></tr></thead>
                       <tbody>{preview.preview.map((student) => (
                         <tr key={`${student.rowNumber}-${student.email}`}>
                           <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                          <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td><td>{student.gpa ?? '—'}</td>
+                          <td>{selectedDepartmentLabel || '—'}</td><td>{student.yearLevel ?? '—'}</td><td>{student.gpa ?? '—'}</td>
                         </tr>
                       ))}</tbody>
                     </table>
@@ -388,12 +391,13 @@ export default function StudentsPage() {
             {studentsQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
-                  <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Program</th><th>Year</th><th>Batch</th><th>GPA</th><th>Status</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Department</th><th>Year</th><th>Batch</th><th>GPA</th><th>Status</th><th>Actions</th></tr></thead>
                   <tbody>
                     {students.map((student) => (
                       <tr key={student.userId}>
                         <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                        <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td><td>{student.cohort || '—'}</td>
+                        <td>{selectedDepartmentLabel || student.departmentCode || '—'}</td>
+                        <td>{student.yearLevel ?? '—'}</td><td>{student.cohort || '—'}</td>
                         <td>{student.gpa ?? '—'}</td><td>{student.isActive ? student.enrollmentStatus : 'inactive'}</td>
                         <td><div className="action-row">
                           <button className="btn-secondary" disabled={!student.isActive}
@@ -436,9 +440,8 @@ export default function StudentsPage() {
                     <label className="form-field"><span className="form-label">Email</span>
                       <input className="form-input" type="email" required value={editingStudent.email}
                         onChange={(event) => setEditingStudent({ ...editingStudent, email: event.target.value })} /></label>
-                    <label className="form-field"><span className="form-label">Program</span>
-                      <input className="form-input" maxLength={120} value={editingStudent.program}
-                        onChange={(event) => setEditingStudent({ ...editingStudent, program: event.target.value })} /></label>
+                    <label className="form-field"><span className="form-label">Department</span>
+                      <input className="form-input" value={selectedDepartmentLabel} readOnly /></label>
                     <label className="form-field"><span className="form-label">Batch</span>
                       <input className="form-input" maxLength={32} value={editingStudent.cohort}
                         onChange={(event) => setEditingStudent({ ...editingStudent, cohort: event.target.value })} /></label>
