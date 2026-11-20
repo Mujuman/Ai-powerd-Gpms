@@ -35,13 +35,26 @@ async function deleteDepartment(id) {
   await api.delete(`/departments/${id}`)
 }
 
+async function setDepartmentHeads(deptId, headIds) {
+  const { data } = await api.patch(`/departments/${deptId}`, { headIds })
+  return data
+}
+
 // ── Create Modal ──────────────────────────────────────────────────────────────
-function CreateDeptModal({ onClose }) {
+function CreateDeptModal({ departmentHeads, onClose }) {
   const qc = useQueryClient()
   const [serverError, setServerError] = useState(null)
+  const [selectedHeads, setSelectedHeads] = useState([])
 
   const mutation = useMutation({
-    mutationFn: createDepartment,
+    mutationFn: async (values) => {
+      const dept = await createDepartment({ code: values.code.toUpperCase(), name: values.name })
+      const deptId = dept.data?.department?.id
+      if (deptId && selectedHeads.length > 0) {
+        await setDepartmentHeads(deptId, selectedHeads)
+      }
+      return dept
+    },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['departments'] })
       onClose()
@@ -55,9 +68,18 @@ function CreateDeptModal({ onClose }) {
 
   async function onSubmit(values) {
     setServerError(null)
+    if (selectedHeads.length === 0) {
+      setServerError('At least one department head must be assigned')
+      return
+    }
     const result = deptSchema.safeParse(values)
     if (!result.success) return
-    await mutation.mutateAsync({ code: result.data.code.toUpperCase(), name: result.data.name })
+    await mutation.mutateAsync(result.data)
+  }
+
+  function handleHeadSelect(e) {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
+    setSelectedHeads(selectedOptions)
   }
 
   return (
@@ -78,6 +100,26 @@ function CreateDeptModal({ onClose }) {
             <input id="cd-name" type="text" placeholder="e.g. Computer Science" className={`form-input${errors.name ? ' is-invalid' : ''}`} {...register('name')} />
             {errors.name && <p className="form-field-error" role="alert">{errors.name.message}</p>}
           </div>
+
+          {departmentHeads.length > 0 && (
+            <div className="form-field">
+              <label htmlFor="cd-heads" className="form-label">Assign Department Heads (Required)</label>
+              <select 
+                id="cd-heads" 
+                className="form-input" 
+                multiple 
+                style={{ height: '100px' }} 
+                onChange={handleHeadSelect}
+                value={selectedHeads}
+              >
+                {departmentHeads.map((h) => (
+                  <option key={h.id} value={h.id}>{h.fullName} ({h.email})</option>
+                ))}
+              </select>
+              <p className="form-field-error" style={{ color: '#8290a6' }}>Hold Ctrl / Cmd to select multiple</p>
+              {selectedHeads.length === 0 && <p className="form-field-error">At least one head required</p>}
+            </div>
+          )}
 
           <div className="modal-actions">
             <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
@@ -153,6 +195,15 @@ export default function DepartmentsPage() {
   const [editDept, setEditDept] = useState(null)
 
   const deptsQuery = useQuery({ queryKey: ['departments'], queryFn: fetchDepartments })
+  
+  // Fetch department heads for assignment
+  const headsQuery = useQuery({
+    queryKey: ['users/department-heads'],
+    queryFn: async () => {
+      const { data } = await api.get('/users/department-heads')
+      return data.data
+    },
+  })
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, isActive }) => updateDepartment(id, { isActive: !isActive }),

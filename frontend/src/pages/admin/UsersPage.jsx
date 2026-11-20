@@ -25,7 +25,7 @@ const createUserSchema = z.object({
   fullName: z.string().min(2, 'At least 2 characters'),
   password: z.string().min(12, 'At least 12 characters'),
   role: z.enum(['department_head']),
-  departmentIds: z.array(z.string()).optional(),
+  departmentIds: z.array(z.string()).min(1, 'At least one department is required'),
 })
 
 const editUserSchema = z.object({
