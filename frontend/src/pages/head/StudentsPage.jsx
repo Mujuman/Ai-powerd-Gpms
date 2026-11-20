@@ -53,17 +53,6 @@ export default function StudentsPage() {
   const [projectType, setProjectType] = useState('group')
   const [memberIds, setMemberIds] = useState([])
   const [editingGroup, setEditingGroup] = useState(null)
-  const [ruleForm, setRuleForm] = useState({
-    minimumGpa: '',
-    maximumGpa: '',
-    minimumYearLevel: '',
-    requiredAcademicYear: '',
-    requiredSemester: '',
-    requiredEnrollmentStatus: '',
-    minimumGroupSize: '',
-    maximumGroupSize: '',
-    allowIndividualProjects: false,
-  })
 
   useEffect(() => {
     if (!departmentId && departments.length === 1) setDepartmentId(departments[0].id)
@@ -100,11 +89,6 @@ export default function StudentsPage() {
     enabled: Boolean(departmentId),
     queryFn: async () => (await api.get('/students', { params: { departmentId, limit: 100 } })).data.data,
   })
-  const rulesQuery = useQuery({
-    queryKey: ['department-rules', departmentId],
-    enabled: Boolean(departmentId),
-    queryFn: async () => (await api.get(`/students/rules/${departmentId}`)).data.data.rules,
-  })
   const groupsQuery = useQuery({
     queryKey: ['student-groups', departmentId, academicYearId],
     enabled: Boolean(departmentId && academicYearId),
@@ -112,31 +96,6 @@ export default function StudentsPage() {
       params: { departmentId, academicYearId },
     })).data.data,
   })
-  const eligibilityQuery = useQuery({
-    queryKey: ['eligibility', departmentId, academicYearId, semesterId],
-    enabled: Boolean(departmentId && academicYearId && semesterId),
-    queryFn: async () => (await api.get('/students/eligibility', {
-      params: { departmentId, academicYearId, semesterId },
-    })).data.data,
-  })
-
-  useEffect(() => {
-    if (!rulesQuery.data) return
-    const eligibility = rulesQuery.data.eligibility ?? {}
-    const grouping = rulesQuery.data.grouping ?? {}
-    setRuleForm({
-      minimumGpa: eligibility.minimumGpa ?? '',
-      maximumGpa: eligibility.maximumGpa ?? '',
-      minimumYearLevel: eligibility.minimumYearLevel ?? '',
-      requiredAcademicYear: eligibility.requiredAcademicYear ?? '',
-      requiredSemester: eligibility.requiredSemester ?? '',
-      requiredEnrollmentStatus: eligibility.requiredEnrollmentStatus ?? '',
-      minimumGroupSize: grouping.minimumGroupSize ?? '',
-      maximumGroupSize: grouping.maximumGroupSize ?? '',
-      allowIndividualProjects: grouping.allowIndividualProjects === true,
-    })
-  }, [rulesQuery.data])
-
   const importMutation = useMutation({
     mutationFn: async ({ action, batchId }) => {
       if (action === 'confirm') return (await api.post(`/students/imports/${batchId}/confirm`)).data.data
@@ -154,21 +113,10 @@ export default function StudentsPage() {
         setImportResult(data)
         void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
         void queryClient.invalidateQueries({ queryKey: ['student-groups'] })
-        void queryClient.invalidateQueries({ queryKey: ['eligibility'] })
         return
       }
       setPreview(data)
     },
-  })
-  const rulesMutation = useMutation({
-    mutationFn: (body) => api.put(`/students/rules/${departmentId}`, body),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['department-rules', departmentId] }),
-  })
-  const evaluateMutation = useMutation({
-    mutationFn: async () => (await api.post('/students/eligibility/evaluate', {
-      departmentId, academicYearId, semesterId,
-    })).data.data,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['eligibility', departmentId, academicYearId, semesterId] }),
   })
   const groupMutation = useMutation({
     mutationFn: (body) => api.post('/students/groups', body),
@@ -222,34 +170,15 @@ export default function StudentsPage() {
   const deleteStudentMutation = useMutation({
     mutationFn: async ({ userId, departmentId: scopedDepartmentId }) =>
       (await api.delete(`/students/${userId}`, { params: { departmentId: scopedDepartmentId } })).data,
-    onSuccess: () => {
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId, academicYearId] })
-      void queryClient.invalidateQueries({ queryKey: ['eligibility'] })
+      void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
     },
   })
 
   function numberOrNull(value) {
     return value === '' ? null : Number(value)
-  }
-
-  function saveRules(event) {
-    event.preventDefault()
-    rulesMutation.mutate({
-      eligibility: {
-        minimumGpa: numberOrNull(ruleForm.minimumGpa),
-        maximumGpa: numberOrNull(ruleForm.maximumGpa),
-        minimumYearLevel: numberOrNull(ruleForm.minimumYearLevel),
-        requiredAcademicYear: ruleForm.requiredAcademicYear || null,
-        requiredSemester: ruleForm.requiredSemester || null,
-        requiredEnrollmentStatus: ruleForm.requiredEnrollmentStatus || null,
-      },
-      grouping: {
-        minimumGroupSize: numberOrNull(ruleForm.minimumGroupSize),
-        maximumGroupSize: numberOrNull(ruleForm.maximumGroupSize),
-        allowIndividualProjects: ruleForm.allowIndividualProjects,
-      },
-    })
   }
 
   function uploadPreview(event) {
@@ -278,25 +207,21 @@ export default function StudentsPage() {
   }
 
   function deleteStudent(student) {
-    if (window.confirm(`Deactivate ${student.fullName}? Their academic and project history will be retained.`)) {
+    if (window.confirm(`Permanently delete ${student.fullName} and their student account? Their group membership, messages, and uploaded project documents will also be removed.`)) {
       deleteStudentMutation.mutate({ userId: student.userId, departmentId })
     }
   }
 
   const students = studentsQuery.data?.data ?? []
-  const eligibilityResults = Array.isArray(eligibilityQuery.data)
-    ? eligibilityQuery.data
-    : eligibilityQuery.data?.results ?? []
-  const formError = rulesMutation.error ?? evaluateMutation.error ?? groupMutation.error
-    ?? generateGroupsMutation.error ?? registerStudentMutation.error ?? groupMembersMutation.error
-    ?? updateStudentMutation.error ?? deleteStudentMutation.error
+  const formError = registerStudentMutation.error ?? groupMembersMutation.error
+    ?? deleteStudentMutation.error
 
   return (
     <div className="page-content">
       <div className="page-header">
         <div>
           <h1 className="page-title">Students</h1>
-          <p className="page-subtitle">Create and manage student records, imports, GPA, eligibility, and group assignments.</p>
+          <p className="page-subtitle">Create and manage student records, imports, GPA, and project groups.</p>
         </div>
       </div>
       {departments.length > 1 && (
@@ -443,52 +368,25 @@ export default function StudentsPage() {
                   <tbody>
                     {students.map((student) => (
                       <tr key={student.userId}>
-                        {editingStudent?.userId === student.userId ? (
-                          <>
-                            <td><input className="form-input" aria-label="Student ID" value={editingStudent.studentId}
-                              onChange={(event) => setEditingStudent({ ...editingStudent, studentId: event.target.value })} /></td>
-                            <td><input className="form-input" aria-label="Full name" value={editingStudent.fullName}
-                              onChange={(event) => setEditingStudent({ ...editingStudent, fullName: event.target.value })} /></td>
-                            <td><input className="form-input" type="email" aria-label="Email" value={editingStudent.email}
-                              onChange={(event) => setEditingStudent({ ...editingStudent, email: event.target.value })} /></td>
-                            <td><input className="form-input" aria-label="Program" value={editingStudent.program}
-                              onChange={(event) => setEditingStudent({ ...editingStudent, program: event.target.value })} /></td>
-                            <td><input className="form-input" type="number" min="1" aria-label="Year level" value={editingStudent.yearLevel}
-                              onChange={(event) => setEditingStudent({ ...editingStudent, yearLevel: event.target.value })} /></td>
-                            <td><input className="form-input" type="number" min="0" max="99.99" step="0.01" aria-label="GPA" value={editingStudent.gpa}
-                              onChange={(event) => setEditingStudent({ ...editingStudent, gpa: event.target.value })} /></td>
-                          </>
-                        ) : (
-                          <>
-                            <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                            <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td>
-                            <td>{student.gpa ?? '—'}</td><td>{student.isActive ? student.enrollmentStatus : 'inactive'}</td>
-                          </>
-                        )}
-                        {editingStudent?.userId === student.userId ? (
-                          <td><div className="action-row">
-                            <button className="btn-primary" disabled={updateStudentMutation.isPending || !semesterId}
-                              onClick={saveStudent}>{updateStudentMutation.isPending ? 'Saving…' : 'Save'}</button>
-                            <button className="btn-secondary" onClick={() => setEditingStudent(null)}>Cancel</button>
-                          </div></td>
-                        ) : (
-                          <td><div className="action-row">
-                            <button className="btn-secondary" disabled={!student.isActive}
-                              onClick={() => setEditingStudent({
-                                userId: student.userId,
-                                departmentId,
-                                studentId: student.studentId,
-                                fullName: student.fullName,
-                                email: student.email,
-                                program: student.program ?? '',
-                                cohort: student.cohort ?? '',
-                                yearLevel: student.yearLevel ?? '',
-                                gpa: student.gpa ?? '',
-                              })}>Edit</button>
-                            <button className="btn-secondary" disabled={!student.isActive || deleteStudentMutation.isPending}
-                              onClick={() => deleteStudent(student)}>Delete</button>
-                          </div></td>
-                        )}
+                        <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
+                        <td>{student.program || '—'}</td><td>{student.yearLevel ?? '—'}</td>
+                        <td>{student.gpa ?? '—'}</td><td>{student.isActive ? student.enrollmentStatus : 'inactive'}</td>
+                        <td><div className="action-row">
+                          <button className="btn-secondary" disabled={!student.isActive}
+                            onClick={() => setEditingStudent({
+                              userId: student.userId,
+                              departmentId,
+                              studentId: student.studentId,
+                              fullName: student.fullName,
+                              email: student.email,
+                              program: student.program ?? '',
+                              cohort: student.cohort ?? '',
+                              yearLevel: student.yearLevel ?? '',
+                              gpa: student.gpa ?? '',
+                            })}>Edit</button>
+                          <button className="btn-secondary" disabled={deleteStudentMutation.isPending}
+                            onClick={() => deleteStudent(student)}>Delete</button>
+                        </div></td>
                       </tr>
                     ))}
                     {students.length === 0 && <tr><td className="table-empty" colSpan={8}>No students are assigned to this department.</td></tr>}
@@ -498,94 +396,64 @@ export default function StudentsPage() {
             )}
           </section>
 
-          <section className="academic-card">
-            <h2 className="section-title">Department rules</h2>
-            <p className="page-subtitle">Leave a field empty to disable that particular condition.</p>
-            {rulesQuery.isError && <ErrorMessage error={rulesQuery.error} fallback="Could not load department rules" />}
-            <form className="rules-form" onSubmit={saveRules}>
-              <div className="rules-grid">
-                <label className="form-field"><span className="form-label">Minimum GPA</span>
-                  <input className="form-input" type="number" min="0" max="99.99" step="0.01" value={ruleForm.minimumGpa}
-                    onChange={(event) => setRuleForm({ ...ruleForm, minimumGpa: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Maximum GPA</span>
-                  <input className="form-input" type="number" min="0" max="99.99" step="0.01" value={ruleForm.maximumGpa}
-                    onChange={(event) => setRuleForm({ ...ruleForm, maximumGpa: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Minimum year level</span>
-                  <input className="form-input" type="number" min="1" value={ruleForm.minimumYearLevel}
-                    onChange={(event) => setRuleForm({ ...ruleForm, minimumYearLevel: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Required academic year label</span>
-                  <input className="form-input" maxLength="16" value={ruleForm.requiredAcademicYear}
-                    onChange={(event) => setRuleForm({ ...ruleForm, requiredAcademicYear: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Required semester</span>
-                  <select className="form-input" value={ruleForm.requiredSemester}
-                    onChange={(event) => setRuleForm({ ...ruleForm, requiredSemester: event.target.value })}>
-                    <option value="">No restriction</option><option value="first">First</option><option value="second">Second</option><option value="summer">Summer</option>
-                  </select></label>
-                <label className="form-field"><span className="form-label">Required enrollment status</span>
-                  <select className="form-input" value={ruleForm.requiredEnrollmentStatus}
-                    onChange={(event) => setRuleForm({ ...ruleForm, requiredEnrollmentStatus: event.target.value })}>
-                    <option value="">No restriction</option><option value="active">Active</option><option value="inactive">Inactive</option>
-                    <option value="graduated">Graduated</option><option value="suspended">Suspended</option>
-                  </select></label>
-                <label className="form-field"><span className="form-label">Minimum group size</span>
-                  <input className="form-input" type="number" min="1" max="100" value={ruleForm.minimumGroupSize}
-                    onChange={(event) => setRuleForm({ ...ruleForm, minimumGroupSize: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Maximum group size</span>
-                  <input className="form-input" type="number" min="1" max="100" value={ruleForm.maximumGroupSize}
-                    onChange={(event) => setRuleForm({ ...ruleForm, maximumGroupSize: event.target.value })} /></label>
+          {editingStudent && (
+            <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-student-title">
+              <div className="modal-card">
+                <h2 id="edit-student-title" className="modal-title">Edit student</h2>
+                <ErrorMessage error={updateStudentMutation.error} fallback="Could not update student" />
+                <form className="modal-form" onSubmit={saveStudent}>
+                  <div className="student-edit-grid">
+                    <label className="form-field"><span className="form-label">Student ID</span>
+                      <input className="form-input" required maxLength={32} value={editingStudent.studentId}
+                        onChange={(event) => setEditingStudent({ ...editingStudent, studentId: event.target.value })} /></label>
+                    <label className="form-field"><span className="form-label">Full name</span>
+                      <input className="form-input" required maxLength={160} value={editingStudent.fullName}
+                        onChange={(event) => setEditingStudent({ ...editingStudent, fullName: event.target.value })} /></label>
+                    <label className="form-field"><span className="form-label">Email</span>
+                      <input className="form-input" type="email" required value={editingStudent.email}
+                        onChange={(event) => setEditingStudent({ ...editingStudent, email: event.target.value })} /></label>
+                    <label className="form-field"><span className="form-label">Program</span>
+                      <input className="form-input" maxLength={120} value={editingStudent.program}
+                        onChange={(event) => setEditingStudent({ ...editingStudent, program: event.target.value })} /></label>
+                    <label className="form-field"><span className="form-label">Cohort</span>
+                      <input className="form-input" maxLength={32} value={editingStudent.cohort}
+                        onChange={(event) => setEditingStudent({ ...editingStudent, cohort: event.target.value })} /></label>
+                    <label className="form-field"><span className="form-label">Year level</span>
+                      <input className="form-input" type="number" min={1} max={255} value={editingStudent.yearLevel}
+                        onChange={(event) => setEditingStudent({ ...editingStudent, yearLevel: event.target.value })} /></label>
+                    <label className="form-field"><span className="form-label">GPA</span>
+                      <input className="form-input" type="number" min={0} max={99.99} step={0.01}
+                        value={editingStudent.gpa}
+                        onChange={(event) => setEditingStudent({ ...editingStudent, gpa: event.target.value })} /></label>
+                  </div>
+                  <div className="modal-actions">
+                    <button type="button" className="btn-secondary" onClick={() => setEditingStudent(null)}>Cancel</button>
+                    <button type="submit" className="btn-primary"
+                      disabled={updateStudentMutation.isPending || !selectedYear?.isActive || selectedSemester?.status !== 'active'}>
+                      {updateStudentMutation.isPending ? 'Saving…' : 'Save changes'}
+                    </button>
+                  </div>
+                </form>
               </div>
-              <label className="checkbox-field">
-                <input type="checkbox" checked={ruleForm.allowIndividualProjects}
-                  onChange={(event) => setRuleForm({ ...ruleForm, allowIndividualProjects: event.target.checked })} />
-                Allow individual projects
-              </label>
-              <button className="btn-primary" disabled={rulesMutation.isPending || rulesQuery.isLoading}>
-                {rulesMutation.isPending ? 'Saving…' : 'Save rules'}
-              </button>
-            </form>
-          </section>
-
-          <section className="academic-card">
-            <div className="page-header">
-              <div><h2 className="section-title">Eligibility</h2><p className="page-subtitle">Evaluate active semester records against the saved department rules.</p></div>
-              <button className="btn-primary" disabled={!semesterId || evaluateMutation.isPending}
-                onClick={() => evaluateMutation.mutate()}>
-                {evaluateMutation.isPending ? 'Evaluating…' : 'Evaluate students'}
-              </button>
             </div>
-            {eligibilityQuery.isError && <ErrorMessage error={eligibilityQuery.error} fallback="Could not load eligibility results" />}
-            {eligibilityResults.length > 0 && (
-              <div className="table-wrapper">
-                <table className="data-table">
-                  <thead><tr><th>Student</th><th>Student ID</th><th>Eligibility</th><th>Reason</th></tr></thead>
-                  <tbody>{eligibilityResults.map((result) => (
-                    <tr key={result.id ?? result.studentUserId}>
-                      <td>{result.fullName ?? result.studentUserId}</td><td>{result.studentId ?? '—'}</td>
-                      <td><span className={result.isEligible ? 'status-active' : 'status-inactive'}>{result.isEligible ? 'Eligible' : 'Not eligible'}</span></td>
-                      <td>{(result.reasons ?? []).join('; ') || 'Meets configured rules'}</td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
-            )}
-            {eligibilityResults.length === 0 && !eligibilityQuery.isLoading && <p className="muted-copy">No eligibility evaluation is available for this semester yet.</p>}
-          </section>
+          )}
 
           <section className="academic-card">
             <div className="page-header">
               <div>
                 <h2 className="section-title">Project groups</h2>
-                <p className="page-subtitle">Generate balanced groups from eligible, unassigned students ranked by GPA (highest first).</p>
+                <p className="page-subtitle">Generate balanced groups from active, unassigned students ranked by GPA (highest first).</p>
               </div>
               <button className="btn-primary" disabled={!selectedYear?.isActive || selectedSemester?.status !== 'active'
                 || !semesterId || generateGroupsMutation.isPending}
                 onClick={() => generateGroupsMutation.mutate()}>
-                {generateGroupsMutation.isPending ? 'Generating…' : 'Generate groups'}
+                {generateGroupsMutation.isPending ? 'Creating groups…' : 'Create groups automatically'}
               </button>
             </div>
+            <ErrorMessage error={generateGroupsMutation.error} fallback="Could not generate groups" />
             {generateGroupsMutation.data && (
               <p className="status-active" role="status">
-                Created {generateGroupsMutation.data.groups.length} groups for {generateGroupsMutation.data.studentCount} eligible students.
+                Created {generateGroupsMutation.data.groups.length} groups for {generateGroupsMutation.data.studentCount} active students.
               </p>
             )}
             <form className="group-form" onSubmit={createGroup}>
@@ -607,9 +475,10 @@ export default function StudentsPage() {
               </label>
               <button className="btn-primary" disabled={!selectedYear?.isActive || memberIds.length === 0
                 || (projectType === 'individual' && memberIds.length !== 1) || groupMutation.isPending}>
-                {groupMutation.isPending ? 'Creating…' : 'Create group'}
+                {groupMutation.isPending ? 'Creating…' : 'Create selected group'}
               </button>
             </form>
+            <ErrorMessage error={groupMutation.error} fallback="Could not create group" />
             {groupsQuery.isError && <ErrorMessage error={groupsQuery.error} fallback="Could not load groups" />}
             {groupsQuery.data && (
               <div className="table-wrapper">

@@ -13,6 +13,19 @@ const DOCUMENT_ROOT = path.resolve(
     ?? path.resolve(import.meta.dirname, '../../../storage/project-documents'),
 )
 
+export async function removeUploadedStudentDocuments(storageKeys) {
+  for (const storageKey of storageKeys) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(storageKey)) {
+      throw new Error('Student document has an invalid storage key')
+    }
+    try {
+      await unlink(path.resolve(DOCUMENT_ROOT, storageKey))
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
+    }
+  }
+}
+
 const ALLOWED_DOCUMENT_TYPES = new Map([
   ['application/pdf', { extension: '.pdf', signature: Buffer.from('%PDF-') }],
   ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', {

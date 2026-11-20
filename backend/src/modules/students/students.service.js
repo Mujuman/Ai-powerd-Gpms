@@ -5,6 +5,7 @@ import { pool } from '../../database/pool.js'
 import { withTransaction } from '../../database/transaction.js'
 import { recordAudit } from '../audit/audit.repository.js'
 import { createUser as insertUser, setUserDepartments } from '../users/users.repository.js'
+import { removeUploadedStudentDocuments } from '../projects/collaboration.service.js'
 import { HttpError } from '../../utils/http-error.js'
 import * as repository from './students.repository.js'
 
@@ -237,23 +238,24 @@ export async function updateStudent(userId, data, actor) {
 
 export async function deleteStudent(userId, actor, requestedDepartmentId) {
   const departmentId = await resolveDepartment(actor, requestedDepartmentId)
-  await withTransaction(pool, async (connection) => {
+  const documentStorageKeys = await withTransaction(pool, async (connection) => {
     const student = await repository.findStudentForUpdate(connection, userId)
     if (!student || student.role !== 'student') throw new HttpError(404, 'Student not found')
     if (student.departmentId !== departmentId) {
       throw new HttpError(403, 'You may only manage students in your assigned departments')
     }
-    if (!student.isActive) throw new HttpError(409, 'Student is already inactive')
-    await repository.deactivateStudent(connection, userId)
+    const storageKeys = await repository.permanentlyDeleteStudent(connection, userId)
     await recordAudit(connection, {
       userId: actor.id,
-      action: 'students.deactivate',
+      action: 'students.delete',
       targetType: 'user',
       targetId: userId,
       remoteAddress: actor.remoteAddress,
       metadata: { studentId: student.studentId, departmentId },
     })
+    return storageKeys
   })
+  await removeUploadedStudentDocuments(documentStorageKeys)
 }
 
 export async function registerStudent(data, actor) {
@@ -615,13 +617,13 @@ export async function createGroup(data, actor) {
 export function planGpaBalancedGroups(students, groupingRules = {}) {
   const minimumGroupSize = groupingRules.minimumGroupSize ?? 1
   const maximumGroupSize = groupingRules.maximumGroupSize ?? 5
-  if (!students.length) throw new HttpError(409, 'No eligible, ungrouped students are available')
+  if (!students.length) throw new HttpError(409, 'No active, ungrouped students are available')
 
   const groupCount = Math.ceil(students.length / maximumGroupSize)
   if (Math.floor(students.length / groupCount) < minimumGroupSize) {
     throw new HttpError(
       409,
-      `${students.length} eligible students cannot be grouped within the configured group size limits`,
+      `${students.length} students cannot be grouped within the configured group size limits`,
     )
   }
 
@@ -666,21 +668,11 @@ export async function generateGroups(data, actor) {
       data.academicYearId,
       data.semesterId,
     )
-    const policy = rules.eligibility ?? {}
-    const eligibleStudents = students.filter((student) => {
-      const gpa = student.gpa === null ? null : Number(student.gpa)
-      return !(
-        (policy.minimumGpa != null && (gpa === null || gpa < policy.minimumGpa))
-        || (policy.maximumGpa != null && (gpa === null || gpa > policy.maximumGpa))
-        || (policy.minimumYearLevel != null
-          && (student.yearLevel === null || student.yearLevel < policy.minimumYearLevel))
-        || (policy.requiredAcademicYear && student.academicYear !== policy.requiredAcademicYear)
-        || (policy.requiredSemester && student.semester !== policy.requiredSemester)
-        || (policy.requiredEnrollmentStatus
-          && student.enrollmentStatus !== policy.requiredEnrollmentStatus)
-      )
+    const groupingRules = rules.grouping ?? {}
+    const groups = planGpaBalancedGroups(students, {
+      minimumGroupSize: 1,
+      maximumGroupSize: groupingRules.maximumGroupSize ?? 5,
     })
-    const groups = planGpaBalancedGroups(eligibleStudents, rules.grouping ?? {})
     const existingNames = new Set(await repository.listGroupNames(
       connection,
       departmentId,
@@ -724,11 +716,11 @@ export async function generateGroups(data, actor) {
       metadata: {
         academicYearId: data.academicYearId,
         semesterId: data.semesterId,
-        studentCount: eligibleStudents.length,
+        studentCount: students.length,
         groupCount: createdGroups.length,
       },
     })
-    return { groups: createdGroups, studentCount: eligibleStudents.length }
+    return { groups: createdGroups, studentCount: students.length }
   })
 }
 

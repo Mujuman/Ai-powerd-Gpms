@@ -84,22 +84,18 @@ export async function updateStudent(connection, userId, student, departmentId) {
   )
 }
 
-export async function deactivateStudent(connection, userId) {
-  await connection.execute('UPDATE users SET is_active = FALSE WHERE id = ?', [userId])
-  await connection.execute(
-    `UPDATE student_profiles SET enrollment_status = 'inactive' WHERE user_id = ?`,
+export async function permanentlyDeleteStudent(connection, userId) {
+  const [documents] = await connection.execute(
+    'SELECT storage_key AS storageKey FROM project_documents WHERE uploaded_by = ? FOR UPDATE',
     [userId],
   )
-  await connection.execute(
-    `UPDATE user_department_assignments SET is_active = FALSE WHERE user_id = ?`,
-    [userId],
-  )
-  await connection.execute(
-    `UPDATE student_group_members
-        SET is_active = FALSE, left_at = CURRENT_TIMESTAMP(3)
-      WHERE student_user_id = ? AND is_active = TRUE`,
-    [userId],
-  )
+  await connection.execute('DELETE FROM project_documents WHERE uploaded_by = ?', [userId])
+  await connection.execute('DELETE FROM project_messages WHERE sender_user_id = ?', [userId])
+  await connection.execute('DELETE FROM student_group_members WHERE student_user_id = ?', [userId])
+  await connection.execute('DELETE FROM eligibility_history WHERE student_user_id = ?', [userId])
+  await connection.execute('DELETE FROM user_department_assignments WHERE user_id = ?', [userId])
+  await connection.execute('DELETE FROM users WHERE id = ?', [userId])
+  return documents.map((document) => document.storageKey)
 }
 
 export async function findStudent(databasePool, userId) {

@@ -72,7 +72,7 @@ export const studentsController = {
         ? parse(uuidSchema, request.query.departmentId)
         : undefined
       await service.deleteStudent(userId, actor(request), departmentId)
-      response.json({ success: true, message: 'Student deactivated' })
+      response.json({ success: true, message: 'Student permanently deleted' })
     } catch (error) { next(error) }
   },
   getMe: async (request, response, next) => {
