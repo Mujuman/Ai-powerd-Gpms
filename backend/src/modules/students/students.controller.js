@@ -101,7 +101,9 @@ export const studentsController = {
   },
   previewImport: async (request, response, next) => {
     try {
-      if (!request.file) throw new HttpError(400, 'Upload an .xlsx workbook using the excelFile field')
+      if (!request.file) {
+        throw new HttpError(400, 'Upload an .xls, .xlsx, .xlsm, or .xlsb workbook using the excelFile field')
+      }
       const data = parse(importStudentsSchema, request.body)
       const preview = await service.previewStudentImport({
         ...data,

@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import ExcelJS from 'exceljs'
+import * as XLSX from '@e965/xlsx'
 import { pool } from '../../database/pool.js'
 import { withTransaction } from '../../database/transaction.js'
 import { recordAudit } from '../audit/audit.repository.js'
@@ -46,32 +46,52 @@ function normalizeHeader(value) {
 
 export async function parseStudentWorkbook(buffer) {
   const zipSignature = Buffer.from([0x50, 0x4b, 0x03, 0x04])
-  if (!Buffer.isBuffer(buffer) || buffer.length < zipSignature.length
-    || !buffer.subarray(0, zipSignature.length).equals(zipSignature)) {
+  const oleSignature = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
+  const isZipWorkbook = Buffer.isBuffer(buffer) && buffer.length >= zipSignature.length
+    && buffer.subarray(0, zipSignature.length).equals(zipSignature)
+  const isLegacyWorkbook = Buffer.isBuffer(buffer) && buffer.length >= oleSignature.length
+    && buffer.subarray(0, oleSignature.length).equals(oleSignature)
+  if (!isZipWorkbook && !isLegacyWorkbook) {
     throw new HttpError(
       400,
-      'The file content is not an .xlsx workbook. Save or export it as Excel Workbook (.xlsx); renaming an .xls or .csv file is not enough.',
+      'The file content is not a supported Excel workbook (.xls, .xlsx, .xlsm, or .xlsb).',
     )
   }
 
-  const workbook = new ExcelJS.Workbook()
+  let workbook
   try {
-    await workbook.xlsx.load(buffer)
+    workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false })
   } catch (error) {
-    console.error('ExcelJS could not read the student workbook', {
+    console.error('Excel parser could not read the student workbook', {
       name: error.name,
       code: error.code,
     })
     throw new HttpError(
       400,
-      'Excel could not open this .xlsx workbook. It may be damaged or password-protected; save a fresh .xlsx copy and retry.',
+      'Excel could not open this workbook. It may be damaged or password-protected; save a fresh, unprotected workbook and retry.',
     )
   }
-  const sheet = workbook.worksheets[0]
-  if (!sheet || sheet.rowCount < 2) throw new HttpError(400, 'The workbook must contain a header and at least one student row')
-  if (sheet.rowCount > 2001) throw new HttpError(400, 'A student import may contain at most 2,000 rows')
+  const sheet = workbook.Sheets[workbook.SheetNames[0]]
+  if (!sheet?.['!ref']) {
+    throw new HttpError(400, 'The workbook must contain a header and at least one student row')
+  }
+  const range = XLSX.utils.decode_range(sheet['!ref'])
+  const worksheetRowCount = range.e.r - range.s.r + 1
+  if (worksheetRowCount < 2) {
+    throw new HttpError(400, 'The workbook must contain a header and at least one student row')
+  }
+  if (worksheetRowCount > 2001) throw new HttpError(400, 'A student import may contain at most 2,000 rows')
 
-  const headers = sheet.getRow(1).values.slice(1).map(normalizeHeader)
+  function getRowValues(rowIndex) {
+    const values = []
+    for (let columnIndex = range.s.c; columnIndex <= range.e.c; columnIndex += 1) {
+      const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })]
+      values.push(cell?.f || cell?.F ? '' : cellText(cell?.v))
+    }
+    return values
+  }
+
+  const headers = getRowValues(range.s.r).map(normalizeHeader)
   const columns = headers.map((header) => HEADER_ALIASES.get(header) ?? null)
   const required = ['studentId', 'fullName', 'email']
   const missing = required.filter((name) => !columns.includes(name))
@@ -82,8 +102,9 @@ export async function parseStudentWorkbook(buffer) {
   const seenEmails = new Set()
   const seenStudentIds = new Set()
   const rows = []
-  for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber += 1) {
-    const values = sheet.getRow(rowNumber).values.slice(1)
+  for (let rowIndex = range.s.r + 1; rowIndex <= range.e.r; rowIndex += 1) {
+    const rowNumber = rowIndex + 1
+    const values = getRowValues(rowIndex)
     if (!values.some((value) => cellText(value) !== '')) continue
 
     const row = { rowNumber, errors: [] }
