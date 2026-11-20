@@ -178,7 +178,7 @@ export default function ProjectsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Department Projects</h1>
-          <p className="page-subtitle">Review projects, manage staff, plan defenses, and monitor department progress.</p>
+          <p className="page-subtitle">Review projects, assign advisors, plan defenses, and monitor department progress.</p>
         </div>
       </div>
       {departments.length > 1 && (
@@ -234,128 +234,8 @@ export default function ProjectsPage() {
             </div>
           </Section>
 
-          <Section id="advisor-management" title="Advisors and examiners" description="Create staff accounts, update profiles, deactivate accounts, and assign approved projects.">
-            <form className="staff-import-form" onSubmit={(event) => {
-              event.preventDefault()
-              setStaffImportResult(null)
-              staffImportMutation.mutate()
-            }}>
-              <p className="muted-copy">
-                Import up to 100 staff members from Excel (.xls, .xlsx, .xlsm, or .xlsb).
-                Required columns: <strong>fullName, email, password, role</strong>.
-                Optional columns: <strong>title, specialization, maxGroups</strong>.
-                Role values can be <strong>advisor</strong>, <strong>academic_advisor</strong>, or <strong>examiner</strong>.
-              </p>
-              <label className="form-field">
-                <span className="form-label">Excel workbook</span>
-                <input key={staffFile?.name ?? 'staff-file'} className="form-input file-input"
-                  type="file" accept=".xls,.xlsx,.xlsm,.xlsb" required
-                  onChange={(event) => {
-                    setStaffFile(event.target.files?.[0] ?? null)
-                    setStaffImportResult(null)
-                  }} />
-              </label>
-              <button className="btn-secondary" type="submit"
-                disabled={!staffFile || staffImportMutation.isPending}>
-                {staffImportMutation.isPending ? 'Importing staff…' : 'Import staff from Excel'}
-              </button>
-              <ErrorNotice error={staffImportMutation.error} fallback="Could not import staff" />
-              {staffImportResult && (
-                <p className="status-active" role="status">
-                  Imported {staffImportResult.imported} staff members
-                  ({staffImportResult.advisors} advisors, {staffImportResult.examiners} examiners).
-                </p>
-              )}
-            </form>
-
-            <h3 className="section-title">Add one advisor or examiner</h3>
-            <form className="rules-form" onSubmit={submitStaff}>
-              <div className="rules-grid">
-                <label className="form-field"><span className="form-label">Staff role</span>
-                  <select className="form-input" value={staffForm.role}
-                    onChange={(event) => setStaffForm({ ...staffForm, role: event.target.value })}>
-                    <option value="academic_advisor">Academic advisor</option><option value="examiner">Examiner</option>
-                  </select></label>
-                <label className="form-field"><span className="form-label">Full name</span>
-                  <input className="form-input" required maxLength={160} value={staffForm.fullName}
-                    onChange={(event) => setStaffForm({ ...staffForm, fullName: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Email</span>
-                  <input className="form-input" type="email" required value={staffForm.email}
-                    onChange={(event) => setStaffForm({ ...staffForm, email: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Initial password (12+ characters)</span>
-                  <input className="form-input" type="password" minLength={12} required value={staffForm.password}
-                    onChange={(event) => setStaffForm({ ...staffForm, password: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Title</span>
-                  <input className="form-input" maxLength={60} value={staffForm.title}
-                    onChange={(event) => setStaffForm({ ...staffForm, title: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Specialization (used for AI matching)</span>
-                  <input className="form-input" maxLength={160} value={staffForm.specialization}
-                    onChange={(event) => setStaffForm({ ...staffForm, specialization: event.target.value })} /></label>
-                {staffForm.role === 'academic_advisor' && (
-                  <label className="form-field"><span className="form-label">Maximum active groups</span>
-                    <input className="form-input" type="number" min={0} max={255} required value={staffForm.maxGroups}
-                      onChange={(event) => setStaffForm({ ...staffForm, maxGroups: event.target.value })} /></label>
-                )}
-              </div>
-              <button className="btn-primary" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Creating…' : `Create ${staffForm.role === 'examiner' ? 'examiner' : 'advisor'}`}
-              </button>
-            </form>
-
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead><tr><th>Staff member</th><th>Role</th><th>Specialization</th><th>Active workload</th><th>Account</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {staff.map((member) => (
-                    <tr key={member.id}>
-                      <td>{staffEdit?.id === member.id ? (
-                        <input className="form-input" value={staffEdit.fullName}
-                          onChange={(event) => setStaffEdit({ ...staffEdit, fullName: event.target.value })} />
-                      ) : <>{member.fullName}<br /><span className="muted-copy">{member.email}</span></>}</td>
-                      <td>{member.role === 'academic_advisor' ? 'Advisor' : 'Examiner'}</td>
-                      <td>{staffEdit?.id === member.id ? (
-                        <div className="head-review-actions">
-                          <input className="form-input" aria-label="Staff title" placeholder="Title" value={staffEdit.title ?? ''}
-                            onChange={(event) => setStaffEdit({ ...staffEdit, title: event.target.value })} />
-                          <input className="form-input" aria-label="Staff specialization" placeholder="Specialization" value={staffEdit.specialization ?? ''}
-                            onChange={(event) => setStaffEdit({ ...staffEdit, specialization: event.target.value })} />
-                          {member.role === 'academic_advisor' && <input className="form-input" aria-label="Maximum groups" type="number" min={0}
-                            value={staffEdit.maxGroups ?? 0} onChange={(event) => setStaffEdit({ ...staffEdit, maxGroups: Number(event.target.value) })} />}
-                        </div>
-                      ) : <>{member.title || '—'}{member.specialization ? ` · ${member.specialization}` : ''}</>}</td>
-                      <td>{member.activeWorkload}{member.maxGroups != null ? ` / ${member.maxGroups}` : ''}</td>
-                      <td><span className={member.isActive ? 'status-active' : 'status-inactive'}>{member.isActive ? 'Active' : 'Inactive'}</span></td>
-                      <td><div className="action-row">
-                        {staffEdit?.id === member.id ? (
-                          <>
-                            <button className="btn-primary" disabled={mutation.isPending}
-                              onClick={() => mutation.mutate({ action: 'update-staff', id: member.id, role: member.role,
-                                changes: { fullName: staffEdit.fullName, title: staffEdit.title || null,
-                                  specialization: staffEdit.specialization || null,
-                                  ...(member.role === 'academic_advisor' ? { maxGroups: Number(staffEdit.maxGroups) } : {}) } })}>Save</button>
-                            <button className="btn-secondary" onClick={() => setStaffEdit(null)}>Cancel</button>
-                          </>
-                        ) : (
-                          <>
-                            <button className="btn-secondary" onClick={() => setStaffEdit({ ...member })}>Edit</button>
-                            {member.isActive && <button className="btn-danger" disabled={mutation.isPending}
-                              onClick={() => {
-                                if (window.confirm(`Deactivate ${member.fullName}? Active assignments will end.`)) {
-                                  mutation.mutate({ action: 'delete-staff', id: member.id, role: member.role })
-                                }
-                              }}>Deactivate</button>}
-                          </>
-                        )}
-                      </div></td>
-                    </tr>
-                  ))}
-                  {staffQuery.data?.length === 0 && <tr><td className="table-empty" colSpan={6}>No advisors or examiners are assigned to this department.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="page-header">
-              <div><h3 className="section-title">Advisor assignments</h3><p className="page-subtitle">AI matches unassigned approved projects to advisor specializations while respecting each advisor's capacity.</p></div>
+          <Section id="advisor-assignments" title="Advisor assignments" description="Assign approved projects to advisors or let the system match by specialization and capacity.">
+            <div className="action-row">
               <button className="btn-primary" disabled={mutation.isPending || advisors.length === 0}
                 onClick={() => mutation.mutate({ action: 'assign-advisors-ai' })}>AI assign unassigned projects</button>
             </div>

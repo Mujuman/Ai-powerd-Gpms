@@ -167,6 +167,12 @@ export default function StaffPage() {
 
       {departmentId && (
         <>
+          <ErrorNotice error={staffMutation.error}
+            fallback={staffMutation.variables?.action === 'update'
+              ? 'Could not update staff account'
+              : staffMutation.variables?.action === 'deactivate'
+                ? 'Could not deactivate staff account'
+                : 'Could not create staff account'} />
           <section className="academic-card">
             <h2 className="section-title">Import staff from Excel</h2>
             <p className="muted-copy">
@@ -249,7 +255,6 @@ export default function StaffPage() {
               <button className="btn-primary" disabled={staffMutation.isPending}>
                 {staffMutation.isPending ? 'Creating…' : `Create ${form.role === 'examiner' ? 'examiner' : 'advisor'}`}
               </button>
-              <ErrorNotice error={staffMutation.error} fallback="Could not create staff account" />
             </form>
           </section>
 
@@ -257,7 +262,6 @@ export default function StaffPage() {
             <h2 className="section-title">Department staff</h2>
             {staffQuery.isLoading && <div className="table-loading" aria-busy="true">Loading staff…</div>}
             <ErrorNotice error={staffQuery.error} fallback="Could not load staff" />
-            <ErrorNotice error={staffMutation.error} fallback="Could not update staff account" />
             {staffQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
