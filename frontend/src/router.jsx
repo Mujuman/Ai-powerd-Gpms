@@ -10,6 +10,7 @@ import AcademicCalendarPage from './pages/admin/AcademicCalendarPage'
 import StudentsPage from './pages/head/StudentsPage'
 import HeadDashboard from './pages/head/HeadDashboard'
 import HeadProjectsPage from './pages/head/ProjectsPage'
+import HeadGroupsPage from './pages/head/GroupsPage'
 import StudentProjectPage from './pages/student/ProjectSubmissionPage'
 import AdvisorDashboard from './pages/advisor/AdvisorDashboard'
 import AdvisorProjectsPage from './pages/advisor/ProjectsPage'
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
                   { index: true, element: <Navigate to="/head/dashboard" replace /> },
                   { path: 'dashboard', element: <HeadDashboard /> },
                   { path: 'students', element: <StudentsPage /> },
+                  { path: 'groups', element: <HeadGroupsPage /> },
                   { path: 'projects', element: <HeadProjectsPage /> },
                 ],
               },

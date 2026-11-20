@@ -13,6 +13,7 @@ const NAV_LINKS = {
   department_head: [
     { label: 'Dashboard', to: '/head/dashboard' },
     { label: 'Students', to: '/head/students' },
+    { label: 'Groups', to: '/head/groups' },
     { label: 'Projects', to: '/head/projects' },
   ],
   academic_advisor: [

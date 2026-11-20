@@ -5,12 +5,20 @@ import { RoleBadge } from '../../components/ui/RoleBadge'
 
 const WORK_AREAS = [
   {
-    title: 'Students & eligibility',
-    description: 'Import student records, configure department rules, review eligibility, and manage project groups.',
+    title: 'Students',
+    description: 'Register students, import Excel records, and manage student information.',
     icon: UsersRound,
     status: 'Available',
     to: '/head/students',
-    tasks: ['Student information and imports', 'Eligibility rules and evaluations', 'Project group setup'],
+    tasks: ['Register student accounts', 'Import student records', 'Review and update student GPA'],
+  },
+  {
+    title: 'Project groups',
+    description: 'Create groups automatically from GPA-ranked students or select members manually.',
+    icon: UsersRound,
+    status: 'Available',
+    to: '/head/groups',
+    tasks: ['Generate balanced student groups', 'Create groups manually', 'Manage group members'],
   },
   {
     title: 'Project approvals',
