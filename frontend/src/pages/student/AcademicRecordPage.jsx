@@ -29,7 +29,7 @@ export default function AcademicRecordPage() {
             <div><dt>Name</dt><dd>{student.fullName}</dd></div>
             <div><dt>Department</dt><dd>{student.departmentCode}</dd></div>
             <div><dt>Program</dt><dd>{student.program || 'Not recorded'}</dd></div>
-            <div><dt>Cohort</dt><dd>{student.cohort || 'Not recorded'}</dd></div>
+            <div><dt>Batch</dt><dd>{student.cohort || 'Not recorded'}</dd></div>
             <div><dt>Year level</dt><dd>{student.yearLevel ?? 'Not recorded'}</dd></div>
             <div><dt>Academic year</dt><dd>{student.academicYear}</dd></div>
             <div><dt>Semester</dt><dd>{student.semester}</dd></div>

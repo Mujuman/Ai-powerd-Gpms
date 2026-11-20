@@ -605,6 +605,20 @@ textarea.form-input {
   gap: 1rem;
 }
 
+.student-registration-form {
+  width: 100%;
+  align-items: stretch;
+}
+
+.student-registration-form .rules-grid {
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+
+.student-registration-form > .btn-primary {
+  align-self: flex-start;
+}
+
 .student-search-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));

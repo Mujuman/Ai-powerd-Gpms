@@ -244,7 +244,7 @@ export default function StudentsPage() {
             </div>
             {yearsQuery.isError && <ErrorMessage error={yearsQuery.error} fallback="Could not load academic years" />}
             {semestersQuery.isError && <ErrorMessage error={semestersQuery.error} fallback="Could not load semesters" />}
-            <form className="rules-form" onSubmit={(event) => {
+            <form className="rules-form student-registration-form" onSubmit={(event) => {
               event.preventDefault()
               registerStudentMutation.mutate()
             }}>
@@ -266,7 +266,7 @@ export default function StudentsPage() {
                 <label className="form-field"><span className="form-label">Program</span>
                   <input className="form-input" maxLength={120} value={studentForm.program}
                     onChange={(event) => setStudentForm({ ...studentForm, program: event.target.value })} /></label>
-                <label className="form-field"><span className="form-label">Cohort</span>
+                <label className="form-field"><span className="form-label">Batch</span>
                   <input className="form-input" maxLength={32} value={studentForm.cohort}
                     onChange={(event) => setStudentForm({ ...studentForm, cohort: event.target.value })} /></label>
                 <label className="form-field"><span className="form-label">Year level</span>
@@ -418,7 +418,7 @@ export default function StudentsPage() {
                     <label className="form-field"><span className="form-label">Program</span>
                       <input className="form-input" maxLength={120} value={editingStudent.program}
                         onChange={(event) => setEditingStudent({ ...editingStudent, program: event.target.value })} /></label>
-                    <label className="form-field"><span className="form-label">Cohort</span>
+                    <label className="form-field"><span className="form-label">Batch</span>
                       <input className="form-input" maxLength={32} value={editingStudent.cohort}
                         onChange={(event) => setEditingStudent({ ...editingStudent, cohort: event.target.value })} /></label>
                     <label className="form-field"><span className="form-label">Year level</span>
