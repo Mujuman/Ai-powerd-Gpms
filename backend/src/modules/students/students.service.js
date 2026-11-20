@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import ExcelJS from 'exceljs'
 import { pool } from '../../database/pool.js'
@@ -163,6 +163,74 @@ async function resolveDepartment(actor, requestedDepartmentId) {
 export async function listStudents(filters, actor) {
   const departmentId = await resolveDepartment(actor, filters.departmentId)
   return repository.listStudents(pool, { ...filters, departmentId })
+}
+
+export async function updateStudent(userId, data, actor) {
+  const departmentId = await resolveDepartment(actor)
+  await withTransaction(pool, async (connection) => {
+    const student = await repository.findStudentForUpdate(connection, userId)
+    if (!student || student.role !== 'student') throw new HttpError(404, 'Student not found')
+    if (student.departmentId !== departmentId) {
+      throw new HttpError(403, 'You may only manage students in your assigned departments')
+    }
+    if (!student.isActive) throw new HttpError(409, 'Inactive students cannot be updated')
+
+    const context = await repository.findImportContext(
+      connection,
+      departmentId,
+      data.academicYearId,
+      data.semesterId,
+    )
+    if (!context.year?.isActive || context.semester?.status !== 'active'
+      || context.semester.academicYearId !== data.academicYearId) {
+      throw new HttpError(409, 'Select an active academic year and semester')
+    }
+    const [emailRows] = await connection.execute(
+      'SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1 FOR UPDATE',
+      [data.email, userId],
+    )
+    if (emailRows[0]) throw new HttpError(409, 'Email is already registered')
+    const [studentIdRows] = await connection.execute(
+      'SELECT user_id AS userId FROM student_profiles WHERE student_id = ? AND user_id <> ? LIMIT 1 FOR UPDATE',
+      [data.studentId, userId],
+    )
+    if (studentIdRows[0]) throw new HttpError(409, 'Student ID is already registered')
+
+    await repository.updateStudent(connection, userId, {
+      ...data,
+      enrollmentStatus: student.enrollmentStatus,
+    }, departmentId)
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'students.update',
+      targetType: 'user',
+      targetId: userId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { studentId: data.studentId, departmentId },
+    })
+  })
+  return repository.findStudent(pool, userId)
+}
+
+export async function deleteStudent(userId, actor) {
+  const departmentId = await resolveDepartment(actor)
+  await withTransaction(pool, async (connection) => {
+    const student = await repository.findStudentForUpdate(connection, userId)
+    if (!student || student.role !== 'student') throw new HttpError(404, 'Student not found')
+    if (student.departmentId !== departmentId) {
+      throw new HttpError(403, 'You may only manage students in your assigned departments')
+    }
+    if (!student.isActive) throw new HttpError(409, 'Student is already inactive')
+    await repository.deactivateStudent(connection, userId)
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'students.deactivate',
+      targetType: 'user',
+      targetId: userId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { studentId: student.studentId, departmentId },
+    })
+  })
 }
 
 export async function registerStudent(data, actor) {
@@ -398,10 +466,23 @@ export async function confirmStudentImport(batchId, actor) {
 
     let imported = 0
     for (const row of batch.importRows) {
-      const user = await repository.findStudentAccountForImport(connection, row)
-      if (!user || user.role !== 'student' || !user.is_active) {
-        throw new HttpError(409, `Student account ${row.email} is missing, inactive, or has the wrong role`)
-      }
+        let user = await repository.findStudentAccountForImport(connection, row)
+        if (user && (user.role !== 'student' || !user.is_active)) {
+          throw new HttpError(409, `Account ${row.email} is inactive or has the wrong role`)
+        }
+        if (!user) {
+          const userId = randomUUID()
+          const passwordHash = await bcrypt.hash(randomBytes(32).toString('hex'), PASSWORD_HASH_ROUNDS)
+          await insertUser(connection, {
+            id: userId,
+            email: row.email,
+            fullName: row.fullName,
+            passwordHash,
+            role: 'student',
+          })
+          await setUserDepartments(connection, userId, [departmentId], actor.id)
+          user = { id: userId, role: 'student', is_active: true }
+        }
       if (user.studentId && user.studentId !== row.studentId) {
         throw new HttpError(409, `Student account ${row.email} has a different student ID`)
       }
@@ -504,6 +585,126 @@ export async function createGroup(data, actor) {
     })
   })
   return id
+}
+
+export function planGpaBalancedGroups(students, groupingRules = {}) {
+  const minimumGroupSize = groupingRules.minimumGroupSize ?? 1
+  const maximumGroupSize = groupingRules.maximumGroupSize ?? 5
+  if (!students.length) throw new HttpError(409, 'No eligible, ungrouped students are available')
+
+  const groupCount = Math.ceil(students.length / maximumGroupSize)
+  if (Math.floor(students.length / groupCount) < minimumGroupSize) {
+    throw new HttpError(
+      409,
+      `${students.length} eligible students cannot be grouped within the configured group size limits`,
+    )
+  }
+
+  const groups = Array.from({ length: groupCount }, () => [])
+  students.forEach((student, index) => {
+    const round = Math.floor(index / groupCount)
+    const offset = index % groupCount
+    const groupIndex = round % 2 === 0 ? offset : groupCount - offset - 1
+    groups[groupIndex].push(student)
+  })
+  return groups
+}
+
+export async function generateGroups(data, actor) {
+  const departmentId = await resolveDepartment(actor, data.departmentId)
+  const context = await repository.findImportContext(
+    pool,
+    departmentId,
+    data.academicYearId,
+    data.semesterId,
+  )
+  if (!context.department || !context.year || !context.semester) {
+    throw new HttpError(404, 'Department, academic year, or semester not found')
+  }
+  if (!context.year.isActive || context.semester.status !== 'active') {
+    throw new HttpError(409, 'Select an active academic year and semester')
+  }
+  if (context.semester.academicYearId !== data.academicYearId) {
+    throw new HttpError(400, 'Semester does not belong to the selected academic year')
+  }
+
+  return withTransaction(pool, async (connection) => {
+    const [departments] = await connection.execute(
+      'SELECT id FROM departments WHERE id = ? AND is_active = TRUE FOR UPDATE',
+      [departmentId],
+    )
+    if (!departments[0]) throw new HttpError(404, 'Department not found')
+    const rules = await repository.getRules(connection, departmentId)
+    const students = await repository.findUngroupedStudents(
+      connection,
+      departmentId,
+      data.academicYearId,
+      data.semesterId,
+    )
+    const policy = rules.eligibility ?? {}
+    const eligibleStudents = students.filter((student) => {
+      const gpa = student.gpa === null ? null : Number(student.gpa)
+      return !(
+        (policy.minimumGpa != null && (gpa === null || gpa < policy.minimumGpa))
+        || (policy.maximumGpa != null && (gpa === null || gpa > policy.maximumGpa))
+        || (policy.minimumYearLevel != null
+          && (student.yearLevel === null || student.yearLevel < policy.minimumYearLevel))
+        || (policy.requiredAcademicYear && student.academicYear !== policy.requiredAcademicYear)
+        || (policy.requiredSemester && student.semester !== policy.requiredSemester)
+        || (policy.requiredEnrollmentStatus
+          && student.enrollmentStatus !== policy.requiredEnrollmentStatus)
+      )
+    })
+    const groups = planGpaBalancedGroups(eligibleStudents, rules.grouping ?? {})
+    const existingNames = new Set(await repository.listGroupNames(
+      connection,
+      departmentId,
+      data.academicYearId,
+    ))
+    let nextName = 1
+    const createdGroups = []
+
+    for (const members of groups) {
+      let name
+      do {
+        name = `GPA Group ${nextName}`
+        nextName += 1
+      } while (existingNames.has(name))
+      existingNames.add(name)
+
+      const id = randomUUID()
+      await repository.insertGroup(connection, {
+        id,
+        departmentId,
+        academicYearId: data.academicYearId,
+        name,
+        projectType: 'group',
+        createdBy: actor.id,
+      })
+      for (const student of members) {
+        await repository.addGroupMember(connection, id, student.userId, actor.id)
+      }
+      createdGroups.push({
+        id,
+        name,
+        memberCount: members.length,
+      })
+    }
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'student_groups.generated',
+      targetType: 'department',
+      targetId: departmentId,
+      remoteAddress: actor.remoteAddress,
+      metadata: {
+        academicYearId: data.academicYearId,
+        semesterId: data.semesterId,
+        studentCount: eligibleStudents.length,
+        groupCount: createdGroups.length,
+      },
+    })
+    return { groups: createdGroups, studentCount: eligibleStudents.length }
+  })
 }
 
 export async function replaceGroupMembers(groupId, studentUserIds, actor) {

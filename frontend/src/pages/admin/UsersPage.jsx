@@ -192,7 +192,7 @@ function CreateUserModal({ departments, onClose }) {
 
           {departments.length > 0 && (
             <div className="form-field">
-              <label htmlFor="cu-depts" className="form-label">Departments (Optional)</label>
+              <label htmlFor="cu-depts" className="form-label">Departments (Required)</label>
               <select 
                 id="cu-depts" 
                 className="form-input" 
@@ -206,6 +206,7 @@ function CreateUserModal({ departments, onClose }) {
                 ))}
               </select>
               <p className="form-field-error" style={{ color: '#8290a6' }}>Hold Ctrl / Cmd to select multiple</p>
+              {selectedDepts.length === 0 && <p className="form-field-error">At least one department is required</p>}
             </div>
           )}
 

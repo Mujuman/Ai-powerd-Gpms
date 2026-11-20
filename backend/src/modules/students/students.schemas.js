@@ -60,6 +60,22 @@ export const addGroupMembersSchema = z.object({
   message: 'Student IDs must be unique',
 })
 
+export const updateStudentSchema = z.object({
+  fullName: z.string().trim().min(1).max(160),
+  email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
+  studentId: z.string().trim().min(1).max(32),
+  program: z.string().trim().max(120).nullable(),
+  cohort: z.string().trim().max(32).nullable(),
+  yearLevel: z.number().int().positive().max(255).nullable(),
+  gpa: z.number().min(0).max(99.99).nullable(),
+}).strict()
+
+export const generateGroupsSchema = z.object({
+  departmentId: uuid.optional(),
+  academicYearId: uuid,
+  semesterId: uuid,
+}).strict()
+
 export const eligibilityQuerySchema = z.object({
   departmentId: uuid.optional(),
   academicYearId: uuid.optional(),
