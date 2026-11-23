@@ -164,22 +164,21 @@ export function ProjectCollaborationPanel({
                   {role === 'examiner' && document.documentType === 'defense_correction'
                     && document.reviewStatus !== 'approved' && (
                       <div className="head-review-actions">
-                        {document.reviewStatus !== 'rejected' && (
-                          <input className="form-input" maxLength={4000}
-                            aria-label={`Reason for changes to ${document.fileName}`}
-                            placeholder="Required if requesting another correction"
-                            value={reviewNotes[document.id] ?? ''}
-                            onChange={(event) => setReviewNotes({
-                              ...reviewNotes,
-                              [document.id]: event.target.value,
-                            })} />
-                        )}
+                    <input className="form-input" maxLength={4000}
+                      aria-label={`Reason for changes to ${document.fileName}`}
+                      placeholder="Required if requesting another correction"
+                      value={reviewNotes[document.id] ?? ''}
+                      onChange={(event) => setReviewNotes({
+                        ...reviewNotes,
+                        [document.id]: event.target.value,
+                      })} />
                         <div className="action-row">
                           <button type="button" className="btn-primary" disabled={reviewMutation.isPending}
                             onClick={() => reviewMutation.mutate({ documentId: document.id, decision: 'approved' })}>
                             Approve correction
                           </button>
-                          <button type="button" className="btn-secondary" disabled={reviewMutation.isPending}
+                          <button type="button" className="btn-secondary"
+                            disabled={reviewMutation.isPending || !reviewNotes[document.id]?.trim()}
                             onClick={() => reviewMutation.mutate({ documentId: document.id, decision: 'rejected' })}>
                             Request changes
                           </button>

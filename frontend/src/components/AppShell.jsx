@@ -27,6 +27,7 @@ const NAV_LINKS = {
   ],
   student: [
     { label: 'Dashboard', to: '/student/dashboard' },
+    { label: 'Project workspace', to: '/student/project' },
     { label: 'Academic Record', to: '/student/academic-record' },
   ],
 }

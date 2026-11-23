@@ -78,14 +78,14 @@ export async function hasRevisionRequiredAssessment(connection, groupId) {
 
 export async function hasApprovedDefenseCorrection(connection, groupId) {
   const [rows] = await connection.execute(
-    `SELECT 1
+    `SELECT review_status
        FROM project_documents
       WHERE group_id = ? AND document_type = 'defense_correction'
-        AND review_status = 'approved'
+      ORDER BY uploaded_at DESC, id DESC
       LIMIT 1`,
     [groupId],
   )
-  return Boolean(rows[0])
+  return rows[0]?.review_status === 'approved'
 }
 
 export async function listApprovedTitles(connection, departmentId, excludeGroupId) {
