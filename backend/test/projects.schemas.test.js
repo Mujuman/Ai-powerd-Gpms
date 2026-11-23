@@ -6,8 +6,10 @@ import {
   createDefenseSchema,
   reviewSubmissionSchema,
   studentSubmissionSchema,
+  submitAssessmentSchema,
 } from '../src/modules/projects/projects.schemas.js'
 import {
+  correctionReviewSchema,
   projectDocumentSchema,
   projectMessageSchema,
   titleRecommendationSchema,
@@ -83,12 +85,39 @@ test('advisor assignment and defense scheduling require valid IDs and timezone-a
 
 test('student collaboration requests validate title ideas, messages, and document categories', () => {
   assert.equal(titleRecommendationSchema.safeParse({
-    description: 'A detailed idea describing a specific campus service problem.',
+    interest: 'Machine learning applications',
+    area: 'Campus transportation',
+    tools: 'Python and mobile apps',
   }).success, true)
-  assert.equal(titleRecommendationSchema.safeParse({ description: 'too short' }).success, false)
-  assert.equal(titleRecommendationSchema.safeParse({ description: 'x'.repeat(10001) }).success, false)
+  assert.equal(titleRecommendationSchema.safeParse({
+    interest: '',
+    area: 'Campus transportation',
+    tools: 'Python and mobile apps',
+  }).success, false)
   assert.equal(projectMessageSchema.safeParse({ message: 'Please review my proposal.' }).success, true)
   assert.equal(projectMessageSchema.safeParse({ message: '   ' }).success, false)
   assert.equal(projectDocumentSchema.safeParse({ documentType: 'defense_correction' }).success, true)
   assert.equal(projectDocumentSchema.safeParse({ documentType: 'unrestricted' }).success, false)
+  assert.equal(correctionReviewSchema.safeParse({ decision: 'approved' }).success, true)
+  assert.equal(correctionReviewSchema.safeParse({ decision: 'rejected' }).success, false)
+})
+
+test('examiner grades include one valid grade for each student', () => {
+  const assessment = {
+    outcome: 'pass',
+    comments: 'The correction meets the requirements.',
+    studentGrades: [
+      { studentUserId: groupId, grade: 82.5 },
+      { studentUserId: advisorId, grade: 88 },
+    ],
+  }
+  assert.equal(submitAssessmentSchema.safeParse(assessment).success, true)
+  assert.equal(submitAssessmentSchema.safeParse({
+    ...assessment,
+    studentGrades: [{ studentUserId: groupId, grade: 101 }],
+  }).success, false)
+  assert.equal(submitAssessmentSchema.safeParse({
+    ...assessment,
+    studentGrades: [assessment.studentGrades[0], assessment.studentGrades[0]],
+  }).success, false)
 })

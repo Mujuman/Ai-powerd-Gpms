@@ -195,7 +195,9 @@ export const projectsController = {
     try {
       const scheduleId = parse(uuid, request.params.scheduleId)
       const { examinerUserId } = parse(assignChairpersonSchema, request.body)
-      const filters = parse(departmentQuerySchema, request.body)
+      const filters = parse(departmentQuerySchema, {
+        departmentId: request.body.departmentId,
+      })
       await service.assignDefenseChairperson(scheduleId, examinerUserId, filters, actor(request))
       response.json({ success: true, message: 'Defense chairperson assigned' })
     } catch (error) { next(error) }

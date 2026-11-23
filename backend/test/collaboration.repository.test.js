@@ -20,6 +20,7 @@ test('student defense schedules include examiner assignments and assessment deta
           userId: 'examiner-id',
           fullName: 'Assigned Examiner',
           assignmentMethod: 'ai',
+          isChairperson: 1,
         }]]
       }
       if (query.includes('FROM defense_assessments da')) {
@@ -31,17 +32,25 @@ test('student defense schedules include examiner assignments and assessment deta
           outcome: 'revision_required',
           rubric: '{"score":82}',
           comments: 'Clarify the system evaluation.',
+          studentGrades: JSON.stringify([
+            { studentUserId: 'student-one', grade: 80 },
+            { studentUserId: 'student-two', grade: 85 },
+          ]),
         }]]
       }
       throw new Error(`Unexpected query: ${query}`)
     },
   }
 
-  const [schedule] = await listStudentDefenseSchedules(connection, ['group-id'])
+  const [schedule] = await listStudentDefenseSchedules(connection, ['group-id'], 'student-one')
   assert.equal(schedule.examiners[0].assignmentMethod, 'ai')
+  assert.equal(schedule.examiners[0].isChairperson, 1)
   assert.equal(schedule.results[0].outcome, 'revision_required')
   assert.equal(schedule.results[0].rubric.score, 82)
   assert.equal(schedule.results[0].comments, 'Clarify the system evaluation.')
+  assert.deepEqual(schedule.results[0].studentGrades, [
+    { studentUserId: 'student-one', grade: 80 },
+  ])
 })
 
 test('student defense schedule lookup avoids a database query without project groups', async () => {
