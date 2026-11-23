@@ -40,6 +40,19 @@ export async function isAssignedAdvisor(connection, groupId, advisorUserId) {
   return Boolean(rows[0])
 }
 
+export async function isAssignedExaminer(connection, groupId, examinerUserId) {
+  const [rows] = await connection.execute(
+    `SELECT 1
+       FROM defense_schedule_examiners de
+       JOIN defense_schedules ds ON ds.id = de.schedule_id
+      WHERE ds.group_id = ? AND de.examiner_user_id = ? AND de.is_active = TRUE
+        AND ds.status = 'scheduled'
+      LIMIT 1`,
+    [groupId, examinerUserId],
+  )
+  return Boolean(rows[0])
+}
+
 export async function hasActiveAdvisor(connection, groupId) {
   const [rows] = await connection.execute(
     `SELECT 1
@@ -57,6 +70,18 @@ export async function hasRevisionRequiredAssessment(connection, groupId) {
        FROM defense_schedules ds
        JOIN defense_assessments da ON da.schedule_id = ds.id
       WHERE ds.group_id = ? AND da.outcome = 'revision_required'
+      LIMIT 1`,
+    [groupId],
+  )
+  return Boolean(rows[0])
+}
+
+export async function hasApprovedDefenseCorrection(connection, groupId) {
+  const [rows] = await connection.execute(
+    `SELECT 1
+       FROM project_documents
+      WHERE group_id = ? AND document_type = 'defense_correction'
+        AND review_status = 'approved'
       LIMIT 1`,
     [groupId],
   )
@@ -121,14 +146,27 @@ export async function listDocuments(connection, groupId) {
     `SELECT pd.id, pd.document_type AS documentType,
             pd.original_filename AS fileName, pd.mime_type AS mimeType,
             pd.size_bytes AS sizeBytes, pd.uploaded_by AS uploadedBy,
-            u.full_name AS uploaderName, pd.uploaded_at AS uploadedAt
+            u.full_name AS uploaderName, pd.uploaded_at AS uploadedAt,
+            pd.review_status AS reviewStatus, pd.review_note AS reviewNote,
+            pd.reviewed_at AS reviewedAt, reviewer.full_name AS reviewerName
        FROM project_documents pd
        JOIN users u ON u.id = pd.uploaded_by
+       LEFT JOIN users reviewer ON reviewer.id = pd.reviewed_by
       WHERE pd.group_id = ?
       ORDER BY pd.uploaded_at DESC, pd.id DESC`,
     [groupId],
   )
   return rows
+}
+
+export async function updateCorrectionReview(connection, documentId, review) {
+  await connection.execute(
+    `UPDATE project_documents
+        SET review_status = ?, review_note = ?, reviewed_by = ?,
+            reviewed_at = CURRENT_TIMESTAMP(3)
+      WHERE id = ? AND document_type = 'defense_correction'`,
+    [review.decision, review.note || null, review.reviewerUserId, documentId],
+  )
 }
 
 export async function findDocument(connection, documentId) {
@@ -163,7 +201,7 @@ export async function listStudentDefenseSchedules(connection, groupIds) {
   const schedulePlaceholders = scheduleIds.map(() => '?').join(', ')
   const [examiners] = await connection.execute(
     `SELECT de.schedule_id AS scheduleId, u.id AS userId, u.full_name AS fullName,
-            de.assignment_method AS assignmentMethod
+            de.assignment_method AS assignmentMethod, de.is_chairperson AS isChairperson
        FROM defense_schedule_examiners de
        JOIN users u ON u.id = de.examiner_user_id
       WHERE de.schedule_id IN (${schedulePlaceholders}) AND de.is_active = TRUE
@@ -173,7 +211,8 @@ export async function listStudentDefenseSchedules(connection, groupIds) {
   const [assessments] = await connection.execute(
     `SELECT da.id, da.schedule_id AS scheduleId, da.examiner_user_id AS examinerUserId,
             u.full_name AS examinerName, da.outcome, da.rubric_json AS rubric,
-            da.comments, da.submitted_at AS submittedAt
+            da.comments, da.student_grades_json AS studentGrades,
+            da.submitted_at AS submittedAt
        FROM defense_assessments da
        JOIN users u ON u.id = da.examiner_user_id
       WHERE da.schedule_id IN (${schedulePlaceholders})
@@ -188,6 +227,7 @@ export async function listStudentDefenseSchedules(connection, groupIds) {
     resultsBySchedule.get(assessment.scheduleId).push({
       ...assessment,
       rubric: parseJson(assessment.rubric, null),
+      studentGrades: parseJson(assessment.studentGrades, []),
     })
   }
   return schedules.map((schedule) => ({

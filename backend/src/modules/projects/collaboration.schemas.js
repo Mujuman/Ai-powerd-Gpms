@@ -13,3 +13,11 @@ export const projectMessageSchema = z.object({
 export const projectDocumentSchema = z.object({
   documentType: z.enum(['advisor_document', 'defense_correction']),
 }).strict()
+
+export const correctionReviewSchema = z.object({
+  decision: z.enum(['approved', 'rejected']),
+  note: z.string().trim().max(4000).optional().default(''),
+}).strict().refine((value) => value.decision !== 'rejected' || value.note.length > 0, {
+  path: ['note'],
+  message: 'A reason is required when requesting another correction',
+})

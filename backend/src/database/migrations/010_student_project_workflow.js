@@ -27,6 +27,12 @@ export async function up(connection) {
   `)
 
   await connection.query(`
+    UPDATE project_documents
+       SET review_status = 'pending'
+     WHERE document_type = 'defense_correction'
+  `)
+
+  await connection.query(`
     ALTER TABLE defense_assessments
       ADD COLUMN student_grades_json JSON NULL
   `)
