@@ -64,7 +64,7 @@ export default function ProjectSubmissionPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Project proposal</h1>
-          <p className="page-subtitle">Submit a title and description for your project group and follow its review status.</p>
+          <p className="page-subtitle">Get project-only title suggestions from your interests, application area, and tools; submit a detailed proposal and see its similarity analysis.</p>
         </div>
       </div>
       {projectsQuery.isError && <div className="table-error" role="alert">{message(projectsQuery.error, 'Could not load your project groups')}</div>}
@@ -121,6 +121,20 @@ export default function ProjectSubmissionPage() {
                     value={values.description ?? ''}
                     onChange={(event) => updateForm(project.groupId, 'description', event.target.value)} />
                 </label>
+                <div className="form-grid">
+                  {[
+                    ['interest', "Student's interests"],
+                    ['area', 'Project application area'],
+                    ['tools', 'Tools or technologies'],
+                  ].map(([field, label]) => (
+                    <label className="form-field" key={field}>
+                      <span className="form-label">{label}</span>
+                      <input className="form-input" required minLength={2} maxLength={2000}
+                        value={recommendationValues[field] ?? ''}
+                        onChange={(event) => updateRecommendationInput(project.groupId, field, event.target.value)} />
+                    </label>
+                  ))}
+                </div>
                 <div className="action-row">
                   <button type="button" className="btn-secondary"
                     disabled={['interest', 'area', 'tools'].some((field) =>
@@ -135,20 +149,6 @@ export default function ProjectSubmissionPage() {
                       ? 'Creating ideas…'
                       : 'Recommend project titles'}
                   </button>
-                </div>
-                <div className="form-grid">
-                  {[
-                    ['interest', "Student's interests"],
-                    ['area', 'Project application area'],
-                    ['tools', 'Tools or technologies'],
-                  ].map(([field, label]) => (
-                    <label className="form-field" key={field}>
-                      <span className="form-label">{label}</span>
-                      <input className="form-input" required minLength={2} maxLength={2000}
-                        value={recommendationValues[field] ?? ''}
-                        onChange={(event) => updateRecommendationInput(project.groupId, field, event.target.value)} />
-                    </label>
-                  ))}
                 </div>
                 {recommendations[project.groupId] && (
                   <div className="import-preview" aria-live="polite">

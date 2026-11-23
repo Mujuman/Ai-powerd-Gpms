@@ -33,7 +33,7 @@ const WORK_AREAS = [
   },
   {
     title: 'Project proposal and group',
-    description: 'View your group, submit a project title and description, and track review feedback.',
+    description: 'Get project title ideas, submit a detailed proposal, and see its similarity analysis and review status.',
     icon: UsersRound,
     status: 'Available',
     to: '/student/project',
@@ -41,16 +41,18 @@ const WORK_AREAS = [
   },
   {
     title: 'Project documents',
-    description: 'Submit proposals, research documents, and progress reports.',
+    description: 'Upload project documents for your advisor and read their feedback.',
     icon: FileText,
-    status: 'Coming soon',
+    status: 'Available',
+    to: '/student/project',
     tasks: ['Upload project documents', 'Track review feedback'],
   },
   {
     title: 'Feedback & revisions',
-    description: 'Review feedback and submit requested corrections.',
+    description: 'Chat with your advisor and submit defense corrections for examiner review.',
     icon: MessageSquareText,
-    status: 'Coming soon',
+    status: 'Available',
+    to: '/student/project',
     tasks: ['Read reviewer comments', 'Upload corrected documents'],
   },
   {
