@@ -49,8 +49,8 @@ class FakeGenerationModel:
     def generate(self, **kwargs):
         if kwargs != {
             "input_ids": [1],
-            "max_new_tokens": 160,
-            "num_beams": 4,
+            "max_new_tokens": 96,
+            "num_beams": 2,
             "no_repeat_ngram_size": 3,
             "early_stopping": True,
         }:

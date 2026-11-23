@@ -196,8 +196,8 @@ def title_recommendations(
         model_inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
         generated = model.generate(
             **model_inputs,
-            max_new_tokens=160,
-            num_beams=4,
+            max_new_tokens=96,
+            num_beams=2,
             no_repeat_ngram_size=3,
             early_stopping=True,
         )

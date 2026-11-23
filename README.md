@@ -107,7 +107,7 @@ The setup script creates `ai-service\.venv`. Install its dependencies if you did
 Set-Location ai-service
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+& .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Check `http://127.0.0.1:8000/health`. Generate a random token with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`, put it in `backend\.env` as `AI_SERVICE_TOKEN`, and set the same value in the AI service terminal before starting FastAPI:

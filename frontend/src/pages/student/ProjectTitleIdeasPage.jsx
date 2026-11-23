@@ -173,8 +173,13 @@ export default function ProjectTitleIdeasPage() {
               </div>
             ))}
             <button className="btn-primary" disabled={!canRecommend || recommendationMutation.isPending}>
-              {recommendationMutation.isPending ? 'Creating ideas…' : 'Recommend project titles'}
+              {recommendationMutation.isPending ? 'Generating titles…' : 'Recommend project titles'}
             </button>
+            {recommendationMutation.isPending && (
+              <p className="muted-copy" role="status" aria-live="polite">
+                The local AI model may take longer on its first request while it loads. Later requests reuse the loaded model.
+              </p>
+            )}
           </form>
           {recommendations && (
             <div className="import-preview" aria-live="polite">
