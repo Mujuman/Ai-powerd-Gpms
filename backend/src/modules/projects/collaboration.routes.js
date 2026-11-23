@@ -60,7 +60,7 @@ collaborationRoutes.post(
 )
 collaborationRoutes.get(
   '/groups/:groupId/documents',
-  requireRoles('student', 'academic_advisor'),
+  requireRoles('student', 'academic_advisor', 'examiner'),
   collaborationController.listDocuments,
 )
 collaborationRoutes.post(
@@ -71,6 +71,11 @@ collaborationRoutes.post(
 )
 collaborationRoutes.get(
   '/documents/:documentId/download',
-  requireRoles('student', 'academic_advisor'),
+  requireRoles('student', 'academic_advisor', 'examiner'),
   collaborationController.downloadDocument,
+)
+collaborationRoutes.patch(
+  '/documents/:documentId/review',
+  requireRoles('examiner'),
+  collaborationController.reviewCorrection,
 )

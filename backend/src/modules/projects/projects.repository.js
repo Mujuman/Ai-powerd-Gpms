@@ -444,7 +444,8 @@ export async function listDefenseSchedules(connection, departmentId) {
   const placeholders = rows.map(() => '?').join(', ')
   const [examiners] = await connection.execute(
     `SELECT de.schedule_id AS scheduleId, u.id, u.full_name AS fullName,
-            de.assignment_method AS assignmentMethod
+            de.assignment_method AS assignmentMethod,
+            de.is_chairperson AS isChairperson
        FROM defense_schedule_examiners de
        JOIN users u ON u.id = de.examiner_user_id
       WHERE de.schedule_id IN (${placeholders}) AND de.is_active = TRUE
@@ -457,6 +458,7 @@ export async function listDefenseSchedules(connection, departmentId) {
       id: examiner.id,
       fullName: examiner.fullName,
       assignmentMethod: examiner.assignmentMethod,
+      isChairperson: Boolean(examiner.isChairperson),
     })
   }
   return rows.map((row) => ({ ...row, examiners: bySchedule.get(row.id) }))
@@ -548,13 +550,34 @@ export async function insertScheduleExaminer(connection, assignment) {
   )
 }
 
+export async function setScheduleChairperson(connection, scheduleId, examinerUserId) {
+  await connection.execute(
+    `UPDATE defense_schedule_examiners
+        SET is_chairperson = CASE WHEN examiner_user_id = ? THEN TRUE ELSE FALSE END
+      WHERE schedule_id = ? AND is_active = TRUE`,
+    [examinerUserId, scheduleId],
+  )
+}
+
+export async function findScheduleExaminer(connection, scheduleId, examinerUserId, lock = false) {
+  const [rows] = await connection.execute(
+    `SELECT examiner_user_id AS examinerUserId
+       FROM defense_schedule_examiners
+      WHERE schedule_id = ? AND examiner_user_id = ? AND is_active = TRUE
+      LIMIT 1${lock ? ' FOR UPDATE' : ''}`,
+    [scheduleId, examinerUserId],
+  )
+  return rows[0] ?? null
+}
+
 export async function listAssessments(connection, departmentId) {
   const [rows] = await connection.execute(
     `SELECT da.id, da.schedule_id AS scheduleId, ds.group_id AS groupId,
             g.name AS groupName, ps.title, ds.defense_type AS defenseType,
             ds.scheduled_at AS scheduledAt, u.id AS examinerUserId,
             u.full_name AS examinerName, da.outcome, da.rubric_json AS rubric,
-            da.comments, da.submitted_at AS submittedAt, da.updated_at AS updatedAt,
+            da.comments, da.student_grades_json AS studentGrades,
+            da.submitted_at AS submittedAt, da.updated_at AS updatedAt,
             (SELECT de.assignment_method FROM defense_schedule_examiners de
               WHERE de.schedule_id = ds.id AND de.examiner_user_id = da.examiner_user_id
               ORDER BY de.assigned_at DESC, de.id DESC LIMIT 1) AS assignmentMethod
@@ -569,7 +592,11 @@ export async function listAssessments(connection, departmentId) {
       ORDER BY da.submitted_at DESC`,
     [departmentId],
   )
-  return rows.map((row) => ({ ...row, rubric: parseJson(row.rubric, null) }))
+  return rows.map((row) => ({
+    ...row,
+    rubric: parseJson(row.rubric, null),
+    studentGrades: parseJson(row.studentGrades, []),
+  }))
 }
 
 export async function listExaminerDefenses(connection, examinerUserId) {
@@ -578,7 +605,9 @@ export async function listExaminerDefenses(connection, examinerUserId) {
             d.name AS departmentName, ps.title, ds.defense_type AS defenseType,
             ds.scheduled_at AS scheduledAt, ds.venue, ds.notes, ds.status,
             de.assignment_method AS assignmentMethod,
-            da.outcome, da.comments, da.submitted_at AS assessmentSubmittedAt
+            de.is_chairperson AS isChairperson,
+            da.outcome, da.comments, da.student_grades_json AS studentGrades,
+            da.submitted_at AS assessmentSubmittedAt
        FROM defense_schedule_examiners de
        JOIN defense_schedules ds ON ds.id = de.schedule_id
        JOIN student_groups g ON g.id = ds.group_id
@@ -592,12 +621,31 @@ export async function listExaminerDefenses(connection, examinerUserId) {
       ORDER BY ds.scheduled_at DESC`,
     [examinerUserId],
   )
-  return rows
+  if (!rows.length) return rows
+  const placeholders = rows.map(() => '?').join(', ')
+  const [members] = await connection.execute(
+    `SELECT gm.group_id AS groupId, u.id AS userId, u.full_name AS fullName,
+            sp.student_id AS studentId
+       FROM student_group_members gm
+       JOIN users u ON u.id = gm.student_user_id
+       LEFT JOIN student_profiles sp ON sp.user_id = u.id
+      WHERE gm.group_id IN (${placeholders}) AND gm.is_active = TRUE AND u.is_active = TRUE
+      ORDER BY u.full_name`,
+    rows.map((row) => row.groupId),
+  )
+  const membersByGroup = new Map(rows.map((row) => [row.groupId, []]))
+  for (const member of members) membersByGroup.get(member.groupId).push(member)
+  return rows.map((row) => ({
+    ...row,
+    isChairperson: Boolean(row.isChairperson),
+    studentGrades: parseJson(row.studentGrades, []),
+    members: membersByGroup.get(row.groupId),
+  }))
 }
 
 export async function findExaminerSchedule(connection, scheduleId, examinerUserId, lock = false) {
   const [rows] = await connection.execute(
-    `SELECT ds.id, ds.status
+    `SELECT ds.id, ds.group_id AS groupId, ds.status
        FROM defense_schedule_examiners de
        JOIN defense_schedules ds ON ds.id = de.schedule_id
       WHERE ds.id = ? AND de.examiner_user_id = ? AND de.is_active = TRUE
@@ -607,14 +655,29 @@ export async function findExaminerSchedule(connection, scheduleId, examinerUserI
   return rows[0] ?? null
 }
 
+export async function listActiveGroupStudents(connection, groupId) {
+  const [rows] = await connection.execute(
+    `SELECT u.id AS userId, u.full_name AS fullName, sp.student_id AS studentId
+       FROM student_group_members gm
+       JOIN users u ON u.id = gm.student_user_id
+       LEFT JOIN student_profiles sp ON sp.user_id = u.id
+      WHERE gm.group_id = ? AND gm.is_active = TRUE AND u.is_active = TRUE
+      ORDER BY u.full_name`,
+    [groupId],
+  )
+  return rows
+}
+
 export async function saveAssessment(connection, assessment) {
   await connection.execute(
-    `INSERT INTO defense_assessments (id, schedule_id, examiner_user_id, outcome, comments)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO defense_assessments
+       (id, schedule_id, examiner_user_id, outcome, comments, student_grades_json)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE outcome = VALUES(outcome), comments = VALUES(comments),
+       student_grades_json = VALUES(student_grades_json),
        submitted_at = CURRENT_TIMESTAMP(3)`,
     [assessment.id, assessment.scheduleId, assessment.examinerUserId,
-      assessment.outcome, assessment.comments],
+      assessment.outcome, assessment.comments, JSON.stringify(assessment.studentGrades ?? [])],
   )
 }
 

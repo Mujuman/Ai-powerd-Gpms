@@ -80,4 +80,17 @@ export const assignExaminersSchema = z.object({
 export const submitAssessmentSchema = z.object({
   outcome: z.enum(['pass', 'revision_required', 'fail']),
   comments: z.string().trim().min(5).max(10000),
+  studentGrades: z.array(z.object({
+    studentUserId: uuid,
+    grade: z.number().min(0).max(100),
+  }).strict()).max(100).optional(),
+}).strict()
+  .refine((value) => !value.studentGrades
+    || new Set(value.studentGrades.map(({ studentUserId }) => studentUserId)).size === value.studentGrades.length, {
+    path: ['studentGrades'],
+    message: 'A student may only receive one grade per assessment',
+  })
+
+export const assignChairpersonSchema = z.object({
+  examinerUserId: uuid,
 }).strict()

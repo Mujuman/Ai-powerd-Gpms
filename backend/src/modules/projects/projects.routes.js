@@ -24,11 +24,27 @@ const staffUpload = multer({
 
 const departmentHead = requireRoles('department_head')
 
+projectsRoutes.get('/groups', departmentHead, projectsController.listGroups)
+projectsRoutes.get('/submissions', departmentHead, projectsController.listSubmissions)
+projectsRoutes.post('/submissions/:submissionId/review', departmentHead, projectsController.reviewSubmission)
 projectsRoutes.get('/staff', departmentHead, projectsController.listStaff)
 projectsRoutes.post('/staff', departmentHead, projectsController.createStaff)
 projectsRoutes.post('/staff/import', departmentHead, staffUpload.single('excelFile'), projectsController.importStaff)
 projectsRoutes.patch('/staff/:userId', departmentHead, projectsController.updateStaff)
 projectsRoutes.delete('/staff/:userId', departmentHead, projectsController.deleteStaff)
+projectsRoutes.post('/advisors/assign-ai', departmentHead, projectsController.assignAdvisorsWithAi)
+projectsRoutes.put('/groups/:groupId/advisor', departmentHead, projectsController.assignAdvisor)
+projectsRoutes.post('/similarity', departmentHead, projectsController.runSimilarityAnalysis)
+projectsRoutes.get('/similarity', departmentHead, projectsController.listSimilarityAnalyses)
+projectsRoutes.get('/defenses', departmentHead, projectsController.listDefenseSchedules)
+projectsRoutes.post('/defenses', departmentHead, projectsController.createDefense)
+projectsRoutes.patch('/defenses/:scheduleId', departmentHead, projectsController.updateDefense)
+projectsRoutes.post('/defenses/:scheduleId/cancel', departmentHead, projectsController.cancelDefense)
+projectsRoutes.put('/defenses/:scheduleId/examiners', departmentHead, projectsController.assignExaminers)
+projectsRoutes.put('/defenses/:scheduleId/chairperson', departmentHead, projectsController.assignDefenseChairperson)
+projectsRoutes.post('/defenses/:scheduleId/examiners/assign-ai', departmentHead, projectsController.assignExaminerWithAi)
+projectsRoutes.get('/assessments', departmentHead, projectsController.listAssessments)
+projectsRoutes.get('/reports', departmentHead, projectsController.getDepartmentReport)
 
 // Student project submission
 projectsRoutes.get('/mine', requireRoles('student'), projectsController.listMyProjects)

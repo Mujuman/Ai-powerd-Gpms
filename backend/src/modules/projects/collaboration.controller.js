@@ -1,6 +1,7 @@
 import { ZodError, z } from 'zod'
 import { HttpError } from '../../utils/http-error.js'
 import {
+  correctionReviewSchema,
   projectDocumentSchema,
   projectMessageSchema,
   titleRecommendationSchema,
@@ -31,10 +32,10 @@ export const collaborationController = {
   recommendTitles: async (request, response, next) => {
     try {
       const groupId = parse(uuid, request.params.groupId)
-      const { description } = parse(titleRecommendationSchema, request.body)
+      const preferences = parse(titleRecommendationSchema, request.body)
       response.json({
         success: true,
-        data: await service.recommendTitles(groupId, description, actor(request)),
+        data: await service.recommendTitles(groupId, preferences, actor(request)),
       })
     } catch (error) { next(error) }
   },
@@ -77,6 +78,16 @@ export const collaborationController = {
       const document = await service.getDocumentForDownload(documentId, actor(request))
       response.download(document.filePath, document.fileName, (error) => {
         if (error) next(error)
+      })
+    } catch (error) { next(error) }
+  },
+  reviewCorrection: async (request, response, next) => {
+    try {
+      const documentId = parse(uuid, request.params.documentId)
+      const { decision, note } = parse(correctionReviewSchema, request.body)
+      response.json({
+        success: true,
+        data: await service.reviewCorrection(documentId, decision, note, actor(request)),
       })
     } catch (error) { next(error) }
   },

@@ -3,6 +3,7 @@ import { HttpError } from '../../utils/http-error.js'
 import {
   assignAdvisorSchema,
   assignExaminersSchema,
+  assignChairpersonSchema,
   createDefenseSchema,
   createStaffSchema,
   departmentQuerySchema,
@@ -188,6 +189,15 @@ export const projectsController = {
         success: true,
         data: await service.assignExaminerWithAi(scheduleId, filters, actor(request)),
       })
+    } catch (error) { next(error) }
+  },
+  assignDefenseChairperson: async (request, response, next) => {
+    try {
+      const scheduleId = parse(uuid, request.params.scheduleId)
+      const { examinerUserId } = parse(assignChairpersonSchema, request.body)
+      const filters = parse(departmentQuerySchema, request.body)
+      await service.assignDefenseChairperson(scheduleId, examinerUserId, filters, actor(request))
+      response.json({ success: true, message: 'Defense chairperson assigned' })
     } catch (error) { next(error) }
   },
   listAssessments: async (request, response, next) => {

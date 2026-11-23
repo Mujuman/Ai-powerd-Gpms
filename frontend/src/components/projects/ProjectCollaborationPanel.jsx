@@ -21,10 +21,12 @@ export function ProjectCollaborationPanel({
   const [file, setFile] = useState(null)
   const [documentType, setDocumentType] = useState('advisor_document')
   const [downloadError, setDownloadError] = useState('')
+  const [reviewNotes, setReviewNotes] = useState({})
   const messagesQuery = useQuery({
     queryKey: ['project-messages', groupId],
     queryFn: async () => (await api.get(`/projects/groups/${groupId}/messages`)).data.data,
     refetchInterval: 5000,
+    enabled: role !== 'examiner',
   })
   const documentsQuery = useQuery({
     queryKey: ['project-documents', groupId],
@@ -51,6 +53,14 @@ export function ProjectCollaborationPanel({
       setFile(null)
       void queryClient.invalidateQueries({ queryKey: ['project-documents', groupId] })
     },
+  })
+  const reviewMutation = useMutation({
+    mutationFn: async ({ documentId, decision }) =>
+      (await api.patch(`/projects/documents/${documentId}/review`, {
+        decision,
+        note: reviewNotes[documentId] ?? '',
+      })).data.data,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['project-documents', groupId] }),
   })
 
   async function downloadDocument(document) {
@@ -86,59 +96,97 @@ export function ProjectCollaborationPanel({
 
   return (
     <section className="academic-card">
-      <h3 className="section-title">Advisor messages</h3>
-      <p className="page-subtitle">Messages refresh automatically every five seconds.</p>
-      {messagesQuery.error && <div className="table-error" role="alert">
-        {message(messagesQuery.error, 'Could not load messages')}
-      </div>}
-      {sendMutation.error && <div className="table-error" role="alert">
-        {message(sendMutation.error, 'Could not send your message')}
-      </div>}
-      <div className="project-message-list" aria-live="polite">
-        {(messagesQuery.data ?? []).map((item) => (
-          <article className="project-message" key={item.id}>
-            <div className="action-row">
-              <strong>{item.senderName}</strong>
-              <span className="muted-copy">{formatDate(item.sentAt)}</span>
-            </div>
-            <p>{item.message}</p>
-          </article>
-        ))}
-        {messagesQuery.data?.length === 0 && (
-          <p className="muted-copy">No messages yet.</p>
-        )}
-      </div>
-      {canSend ? (
-        <form className="import-form" onSubmit={sendMessage}>
-          <label className="form-field">
-            <span className="form-label">Message</span>
-            <textarea className="form-input" required minLength={1} maxLength={5000} rows={3}
-              value={messageText} onChange={(event) => setMessageText(event.target.value)} />
-          </label>
-          <button className="btn-primary" disabled={sendMutation.isPending || !messageText.trim()}>
-            {sendMutation.isPending ? 'Sending…' : 'Send message'}
-          </button>
-        </form>
-      ) : (
-        <p className="muted-copy">Messaging becomes available after an advisor is assigned.</p>
+      {role !== 'examiner' && (
+        <>
+          <h3 className="section-title">Advisor messages</h3>
+          <p className="page-subtitle">Messages refresh automatically every five seconds.</p>
+          {messagesQuery.error && <div className="table-error" role="alert">
+            {message(messagesQuery.error, 'Could not load messages')}
+          </div>}
+          {sendMutation.error && <div className="table-error" role="alert">
+            {message(sendMutation.error, 'Could not send your message')}
+          </div>}
+          <div className="project-message-list" aria-live="polite">
+            {(messagesQuery.data ?? []).map((item) => (
+              <article className="project-message" key={item.id}>
+                <div className="action-row">
+                  <strong>{item.senderName}</strong>
+                  <span className="muted-copy">{formatDate(item.sentAt)}</span>
+                </div>
+                <p>{item.message}</p>
+              </article>
+            ))}
+            {messagesQuery.data?.length === 0 && (
+              <p className="muted-copy">No messages yet.</p>
+            )}
+          </div>
+          {canSend ? (
+            <form className="import-form" onSubmit={sendMessage}>
+              <label className="form-field">
+                <span className="form-label">Message</span>
+                <textarea className="form-input" required minLength={1} maxLength={5000} rows={3}
+                  value={messageText} onChange={(event) => setMessageText(event.target.value)} />
+              </label>
+              <button className="btn-primary" disabled={sendMutation.isPending || !messageText.trim()}>
+                {sendMutation.isPending ? 'Sending…' : 'Send message'}
+              </button>
+            </form>
+          ) : (
+            <p className="muted-copy">Messaging becomes available after an advisor is assigned.</p>
+          )}
+        </>
       )}
 
-      <h3 className="section-title">Project documents</h3>
+      <h3 className="section-title">{role === 'examiner' ? 'Defense corrections' : 'Project documents'}</h3>
       {documentsQuery.error && <div className="table-error" role="alert">
         {message(documentsQuery.error, 'Could not load project documents')}
       </div>}
       {uploadMutation.error && <div className="table-error" role="alert">
         {message(uploadMutation.error, 'Could not upload the document')}
       </div>}
+      {reviewMutation.error && <div className="table-error" role="alert">
+        {message(reviewMutation.error, 'Could not review the correction')}
+      </div>}
       {downloadError && <div className="table-error" role="alert">{downloadError}</div>}
       <div className="table-wrapper">
         <table className="data-table">
-          <thead><tr><th>Document</th><th>Type</th><th>Uploaded by</th><th>Date</th><th>Action</th></tr></thead>
+          <thead><tr><th>Document</th><th>Type / review</th><th>Uploaded by</th><th>Date</th><th>Action</th></tr></thead>
           <tbody>
             {(documentsQuery.data ?? []).map((document) => (
               <tr key={document.id}>
                 <td>{document.fileName}</td>
-                <td>{document.documentType === 'defense_correction' ? 'Defense correction' : 'For advisor'}</td>
+                <td>
+                  {document.documentType === 'defense_correction' ? 'Defense correction' : 'For advisor'}
+                  {document.reviewStatus && <p className="muted-copy">
+                    {document.reviewStatus}{document.reviewerName ? ` · ${document.reviewerName}` : ''}
+                    {document.reviewNote ? `: ${document.reviewNote}` : ''}
+                  </p>}
+                  {role === 'examiner' && document.documentType === 'defense_correction'
+                    && document.reviewStatus !== 'approved' && (
+                      <div className="head-review-actions">
+                        {document.reviewStatus !== 'rejected' && (
+                          <input className="form-input" maxLength={4000}
+                            aria-label={`Reason for changes to ${document.fileName}`}
+                            placeholder="Required if requesting another correction"
+                            value={reviewNotes[document.id] ?? ''}
+                            onChange={(event) => setReviewNotes({
+                              ...reviewNotes,
+                              [document.id]: event.target.value,
+                            })} />
+                        )}
+                        <div className="action-row">
+                          <button type="button" className="btn-primary" disabled={reviewMutation.isPending}
+                            onClick={() => reviewMutation.mutate({ documentId: document.id, decision: 'approved' })}>
+                            Approve correction
+                          </button>
+                          <button type="button" className="btn-secondary" disabled={reviewMutation.isPending}
+                            onClick={() => reviewMutation.mutate({ documentId: document.id, decision: 'rejected' })}>
+                            Request changes
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                </td>
                 <td>{document.uploaderName}</td>
                 <td>{formatDate(document.uploadedAt)}</td>
                 <td><button className="btn-secondary" onClick={() => downloadDocument(document)}>Download</button></td>

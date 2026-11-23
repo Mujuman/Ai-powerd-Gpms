@@ -851,6 +851,28 @@ export async function assignExaminerWithAi(scheduleId, filters, actor) {
   }
 }
 
+export async function assignDefenseChairperson(scheduleId, examinerUserId, filters, actor) {
+  const departmentId = assertDepartmentAccess(actor, filters.departmentId)
+  await withTransaction(pool, async (connection) => {
+    const schedule = await repository.findDefenseSchedule(connection, scheduleId, departmentId, true)
+    if (!schedule || schedule.status !== 'scheduled') {
+      throw new HttpError(404, 'Scheduled defense not found')
+    }
+    if (!await repository.findScheduleExaminer(connection, scheduleId, examinerUserId, true)) {
+      throw new HttpError(400, 'The chairperson must be selected from the assigned examiners')
+    }
+    await repository.setScheduleChairperson(connection, scheduleId, examinerUserId)
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'defense_examiners.chairperson_assign',
+      targetType: 'defense_schedule',
+      targetId: scheduleId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { examinerUserId },
+    })
+  })
+}
+
 export async function listAssessments(filters, actor) {
   const departmentId = assertDepartmentAccess(actor, filters.departmentId)
   return repository.listAssessments(pool, departmentId)
@@ -873,12 +895,32 @@ export async function submitAssessment(scheduleId, data, actor) {
     if (!schedule || schedule.status === 'cancelled') {
       throw new HttpError(404, 'Active assigned defense not found')
     }
+    const members = await repository.listActiveGroupStudents(connection, schedule.groupId)
+    const hasRevisionRequest = await collaborationRepository.hasRevisionRequiredAssessment(
+      connection,
+      schedule.groupId,
+    )
+    if (data.outcome === 'revision_required') {
+      if (data.studentGrades?.length) {
+        throw new HttpError(400, 'Do not submit final grades while requesting revisions')
+      }
+    } else {
+      if (hasRevisionRequest
+        && !await collaborationRepository.hasApprovedDefenseCorrection(connection, schedule.groupId)) {
+        throw new HttpError(409, 'Approve a submitted defense correction before entering final grades')
+      }
+      if (members.length !== data.studentGrades?.length
+        || members.some((member) => !data.studentGrades.some((grade) => grade.studentUserId === member.userId))) {
+        throw new HttpError(400, 'Submit one grade for every active student in this group')
+      }
+    }
     await repository.saveAssessment(connection, {
       id: randomUUID(),
       scheduleId,
       examinerUserId: actor.id,
       outcome: data.outcome,
       comments: data.comments,
+      studentGrades: data.studentGrades,
     })
     await recordAudit(connection, {
       userId: actor.id,
@@ -895,7 +937,7 @@ export async function listStudentDefenses(actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
   const groups = await repository.listStudentGroups(pool, actor.id)
   const groupIds = groups.map((group) => group.groupId)
-  return collaborationRepository.listStudentDefenseSchedules(pool, groupIds)
+  return collaborationRepository.listStudentDefenseSchedules(pool, groupIds, actor.id)
 }
 
 export async function getDepartmentReport(filters, actor) {
