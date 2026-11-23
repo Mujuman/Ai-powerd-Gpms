@@ -249,6 +249,20 @@ async function seedDemoData() {
        ON DUPLICATE KEY UPDATE is_active = TRUE, assigned_by = VALUES(assigned_by), left_at = NULL`,
       [groupId, studentUserId, userIds.get('department_head')],
     )
+    await connection.execute(
+      `UPDATE student_groups
+          SET leader_user_id = (
+            SELECT gm.student_user_id
+              FROM student_group_members gm
+              JOIN student_profiles sp ON sp.user_id = gm.student_user_id
+              JOIN users u ON u.id = gm.student_user_id
+             WHERE gm.group_id = ? AND gm.is_active = TRUE
+             ORDER BY sp.gpa IS NULL, sp.gpa DESC, u.full_name, gm.student_user_id
+             LIMIT 1
+          )
+        WHERE id = ?`,
+      [groupId, groupId],
+    )
 
     if (semester && year.isActive && semester.status === 'active') {
       const [eligibilityRows] = await connection.execute(

@@ -371,7 +371,7 @@ export default function GroupsPage() {
                 <p className="muted-copy">
                   {editingGroup.memberIds.length} student{editingGroup.memberIds.length === 1 ? '' : 's'} selected.
                 </p>
-                <p className="muted-copy">The member with the highest GPA is automatically assigned as group leader.</p>
+                <p className="muted-copy">The system automatically assigns the member with the highest GPA as group leader.</p>
                 <div className="group-members-list" role="group" aria-label="Available students">
                   {editableStudents.map((student) => (
                     <label className="group-member-option" key={student.userId}>
