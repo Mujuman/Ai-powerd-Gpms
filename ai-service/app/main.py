@@ -115,6 +115,34 @@ def parse_generated_titles(text: str) -> list[str]:
     return titles
 
 
+def build_title_recommendation_prompt(request: TitleRecommendationRequest) -> str:
+    objectives = []
+    for line in request.specific_objectives.splitlines():
+        objective = re.sub(r"^\s*(?:\d+[.)]|[-*])\s*", "", line).strip()
+        if objective:
+            objectives.append(objective)
+    specific_objectives = "; ".join(objectives)
+
+    return (
+        "You are an academic graduation project title recommendation assistant. "
+        "Analyze all the following student project information:\n"
+        f"Project Idea: {request.project_idea}\n"
+        f"Problem Statement: {request.problem_statement}\n"
+        f"General Objective: {request.general_objective}\n"
+        f"Specific Objectives: {specific_objectives}\n"
+        f"Project Description: {request.project_description}\n"
+        f"Proposed Technologies: {request.technologies}\n"
+        f"Project Domain: {request.domain}\n"
+        "Generate five clear, specific, professional graduation project titles.\n"
+        "Requirements:\n"
+        "1. Reflect the actual project idea.\n"
+        "2. Avoid unnecessarily complicated words.\n"
+        "3. Do not introduce features not mentioned by the student.\n"
+        "4. Do not change the original project scope.\n"
+        "5. Return only five suggested titles, one title per line."
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "ai-service"}
@@ -163,24 +191,7 @@ def title_recommendations(
         raise HTTPException(status_code=401, detail="Invalid internal service token")
 
     model_name, tokenizer, model = load_title_generation_model()
-    prompt = (
-        "You are an academic graduation project title recommendation assistant. "
-        "Analyze all the following student project information:\n"
-        f"Project Idea: {request.project_idea}\n"
-        f"Problem Statement: {request.problem_statement}\n"
-        f"General Objective: {request.general_objective}\n"
-        f"Specific Objectives: {request.specific_objectives}\n"
-        f"Project Description: {request.project_description}\n"
-        f"Proposed Technologies: {request.technologies}\n"
-        f"Project Domain: {request.domain}\n"
-        "Generate five clear, specific, professional graduation project titles.\n"
-        "Requirements:\n"
-        "1. Reflect the actual project idea.\n"
-        "2. Avoid unnecessarily complicated words.\n"
-        "3. Do not introduce features not mentioned by the student.\n"
-        "4. Do not change the original project scope.\n"
-        "5. Return only five suggested titles, one title per line."
-    )
+    prompt = build_title_recommendation_prompt(request)
     try:
         model_inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
         generated = model.generate(

@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from app.main import (
     TitleRecommendationRequest,
+    build_title_recommendation_prompt,
     parse_generated_titles,
     title_recommendations,
 )
@@ -60,9 +61,13 @@ class FakeGenerationModel:
 class TitleRecommendationTests(unittest.TestCase):
     def test_requires_a_configured_and_matching_token(self):
         request = TitleRecommendationRequest(
-            interest="machine learning",
-            area="agriculture",
-            tools="Python and scikit-learn",
+            projectIdea="AI-based student attendance system",
+            problemStatement="Manual attendance is slow and inaccurate",
+            generalObjective="Develop an automated attendance system",
+            specificObjectives="Automate attendance recording\nGenerate attendance reports",
+            projectDescription="Teachers record attendance and review reports",
+            technologies="Python, React, MySQL, OpenCV",
+            domain="Artificial Intelligence and Education",
         )
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("AI_SERVICE_TOKEN", None)
@@ -117,6 +122,19 @@ class TitleRecommendationTests(unittest.TestCase):
     def test_rejects_too_short_preferences(self):
         with self.assertRaises(ValidationError):
             TitleRecommendationRequest(projectIdea="x")
+
+    def test_prompt_preprocesses_numbered_objectives(self):
+        request = TitleRecommendationRequest(
+            projectIdea="Attendance system",
+            problemStatement="Manual attendance is inaccurate",
+            generalObjective="Automate attendance management",
+            specificObjectives="1. Record attendance\n- Generate reports",
+            projectDescription="A system for teachers to manage attendance",
+            technologies="Python and React",
+            domain="Education",
+        )
+        prompt = build_title_recommendation_prompt(request)
+        self.assertIn("Specific Objectives: Record attendance; Generate reports", prompt)
 
 
 if __name__ == "__main__":
