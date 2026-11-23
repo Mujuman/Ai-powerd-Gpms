@@ -1,40 +1,54 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { KeyRound, LogOut } from 'lucide-react'
+import {
+  BookOpen,
+  Building2,
+  CalendarDays,
+  ClipboardCheck,
+  FileText,
+  FolderKanban,
+  GraduationCap,
+  KeyRound,
+  LayoutDashboard,
+  Lightbulb,
+  LogOut,
+  MessageCircle,
+  UsersRound,
+} from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { RoleBadge } from './ui/RoleBadge'
 
 // ── Per-role nav links ────────────────────────────────────────────────────────
 const NAV_LINKS = {
   system_administrator: [
-    { label: 'Dashboard', to: '/admin/dashboard' },
-    { label: 'Users', to: '/admin/users' },
-    { label: 'Departments', to: '/admin/departments' },
+    { label: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard },
+    { label: 'Users', to: '/admin/users', icon: UsersRound },
+    { label: 'Departments', to: '/admin/departments', icon: Building2 },
   ],
   department_head: [
-    { label: 'Dashboard', to: '/head/dashboard' },
-    { label: 'Students', to: '/head/students' },
-    { label: 'Groups', to: '/head/groups' },
-    { label: 'Advisors & Examiners', to: '/head/staff' },
-    { label: 'Projects', to: '/head/projects' },
+    { label: 'Dashboard', to: '/head/dashboard', icon: LayoutDashboard },
+    { label: 'Students', to: '/head/students', icon: GraduationCap },
+    { label: 'Groups', to: '/head/groups', icon: UsersRound },
+    { label: 'Advisors & Examiners', to: '/head/staff', icon: ClipboardCheck },
+    { label: 'Projects', to: '/head/projects', icon: FolderKanban },
   ],
   academic_advisor: [
-    { label: 'Dashboard', to: '/advisor/dashboard' },
-    { label: 'Assigned projects', to: '/advisor/projects' },
-    { label: 'Student project chat', to: '/advisor/chat' },
+    { label: 'Dashboard', to: '/advisor/dashboard', icon: LayoutDashboard },
+    { label: 'Assigned projects', to: '/advisor/projects', icon: FolderKanban },
+    { label: 'Student project chat', to: '/advisor/chat', icon: MessageCircle },
   ],
   examiner: [
-    { label: 'Dashboard', to: '/examiner/dashboard' },
-    { label: 'Defenses & assessments', to: '/examiner/defenses' },
+    { label: 'Dashboard', to: '/examiner/dashboard', icon: LayoutDashboard },
+    { label: 'Defenses & assessments', to: '/examiner/defenses', icon: ClipboardCheck },
   ],
   student: [
-    { label: 'Dashboard', to: '/student/dashboard' },
-    { label: 'Project group', to: '/student/project', end: true },
-    { label: 'Title ideas', to: '/student/project/title-ideas' },
-    { label: 'Project proposal', to: '/student/project/proposal' },
-    { label: 'Advisor chat', to: '/student/project/advisor-chat' },
-    { label: 'Project documents', to: '/student/project/documents' },
-    { label: 'Defense schedule', to: '/student/project/defense' },
-    { label: 'Academic Record', to: '/student/academic-record' },
+    { label: 'Dashboard', to: '/student/dashboard', icon: LayoutDashboard },
+    { label: 'Project group', to: '/student/project', end: true, icon: UsersRound },
+    { label: 'Title ideas', to: '/student/project/title-ideas', icon: Lightbulb },
+    { label: 'Project proposal', to: '/student/project/proposal', icon: FileText },
+    { label: 'Advisor chat', to: '/student/project/advisor-chat', icon: MessageCircle },
+    { label: 'Project documents', to: '/student/project/documents', icon: FolderKanban },
+    { label: 'Defense schedule', to: '/student/project/defense', icon: CalendarDays },
+    { label: 'Academic Record', to: '/student/academic-record', icon: BookOpen },
   ],
 }
 
@@ -65,13 +79,14 @@ export function AppShell() {
         </div>
 
         <nav className="sidebar-nav" aria-label="Role navigation">
-          {links.map(({ label, to, end }) => (
+          {links.map(({ label, to, end, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
             >
+              <Icon size={18} aria-hidden="true" />
               {label}
             </NavLink>
           ))}
@@ -82,7 +97,10 @@ export function AppShell() {
       <div className="shell-body">
         {/* Top navbar */}
         <header className="shell-topbar" role="banner">
-          <span style={{ flex: 1 }} />
+          <div className="shell-topbar-context">
+            <span className="shell-topbar-context-mark">AI</span>
+            <span>Graduation project workspace</span>
+          </div>
           <div className="shell-topbar-right">
             <RoleBadge role={user.role} />
             <span className="shell-username" aria-label={`Signed in as ${user.fullName}`}>

@@ -8,7 +8,7 @@ export function RoleDashboard({ user, eyebrow, summary, workAreas, footer, child
   const departments = Array.isArray(user.departments) ? user.departments : []
 
   return (
-    <div className="overview-dashboard">
+    <div className={`overview-dashboard overview-dashboard-${user.role}`}>
       <section className="overview-hero">
         <div className="overview-hero-copy">
           <div className="overview-eyebrow">{eyebrow}</div>
