@@ -764,6 +764,16 @@ textarea.form-input {
   gap: 1rem;
 }
 
+.title-ideas-form {
+  width: 100%;
+  max-width: 760px;
+  align-items: stretch;
+}
+
+.title-ideas-form .form-field {
+  width: 100%;
+}
+
 .staff-import-form {
   display: flex;
   flex-wrap: wrap;

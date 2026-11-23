@@ -75,21 +75,40 @@ export default function ProjectTitleIdeasPage() {
               </select>
             </label>
           )}
-          <form className="rules-form" onSubmit={(event) => {
+          <form className="rules-form title-ideas-form" onSubmit={(event) => {
             event.preventDefault()
             recommendationMutation.mutate()
           }}>
             {[
-              ['interest', "Student's interests"],
-              ['area', 'Project application area'],
-              ['tools', 'Tools or technologies'],
-            ].map(([field, label]) => (
-              <label className="form-field" key={field}>
-                <span className="form-label">{label}</span>
-                <input className="form-input" required minLength={2} maxLength={2000}
+              {
+                field: 'interest',
+                label: 'Your project interests',
+                description: 'Describe a topic or problem you want to explore.',
+                placeholder: 'e.g. Detecting crop diseases with machine learning',
+              },
+              {
+                field: 'area',
+                label: 'Target area or problem',
+                description: 'Name the domain, users, or setting for the project.',
+                placeholder: 'e.g. Crop farms and agricultural extension workers in Werabe',
+              },
+              {
+                field: 'tools',
+                label: 'Available tools or technologies',
+                description: 'List languages, platforms, methods, or equipment you can use.',
+                placeholder: 'e.g. Python, TensorFlow, Android, and local crop images',
+              },
+            ].map(({ field, label, description, placeholder }) => (
+              <div className="form-field" key={field}>
+                <label className="form-label" htmlFor={`title-ideas-${field}`}>{label}</label>
+                <span className="muted-copy" id={`title-ideas-${field}-help`}>{description}</span>
+                <textarea className="form-input" id={`title-ideas-${field}`}
+                  aria-describedby={`title-ideas-${field}-help`}
+                  required minLength={2} maxLength={2000} rows={3}
                   value={preferences[field]}
+                  placeholder={placeholder}
                   onChange={(event) => updatePreference(field, event.target.value)} />
-              </label>
+              </div>
             ))}
             <button className="btn-primary" disabled={!canRecommend || recommendationMutation.isPending}>
               {recommendationMutation.isPending ? 'Creating ideas…' : 'Recommend project titles'}
