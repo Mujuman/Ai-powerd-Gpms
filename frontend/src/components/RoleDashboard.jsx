@@ -2,7 +2,7 @@ import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { RoleBadge } from './ui/RoleBadge'
 
-export function RoleDashboard({ user, eyebrow, summary, workAreas, footer }) {
+export function RoleDashboard({ user, eyebrow, summary, workAreas, footer, children }) {
   if (!user) return null
 
   const departments = Array.isArray(user.departments) ? user.departments : []
@@ -33,6 +33,8 @@ export function RoleDashboard({ user, eyebrow, summary, workAreas, footer }) {
           )}
         </div>
       </section>
+
+      {children}
 
       <section className="overview-work-section" aria-label="Your workspaces">
         <div className="overview-section-heading">
