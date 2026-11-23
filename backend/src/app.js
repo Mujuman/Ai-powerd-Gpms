@@ -29,7 +29,11 @@ app.use(cors({
 }))
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }))
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  skip: () => config.nodeEnv === 'development',
+}))
 
 app.get('/health', (_request, response) => {
   response.json({ status: 'ok', service: 'backend' })

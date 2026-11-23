@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useSyncExternalStore } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useSyncExternalStore } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { clearAuth, getAuthState, setAuth, setLoading, subscribe } from '../lib/auth'
@@ -17,6 +17,7 @@ const AuthContext = createContext(null)
 // ── Provider ──────────────────────────────────────────────────────────────────
 export function AuthProvider() {
   const navigate = useNavigate()
+  const sessionVersion = useRef(0)
 
   // Subscribe to in-memory store so context re-renders on auth changes
   const authState = useSyncExternalStore(subscribe, getAuthState, getAuthState)
@@ -24,17 +25,18 @@ export function AuthProvider() {
   // On mount: attempt silent token refresh using the HttpOnly refresh cookie
   useEffect(() => {
     let cancelled = false
+    const requestVersion = sessionVersion.current
     setLoading(true)
 
     api
       .post('/auth/refresh')
       .then(({ data }) => {
-        if (!cancelled) {
+        if (!cancelled && requestVersion === sessionVersion.current) {
           setAuth(data.data.user, data.data.accessToken)
         }
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!cancelled && requestVersion === sessionVersion.current) {
           clearAuth()
         }
       })
@@ -47,6 +49,7 @@ export function AuthProvider() {
   const login = useCallback(
     async (email, password) => {
       const { data } = await api.post('/auth/login', { email, password })
+      sessionVersion.current += 1
       setAuth(data.data.user, data.data.accessToken)
       navigate(ROLE_HOME[data.data.user.role], { replace: true })
     },
@@ -59,6 +62,7 @@ export function AuthProvider() {
     } catch {
       // best-effort
     } finally {
+      sessionVersion.current += 1
       clearAuth()
       navigate('/login', { replace: true })
     }
@@ -67,6 +71,7 @@ export function AuthProvider() {
   const refreshSession = useCallback(async () => {
     try {
       const { data } = await api.post('/auth/refresh')
+      sessionVersion.current += 1
       setAuth(data.data.user, data.data.accessToken)
       return true
     } catch {

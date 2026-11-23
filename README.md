@@ -8,6 +8,8 @@ The current implementation includes five seeded roles, JWT authentication, rotat
 
 Project documents are stored outside the public web root in `backend\storage\project-documents` by default. Keep that folder private and backed up as needed; `PROJECT_DOCUMENT_ROOT` can point to another private local directory. Run `npm --prefix backend run db:migrate` after updating to create the collaboration tables and staff-interest columns. Title drafts are deterministic templates, not generative AI, and similarity scores are advisory rather than automatic originality decisions.
 
+API rate limits are disabled when `NODE_ENV=development` to simplify local testing. Rate limits remain enabled in other environments.
+
 ## Technology and local requirements
 
 - Node.js 22.9+ and npm.

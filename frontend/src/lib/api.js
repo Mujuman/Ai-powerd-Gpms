@@ -42,7 +42,9 @@ api.interceptors.response.use(
     if (
       error.response?.status !== 401 ||
       originalRequest._retry ||
-      originalRequest.url === '/auth/refresh'
+      originalRequest.url === '/auth/refresh' ||
+      originalRequest.url === '/auth/login' ||
+      originalRequest.url?.startsWith('/auth/password-reset/')
     ) {
       return Promise.reject(error)
     }

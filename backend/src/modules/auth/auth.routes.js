@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import { requireAuth } from '../../middleware/require-auth.js'
 import { validateBody } from '../../middleware/validate-body.js'
+import { config } from '../../config/env.js'
 import {
   changePasswordSchema,
   loginSchema,
@@ -15,6 +16,7 @@ const authenticationLimiter = rateLimit({
   limit: 10,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
+  skip: () => config.nodeEnv === 'development',
 })
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -22,6 +24,7 @@ const loginLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
+  skip: () => config.nodeEnv === 'development',
   message: {
     success: false,
     message: 'Too many unsuccessful sign-in attempts. Please wait 15 minutes before trying again.',
