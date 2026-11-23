@@ -13,6 +13,7 @@ import {
   listGroupNames,
   permanentlyDeleteStudent,
 } from '../src/modules/students/students.repository.js'
+import { findSessionUserById } from '../src/modules/users/users.repository.js'
 
 test('import batches use a non-reserved alias and decode their stored rows', async () => {
   const expectedRows = [{ email: 'student@example.test', studentId: 'DEMO-0001' }]
@@ -169,6 +170,26 @@ test('graduating a student disables the account, records graduated status, and r
   assert.match(statements[2].query, /UPDATE users SET is_active = FALSE/)
   assert.match(statements[3].query, /UPDATE refresh_tokens/)
   assert.deepEqual(statements[3].parameters, ['student-id'])
+})
+
+test('deactivated graduated accounts cannot load an authenticated session', async () => {
+  let query = ''
+  const databasePool = {
+    async execute(statement, parameters) {
+      query = statement
+      assert.deepEqual(parameters, ['student-id'])
+      return [[{
+        id: 'student-id',
+        email: 'student@example.edu',
+        full_name: 'Student',
+        is_active: 0,
+        role: 'student',
+      }]]
+    },
+  }
+
+  assert.equal(await findSessionUserById('student-id', databasePool), null)
+  assert.match(query, /u\.is_active/)
 })
 
 test('group graduation loads current members and blocks their accounts while preserving memberships', async () => {

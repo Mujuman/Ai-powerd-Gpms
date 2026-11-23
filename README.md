@@ -196,6 +196,7 @@ python -m unittest discover -s tests -v
 - `/api/students/rules/:departmentId`, `/api/students/eligibility`, and `/api/students/eligibility/evaluate`
 - `POST /api/students/register` for Department Head student account and record creation
 - `/api/students/groups` and `/api/students/groups/:groupId/members`
+- `POST /api/students/:userId/graduate` and `POST /api/students/groups/:groupId/graduate` to graduate individual students or all current members of a group and revoke their login access
 - `/api/projects/mine` for student proposal submission and review status
 - `/api/projects/submissions` and `/api/projects/submissions/:submissionId/review` for Head review
 - `/api/projects/staff` for Department Head advisor/examiner account management
@@ -208,5 +209,7 @@ python -m unittest discover -s tests -v
 - `GET /health`, `GET /ready`
 
 Student imports accept `.xlsx` files up to 5 MB and 2,000 rows. The first worksheet must have `Student ID`, `Full Name`, and `Email` columns; `Program`, `Cohort`/`Batch`, `Year Level`, `GPA`, `Phone`, `Credits`, and `Department` are optional. A matching active student account must already exist for each email. Invalid rows are reported in the preview and the batch cannot be confirmed until a corrected file is uploaded.
+
+Graduating a student marks their enrollment status as graduated, disables the account, and revokes refresh tokens. Group and project records are retained.
 
 Only the five specified login roles exist: System Administrator, Department Head, Academic Advisor, Examiner, and Student. Academic policy values remain department-configurable. The transformer model's semantic-analysis quality depends on the configured model being available; the local baseline compares lexical overlap and must not be interpreted as a plagiarism decision.
