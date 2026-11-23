@@ -170,11 +170,12 @@ export default function StaffPage() {
     staffImportMutation.mutate()
   }
 
-  function updateStaff(member) {
+  function updateStaff(event) {
+    event.preventDefault()
     staffMutation.mutate({
       action: 'update',
-      id: member.id,
-      role: member.role,
+      id: editingStaff.id,
+      role: editingStaff.role,
       changes: {
         fullName: editingStaff.fullName,
         specialization: editingStaff.specialization || null,
@@ -321,32 +322,12 @@ export default function StaffPage() {
                   <tbody>
                     {staff.map((member) => (
                       <tr key={member.id}>
-                        <td>{editingStaff?.id === member.id ? (
-                          <input className="form-input" aria-label="Staff full name"
-                            value={editingStaff.fullName}
-                            onChange={(event) => setEditingStaff({ ...editingStaff, fullName: event.target.value })} />
-                        ) : <>{member.fullName}<br /><span className="muted-copy">{member.email}</span></>}</td>
+                        <td>{member.fullName}<br /><span className="muted-copy">{member.email}</span></td>
                         <td>{member.role === 'academic_advisor' ? 'Advisor' : 'Examiner'}</td>
-                        <td>{editingStaff?.id === member.id ? (
-                          <div className="head-review-actions">
-                            <textarea className="form-input" aria-label="Staff specialization"
-                              placeholder="Specialization (optional)" rows={2} maxLength={160}
-                              value={editingStaff.specialization ?? ''}
-                              onChange={(event) => setEditingStaff({ ...editingStaff, specialization: event.target.value })} />
-                            <textarea className="form-input" aria-label="Staff areas of interest" required
-                              placeholder="Areas of interest (required)" rows={2} maxLength={2000}
-                              value={editingStaff.interests ?? ''}
-                              onChange={(event) => setEditingStaff({ ...editingStaff, interests: event.target.value })} />
-                            {!editingStaff.interests?.trim() && (
-                              <span className="form-field-error">Areas of interest are required.</span>
-                            )}
-                          </div>
-                        ) : (
-                          <>
-                            <div>{member.specialization || '—'}</div>
-                            <div className="muted-copy">Interests: {member.interests || 'Not provided'}</div>
-                          </>
-                        )}</td>
+                        <td>
+                          <div>{member.specialization || '—'}</div>
+                          <div className="muted-copy">Interests: {member.interests || 'Not provided'}</div>
+                        </td>
                         <td>{member.activeWorkload}</td>
                         <td>
                           <span className={member.isActive ? 'status-active' : 'status-inactive'}>
@@ -355,26 +336,14 @@ export default function StaffPage() {
                         </td>
                         <td>
                           <div className="action-row">
-                            {editingStaff?.id === member.id ? (
-                              <>
-                                <button className="btn-primary"
-                                  disabled={staffMutation.isPending || !editingStaff.interests?.trim()}
-                                  onClick={() => updateStaff(member)}>Save</button>
-                                <button className="btn-secondary" disabled={staffMutation.isPending}
-                                  onClick={() => setEditingStaff(null)}>Cancel</button>
-                              </>
-                            ) : (
-                              <>
-                                <button className="btn-secondary" onClick={() => setEditingStaff({ ...member })}>Edit</button>
-                                <button className={member.isActive ? 'btn-danger' : 'btn-secondary'}
-                                  disabled={staffMutation.isPending}
-                                  onClick={() => setStaffActive(member, !member.isActive)}>
-                                  {member.isActive ? 'Deactivate' : 'Activate'}
-                                </button>
-                                <button className="btn-danger" disabled={staffMutation.isPending}
-                                  onClick={() => deleteStaff(member)}>Delete</button>
-                              </>
-                            )}
+                            <button className="btn-secondary" onClick={() => setEditingStaff({ ...member })}>Edit</button>
+                            <button className={member.isActive ? 'btn-danger' : 'btn-secondary'}
+                              disabled={staffMutation.isPending}
+                              onClick={() => setStaffActive(member, !member.isActive)}>
+                              {member.isActive ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button className="btn-danger" disabled={staffMutation.isPending}
+                              onClick={() => deleteStaff(member)}>Delete</button>
                           </div>
                         </td>
                       </tr>
@@ -387,6 +356,49 @@ export default function StaffPage() {
               </div>
             )}
           </section>
+
+          {editingStaff && (
+            <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-staff-title"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget && !staffMutation.isPending) {
+                  setEditingStaff(null)
+                }
+              }}>
+              <div className="modal-card staff-edit-modal">
+                <h2 id="edit-staff-title" className="modal-title">Edit staff member</h2>
+                <form className="modal-form" onSubmit={updateStaff}>
+                  <div className="staff-edit-grid">
+                    <label className="form-field">
+                      <span className="form-label">Full name</span>
+                      <input className="form-input" autoFocus required maxLength={160}
+                        value={editingStaff.fullName}
+                        onChange={(event) => setEditingStaff({ ...editingStaff, fullName: event.target.value })} />
+                    </label>
+                    <label className="form-field">
+                      <span className="form-label">Specialization (optional)</span>
+                      <textarea className="form-input" rows={3} maxLength={160}
+                        value={editingStaff.specialization ?? ''}
+                        onChange={(event) => setEditingStaff({ ...editingStaff, specialization: event.target.value })} />
+                    </label>
+                    <label className="form-field staff-edit-interests">
+                      <span className="form-label">Areas of interest (required)</span>
+                      <textarea className="form-input" rows={4} maxLength={2000} required
+                        value={editingStaff.interests ?? ''}
+                        onChange={(event) => setEditingStaff({ ...editingStaff, interests: event.target.value })} />
+                    </label>
+                  </div>
+                  <div className="modal-actions">
+                    <button type="button" className="btn-secondary" disabled={staffMutation.isPending}
+                      onClick={() => setEditingStaff(null)}>Cancel</button>
+                    <button type="submit" className="btn-primary"
+                      disabled={staffMutation.isPending || !editingStaff.interests?.trim()}>
+                      {staffMutation.isPending ? 'Saving…' : 'Save changes'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
