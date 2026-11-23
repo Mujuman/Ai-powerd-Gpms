@@ -222,7 +222,7 @@ export default function StudentsPage() {
   function graduateStudent(student) {
     const reinstate = student.enrollmentStatus === 'graduated'
     const confirmation = reinstate
-      ? `Reinstate ${student.fullName}? Their enrollment status will return to active and they will be able to log in again.`
+      ? `Reinstate ${student.fullName}? Their previous account and enrollment state will be restored.`
       : `Graduate ${student.fullName}? Their login access will be disabled, and they will remain in the student and project records.`
     if (window.confirm(confirmation)) {
       graduateStudentMutation.mutate({ userId: student.userId, reinstate })

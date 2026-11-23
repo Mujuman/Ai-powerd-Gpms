@@ -69,7 +69,7 @@ export async function updateStudent(connection, userId, student, departmentId) {
     `UPDATE student_profiles
         SET student_id = ?, department_id = ?, program = ?, cohort = ?,
             year_level = ?, gpa = ?, academic_year = ?, semester = ?
-      WHERE user_id = ?`,
+      WHERE sp.user_id = ?`,
     [
       student.studentId,
       departmentId,

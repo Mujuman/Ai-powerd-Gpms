@@ -14,6 +14,8 @@ import {
   permanentlyDeleteStudent,
   reinstateGroupStudents,
   reinstateStudent,
+  snapshotGroupGraduation,
+  snapshotStudentGraduation,
 } from '../src/modules/students/students.repository.js'
 import { findSessionUserById } from '../src/modules/users/users.repository.js'
 
@@ -174,6 +176,23 @@ test('graduating a student disables the account, records graduated status, and r
   assert.deepEqual(statements[3].parameters, ['student-id'])
 })
 
+test('student graduation snapshots preserve the previous account and academic statuses', async () => {
+  const statements = []
+  const connection = {
+    async execute(query, parameters) {
+      statements.push({ query, parameters })
+      return [{ affectedRows: 1 }]
+    },
+  }
+
+  await snapshotStudentGraduation(connection, 'student-id')
+  assert.equal(statements.length, 2)
+  assert.match(statements[0].query, /student_graduation_snapshots/)
+  assert.match(statements[0].query, /u\.is_active, sp\.enrollment_status/)
+  assert.match(statements[1].query, /student_graduation_academic_snapshots/)
+  assert.deepEqual(statements.map(({ parameters }) => parameters), [['student-id'], ['student-id']])
+})
+
 test('deactivated graduated accounts cannot load an authenticated session', async () => {
   let query = ''
   const databasePool = {
@@ -194,7 +213,7 @@ test('deactivated graduated accounts cannot load an authenticated session', asyn
   assert.match(query, /u\.is_active/)
 })
 
-test('reinstating a student restores active status and account access', async () => {
+test('reinstating a student restores the saved account and academic statuses', async () => {
   const statements = []
   const connection = {
     async execute(query, parameters) {
@@ -204,11 +223,15 @@ test('reinstating a student restores active status and account access', async ()
   }
 
   await reinstateStudent(connection, 'student-id')
-  assert.equal(statements.length, 3)
-  assert.match(statements[0].query, /enrollment_status = 'active'/)
-  assert.match(statements[1].query, /UPDATE student_academic_records/)
-  assert.match(statements[2].query, /UPDATE users SET is_active = TRUE/)
+  assert.equal(statements.length, 5)
+  assert.match(statements[0].query, /COALESCE\(snapshot\.enrollment_status, 'active'\)/)
+  assert.match(statements[1].query, /UPDATE student_academic_records sar/)
+  assert.match(statements[2].query, /COALESCE\(snapshot\.was_active, TRUE\)/)
+  assert.match(statements[3].query, /DELETE FROM student_graduation_academic_snapshots/)
+  assert.match(statements[4].query, /DELETE FROM student_graduation_snapshots/)
   assert.deepEqual(statements.map(({ parameters }) => parameters), [
+    ['student-id'],
+    ['student-id'],
     ['student-id'],
     ['student-id'],
     ['student-id'],
@@ -247,7 +270,24 @@ test('group graduation loads current members and blocks their accounts while pre
   ])
 })
 
-test('reinstating a graduated group restores active status and account access for its members', async () => {
+test('group graduation snapshots preserve each member account and academic status', async () => {
+  const statements = []
+  const connection = {
+    async execute(query, parameters) {
+      statements.push({ query, parameters })
+      return [{ affectedRows: 1 }]
+    },
+  }
+
+  await snapshotGroupGraduation(connection, 'group-id')
+  assert.equal(statements.length, 2)
+  assert.match(statements[0].query, /student_graduation_snapshots/)
+  assert.match(statements[0].query, /sp\.enrollment_status <> 'graduated'/)
+  assert.match(statements[1].query, /student_graduation_academic_snapshots/)
+  assert.deepEqual(statements.map(({ parameters }) => parameters), [['group-id'], ['group-id']])
+})
+
+test('reinstating a graduated group restores saved account and academic statuses', async () => {
   const statements = []
   const connection = {
     async execute(query, parameters) {
@@ -257,12 +297,15 @@ test('reinstating a graduated group restores active status and account access fo
   }
 
   await reinstateGroupStudents(connection, 'group-id')
-  assert.equal(statements.length, 3)
-  assert.match(statements[0].query, /enrollment_status = 'active'/)
+  assert.equal(statements.length, 5)
+  assert.match(statements[0].query, /COALESCE\(snapshot\.enrollment_status, 'active'\)/)
   assert.match(statements[1].query, /UPDATE student_academic_records sar/)
-  assert.match(statements[2].query, /UPDATE users u/)
-  assert.match(statements[2].query, /is_active = TRUE/)
+  assert.match(statements[2].query, /COALESCE\(snapshot\.was_active, TRUE\)/)
+  assert.match(statements[3].query, /DELETE snapshot FROM student_graduation_academic_snapshots/)
+  assert.match(statements[4].query, /DELETE snapshot FROM student_graduation_snapshots/)
   assert.deepEqual(statements.map(({ parameters }) => parameters), [
+    ['group-id'],
+    ['group-id'],
     ['group-id'],
     ['group-id'],
     ['group-id'],

@@ -210,6 +210,6 @@ python -m unittest discover -s tests -v
 
 Student imports accept `.xlsx` files up to 5 MB and 2,000 rows. The first worksheet must have `Student ID`, `Full Name`, and `Email` columns; `Program`, `Cohort`/`Batch`, `Year Level`, `GPA`, `Phone`, `Credits`, and `Department` are optional. A matching active student account must already exist for each email. Invalid rows are reported in the preview and the batch cannot be confirmed until a corrected file is uploaded.
 
-Graduating a student marks their enrollment status as graduated, disables the account, and revokes refresh tokens. Group and project records are retained.
+Graduating a student marks their enrollment status as graduated, disables the account, and revokes refresh tokens. The matching reinstate action restores the pre-graduation account and academic statuses; students whose accounts were active can log in again and must sign in to create a new session. Group and project records are retained.
 
 Only the five specified login roles exist: System Administrator, Department Head, Academic Advisor, Examiner, and Student. Academic policy values remain department-configurable. The transformer model's semantic-analysis quality depends on the configured model being available; the local baseline compares lexical overlap and must not be interpreted as a plagiarism decision.

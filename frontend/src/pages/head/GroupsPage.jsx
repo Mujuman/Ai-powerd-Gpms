@@ -169,7 +169,7 @@ export default function GroupsPage() {
       : group.members.filter((member) => member.enrollmentStatus !== 'graduated').length
     if (affectedCount === 0) return
     const confirmed = window.confirm(reinstate
-      ? `Reinstate all ${affectedCount} students in "${group.name}"? Their enrollment status will return to active and they will be able to log in again.`
+      ? `Reinstate all ${affectedCount} students in "${group.name}"? Their previous account and enrollment states will be restored.`
       : `Graduate all ${affectedCount} remaining students in "${group.name}"? Their login access will be disabled, but group and project history will be kept.`)
     if (confirmed) graduateGroupMutation.mutate({ groupId: group.id, reinstate })
   }
