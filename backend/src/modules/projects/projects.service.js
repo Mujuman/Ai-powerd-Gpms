@@ -48,6 +48,48 @@ export function evaluateSubmissionApproval(comparisons) {
   }
 }
 
+async function analyzeProjectSimilarity({ groupId, departmentId, title, description }) {
+  const approvedTitles = await collaborationRepository.listApprovedTitles(pool, departmentId, groupId)
+  if (!approvedTitles.length) {
+    return {
+      modelName: null,
+      notice: 'No other approved projects are available for comparison yet.',
+      comparisons: [],
+    }
+  }
+  const analysis = await analyzeSimilarity(
+    [
+      { id: 'student-proposal', text: `${title}\n${description}` },
+      ...approvedTitles.map(({ id, title: approvedTitle, description: approvedDescription }) => ({
+        id: `approved-${id}`,
+        text: `${approvedTitle}\n${approvedDescription}`,
+      })),
+    ],
+    approvedTitles.map(({ id }) => ({
+      leftId: 'student-proposal',
+      rightId: `approved-${id}`,
+    })),
+  )
+  return {
+    modelName: analysis.modelName,
+    notice: 'Compare the proposal with approved projects. Similarity is advisory and does not determine plagiarism.',
+    comparisons: approvedTitles.map((project) => ({
+      title: project.title,
+      score: analysis.scores.find((score) => score.rightId === `approved-${project.id}`)?.score ?? 0,
+    })).sort((left, right) => right.score - left.score),
+  }
+}
+
+function automaticReviewNote(similarityCheck, approval) {
+  if (approval.automaticallyApproved && !similarityCheck.comparisons.length) {
+    return 'Automatically approved: no approved projects were available for comparison.'
+  }
+  const highest = `${Math.round(approval.highestSimilarity * 100)}%`
+  return approval.automaticallyApproved
+    ? `Automatically approved: highest similarity was ${highest}, at or below the ${approval.threshold * 100}% threshold.`
+    : `Automatic similarity check: highest similarity was ${highest}, above the ${approval.threshold * 100}% threshold; sent to the Department Head for review.`
+}
+
 function cellText(value) {
   if (value === null || value === undefined) return ''
   if (typeof value === 'object') {
@@ -201,45 +243,71 @@ export async function listMyProjects(actor) {
   return repository.listStudentGroups(pool, actor.id)
 }
 
+export async function autoReviewMySubmissions(actor) {
+  if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
+  const projects = await repository.listStudentGroups(pool, actor.id)
+  const reviewed = []
+  for (const project of projects) {
+    if (project.submissionStatus !== 'submitted' || !project.submissionId || project.reviewNote) continue
+    const similarityCheck = await analyzeProjectSimilarity({
+      groupId: project.groupId,
+      departmentId: project.departmentId,
+      title: project.title,
+      description: project.description,
+    })
+    const approval = evaluateSubmissionApproval(similarityCheck.comparisons)
+    const reviewNote = automaticReviewNote(similarityCheck, approval)
+    await withTransaction(pool, async (connection) => {
+      const current = await repository.getLatestSubmission(connection, project.groupId, true)
+      if (current?.id !== project.submissionId || current.status !== 'submitted' || current.reviewNote) return
+      if (approval.automaticallyApproved) {
+        await repository.updateSubmissionReview(
+          connection,
+          current.id,
+          null,
+          'approved',
+          reviewNote,
+        )
+      } else {
+        await repository.updateAutomaticReviewNote(connection, current.id, reviewNote)
+      }
+      await recordAudit(connection, {
+        userId: actor.id,
+        action: approval.automaticallyApproved
+          ? 'project_submissions.auto_approved'
+          : 'project_submissions.auto_review_required',
+        targetType: 'project_submission',
+        targetId: current.id,
+        remoteAddress: actor.remoteAddress,
+        metadata: {
+          groupId: project.groupId,
+          highestSimilarity: approval.highestSimilarity,
+          autoApprovalThreshold: approval.threshold,
+        },
+      })
+      reviewed.push({
+        submissionId: current.id,
+        status: approval.automaticallyApproved ? 'approved' : 'submitted',
+      })
+    })
+  }
+  return { reviewed }
+}
+
 export async function submitProject(data, actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Only students may submit project titles')
   const groupId = data.groupId
   const submissionId = randomUUID()
   const group = await repository.findStudentGroup(pool, groupId, actor.id)
   if (!group) throw new HttpError(404, 'Active project group not found')
-  const approvedTitles = await collaborationRepository.listApprovedTitles(pool, group.departmentId, groupId)
-  const similarityCheck = approvedTitles.length
-    ? await analyzeSimilarity(
-      [
-        { id: 'student-proposal', text: `${data.title}\n${data.description}` },
-        ...approvedTitles.map(({ id, title, description }) => ({
-          id: `approved-${id}`,
-          text: `${title}\n${description}`,
-        })),
-      ],
-      approvedTitles.map(({ id }) => ({
-        leftId: 'student-proposal',
-        rightId: `approved-${id}`,
-      })),
-    ).then((analysis) => ({
-      modelName: analysis.modelName,
-      notice: 'Compare the proposal with approved projects. Similarity is advisory and does not determine plagiarism.',
-      comparisons: approvedTitles.map((project) => ({
-        title: project.title,
-        score: analysis.scores.find((score) => score.rightId === `approved-${project.id}`)?.score ?? 0,
-      })).sort((left, right) => right.score - left.score),
-    }))
-    : {
-      modelName: null,
-      notice: 'No other approved projects are available for comparison yet.',
-      comparisons: [],
-    }
+  const similarityCheck = await analyzeProjectSimilarity({
+    groupId,
+    departmentId: group.departmentId,
+    title: data.title,
+    description: data.description,
+  })
   const approval = evaluateSubmissionApproval(similarityCheck.comparisons)
-  const reviewNote = approval.automaticallyApproved
-    ? similarityCheck.comparisons.length
-      ? `Automatically approved: highest similarity was ${Math.round(approval.highestSimilarity * 100)}%, at or below the ${approval.threshold * 100}% threshold.`
-      : 'Automatically approved: no approved projects were available for comparison.'
-    : null
+  const reviewNote = automaticReviewNote(similarityCheck, approval)
   similarityCheck.autoApproval = {
     automaticallyApproved: approval.automaticallyApproved,
     highestSimilarity: approval.highestSimilarity,
@@ -273,6 +341,8 @@ export async function submitProject(data, actor) {
         'approved',
         reviewNote,
       )
+    } else {
+      await repository.updateAutomaticReviewNote(connection, submissionId, reviewNote)
     }
     await recordAudit(connection, {
       userId: actor.id,

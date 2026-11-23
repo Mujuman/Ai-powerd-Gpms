@@ -55,6 +55,11 @@ export const projectsController = {
       response.json({ success: true, data: await service.listMyProjects(actor(request)) })
     } catch (error) { next(error) }
   },
+  autoReviewMySubmissions: async (request, response, next) => {
+    try {
+      response.json({ success: true, data: await service.autoReviewMySubmissions(actor(request)) })
+    } catch (error) { next(error) }
+  },
   submitProject: async (request, response, next) => {
     try {
       const data = parse(studentSubmissionSchema.extend({ groupId: uuid }).strict(), request.body)

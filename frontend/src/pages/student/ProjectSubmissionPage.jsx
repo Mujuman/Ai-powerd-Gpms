@@ -14,7 +14,10 @@ export default function ProjectSubmissionPage() {
   const [submissionResults, setSubmissionResults] = useState({})
   const projectsQuery = useQuery({
     queryKey: ['student-projects'],
-    queryFn: async () => (await api.get('/projects/mine')).data.data,
+    queryFn: async () => {
+      await api.post('/projects/mine/auto-review')
+      return (await api.get('/projects/mine')).data.data
+    },
   })
   const submitMutation = useMutation({
     mutationFn: async ({ groupId, title, description }) =>
@@ -57,7 +60,9 @@ export default function ProjectSubmissionPage() {
         </div>
         <Link className="btn-secondary" to="/student/project/title-ideas">Get title ideas</Link>
       </div>
-      {projectsQuery.isError && <div className="table-error" role="alert">{message(projectsQuery.error, 'Could not load your project groups')}</div>}
+      {projectsQuery.isError && <div className="table-error" role="alert">
+        {message(projectsQuery.error, 'Could not check proposal similarity or load your project groups')}
+      </div>}
       {submitMutation.error && <div className="table-error" role="alert">{message(submitMutation.error, 'Could not submit the project')}</div>}
       {projectsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
       {projects.map((project) => {
@@ -83,7 +88,9 @@ export default function ProjectSubmissionPage() {
               {project.reviewNote && <p className="project-review-note">
                 <strong>{project.reviewNote.startsWith('Automatically approved:')
                   ? 'Automatic approval'
-                  : 'Department review'}:</strong> {project.reviewNote}
+                  : project.reviewNote.startsWith('Automatic similarity check:')
+                    ? 'Similarity check'
+                    : 'Department review'}:</strong> {project.reviewNote}
               </p>}
             </div>}
             {similarityCheck && (
@@ -127,7 +134,11 @@ export default function ProjectSubmissionPage() {
                 </button>
               </form>
             )}
-            {status === 'submitted' && <p className="muted-copy">Your proposal is awaiting Department Head review.</p>}
+            {status === 'submitted' && <p className="muted-copy">
+              {project.reviewNote?.startsWith('Automatic similarity check:')
+                ? project.reviewNote
+                : 'Your proposal is awaiting Department Head review.'}
+            </p>}
             {status === 'approved' && <p className="muted-copy">
               {project.reviewNote?.startsWith('Automatically approved:')
                 ? 'Your proposal was automatically approved because it is not sufficiently similar to approved projects.'

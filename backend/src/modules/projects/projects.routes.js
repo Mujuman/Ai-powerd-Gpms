@@ -47,6 +47,7 @@ projectsRoutes.get('/assessments', departmentHead, projectsController.listAssess
 projectsRoutes.get('/reports', departmentHead, projectsController.getDepartmentReport)
 
 // Student project submission
+projectsRoutes.post('/mine/auto-review', requireRoles('student'), projectsController.autoReviewMySubmissions)
 projectsRoutes.get('/mine', requireRoles('student'), projectsController.listMyProjects)
 projectsRoutes.post('/mine', requireRoles('student'), projectsController.submitProject)
 projectsRoutes.get('/mine/defenses', requireRoles('student'), projectsController.listStudentDefenses)
