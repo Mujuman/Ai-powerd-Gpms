@@ -81,6 +81,12 @@ async function authorizeGroup(groupId, actor, connection = pool) {
     }
     return group
   }
+  if (actor.role === 'examiner') {
+    if (!await repository.isAssignedExaminer(connection, groupId, actor.id)) {
+      throw new HttpError(404, 'Assigned defense group not found')
+    }
+    return group
+  }
   throw new HttpError(403, 'Student or assigned advisor access is required')
 }
 
@@ -197,6 +203,7 @@ export async function uploadDocument(groupId, documentType, file, actor) {
     sizeBytes: file.size,
     storageKey: randomUUID(),
     uploadedBy: actor.id,
+    reviewStatus: documentType === 'defense_correction' ? 'pending' : null,
   }
   const storedPath = path.resolve(DOCUMENT_ROOT, document.storageKey)
 
@@ -273,6 +280,38 @@ export async function uploadDocument(groupId, documentType, file, actor) {
     mimeType: saved.mimeType,
     sizeBytes: saved.sizeBytes,
     uploadedAt: saved.uploadedAt,
+    reviewStatus: saved.reviewStatus,
+  }
+}
+
+export async function reviewCorrection(documentId, decision, note, actor) {
+  if (actor.role !== 'examiner') throw new HttpError(403, 'Examiner access is required')
+  await withTransaction(pool, async (connection) => {
+    const document = await repository.findDocument(connection, documentId)
+    if (!document || document.documentType !== 'defense_correction') {
+      throw new HttpError(404, 'Defense correction document not found')
+    }
+    await authorizeGroup(document.groupId, actor, connection)
+    await repository.updateCorrectionReview(connection, documentId, {
+      decision,
+      note,
+      reviewerUserId: actor.id,
+    })
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: `defense_correction.${decision}`,
+      targetType: 'project_document',
+      targetId: documentId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { groupId: document.groupId, note },
+    })
+  })
+  const saved = await repository.findDocument(pool, documentId)
+  return {
+    id: saved.id,
+    reviewStatus: saved.reviewStatus,
+    reviewNote: saved.reviewNote,
+    reviewedAt: saved.reviewedAt,
   }
 }
 

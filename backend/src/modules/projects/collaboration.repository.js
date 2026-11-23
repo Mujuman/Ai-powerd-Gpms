@@ -134,10 +134,11 @@ export async function createDocument(connection, document) {
   await connection.execute(
     `INSERT INTO project_documents
        (id, group_id, document_type, original_filename, mime_type,
-        size_bytes, storage_key, uploaded_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        size_bytes, storage_key, uploaded_by, review_status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [document.id, document.groupId, document.documentType, document.originalFilename,
-      document.mimeType, document.sizeBytes, document.storageKey, document.uploadedBy],
+      document.mimeType, document.sizeBytes, document.storageKey, document.uploadedBy,
+      document.reviewStatus],
   )
 }
 
@@ -174,7 +175,9 @@ export async function findDocument(connection, documentId) {
     `SELECT id, group_id AS groupId, document_type AS documentType,
             original_filename AS fileName, mime_type AS mimeType,
             size_bytes AS sizeBytes, storage_key AS storageKey,
-            uploaded_by AS uploadedBy, uploaded_at AS uploadedAt
+            uploaded_by AS uploadedBy, uploaded_at AS uploadedAt,
+            review_status AS reviewStatus, review_note AS reviewNote,
+            reviewed_by AS reviewedBy, reviewed_at AS reviewedAt
        FROM project_documents
       WHERE id = ?
       LIMIT 1`,
@@ -183,7 +186,7 @@ export async function findDocument(connection, documentId) {
   return rows[0] ?? null
 }
 
-export async function listStudentDefenseSchedules(connection, groupIds) {
+export async function listStudentDefenseSchedules(connection, groupIds, studentUserId) {
   if (!groupIds.length) return []
   const placeholders = groupIds.map(() => '?').join(', ')
   const [schedules] = await connection.execute(
@@ -233,6 +236,9 @@ export async function listStudentDefenseSchedules(connection, groupIds) {
   return schedules.map((schedule) => ({
     ...schedule,
     examiners: examinersBySchedule.get(schedule.id),
-    results: resultsBySchedule.get(schedule.id),
+    results: resultsBySchedule.get(schedule.id).map((result) => ({
+      ...result,
+      studentGrades: result.studentGrades.filter((grade) => grade.studentUserId === studentUserId),
+    })),
   }))
 }
