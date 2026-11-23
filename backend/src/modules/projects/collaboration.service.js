@@ -114,7 +114,6 @@ export async function recommendTitles(groupId, preferences, actor) {
         preferences.tools,
         preferences.problem,
         preferences.targetUsers,
-        preferences.desiredOutcome,
       ].filter(Boolean).join('\n').slice(0, 10000),
     },
     ...uniqueDrafts.map(({ id, title }) => ({ id, text: title })),

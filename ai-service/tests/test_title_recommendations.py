@@ -20,8 +20,6 @@ class FakeTokenizer:
             raise AssertionError("The specific problem was not included in the generation prompt")
         if "Target users or beneficiaries: smallholder farmers" not in prompt:
             raise AssertionError("Target users were not included in the generation prompt")
-        if "Expected outcome or key features: disease identification" not in prompt:
-            raise AssertionError("The expected outcome was not included in the generation prompt")
         if kwargs != {"return_tensors": "pt", "truncation": True, "max_length": 512}:
             raise AssertionError("Unexpected tokenizer options")
         return {"input_ids": [1]}
@@ -73,7 +71,6 @@ class TitleRecommendationTests(unittest.TestCase):
             tools="Python and scikit-learn",
             problem="crop disease",
             targetUsers="smallholder farmers",
-            desiredOutcome="disease identification",
         )
         with (
             patch.dict(os.environ, {"AI_SERVICE_TOKEN": "expected"}),

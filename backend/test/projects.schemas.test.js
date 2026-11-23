@@ -109,7 +109,6 @@ test('student collaboration requests validate title ideas, messages, and documen
     tools: 'Python and mobile apps',
     problem: 'Students have difficulty finding available buses.',
     targetUsers: 'Students and campus transport staff',
-    desiredOutcome: 'Provide live bus locations and arrival estimates.',
   })
   assert.equal(detailedPreferences.targetUsers, 'Students and campus transport staff')
   assert.equal(titleRecommendationSchema.safeParse({

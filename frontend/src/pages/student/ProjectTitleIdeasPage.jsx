@@ -16,7 +16,6 @@ export default function ProjectTitleIdeasPage() {
     tools: '',
     problem: '',
     targetUsers: '',
-    desiredOutcome: '',
   })
   const [recommendations, setRecommendations] = useState(null)
   const projectsQuery = useQuery({
@@ -121,13 +120,6 @@ export default function ProjectTitleIdeasPage() {
                 label: 'Target users or beneficiaries (optional)',
                 description: 'Who is expected to use or benefit from the project?',
                 placeholder: 'e.g. Smallholder farmers and agricultural extension workers',
-                required: false,
-              },
-              {
-                field: 'desiredOutcome',
-                label: 'Expected outcome or key features (optional)',
-                description: 'Describe what the completed project should help users do.',
-                placeholder: 'e.g. Upload a crop photo and receive disease identification and advice',
                 required: false,
               },
             ].map(({ field, label, description, placeholder, required }) => (

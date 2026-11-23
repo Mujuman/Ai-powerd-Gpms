@@ -46,7 +46,6 @@ class TitleRecommendationRequest(BaseModel):
     tools: str = Field(min_length=2, max_length=2000)
     problem: str = Field(default="", max_length=2000)
     target_users: str = Field(default="", alias="targetUsers", max_length=2000)
-    desired_outcome: str = Field(default="", alias="desiredOutcome", max_length=2000)
 
 
 @lru_cache(maxsize=1)
@@ -165,7 +164,7 @@ def title_recommendations(
     prompt = (
         "Generate five distinct, academically suitable undergraduate graduation project titles. "
         "Use the student's interests, application area, and available tools. "
-        "Use the optional problem, users, and outcome details when provided. "
+        "Use the optional problem and target-user details when provided. "
         "Make each title specific, feasible, and clearly related to the application area. "
         "Do not copy an existing project title. Return only a numbered list with one title per line.\n"
         f"Student interests: {request.interest}\n"
@@ -173,7 +172,6 @@ def title_recommendations(
         f"Available tools and technologies: {request.tools}\n"
         f"Specific problem to solve: {request.problem or 'Not specified'}\n"
         f"Target users or beneficiaries: {request.target_users or 'Not specified'}\n"
-        f"Expected outcome or key features: {request.desired_outcome or 'Not specified'}\n"
         "Titles:"
     )
     try:
