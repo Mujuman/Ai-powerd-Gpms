@@ -234,7 +234,7 @@ export default function ProjectsPage() {
             </div>
           </Section>
 
-          <Section id="advisor-assignments" title="Advisor assignments" description="Assign approved projects to advisors or let the system match by specialization and capacity.">
+          <Section id="advisor-assignments" title="Advisor assignments" description="Assign approved projects to advisors or let the system match by their interests and specialization.">
             <div className="action-row">
               <button className="btn-primary" disabled={mutation.isPending || advisors.length === 0}
                 onClick={() => mutation.mutate({ action: 'assign-advisors-ai' })}>AI assign unassigned projects</button>
@@ -254,7 +254,7 @@ export default function ProjectsPage() {
                         onChange={(event) => setAdvisorSelections({ ...advisorSelections, [group.id]: event.target.value })}>
                         <option value="">Choose advisor</option>
                         {advisors.map((advisor) => <option key={advisor.id} value={advisor.id}>
-                          {advisor.fullName} ({advisor.activeWorkload}/{advisor.maxGroups} groups)
+                          {advisor.fullName} ({advisor.activeWorkload} assigned groups)
                         </option>)}
                       </select>
                       <button className="btn-secondary" disabled={!advisorSelections[group.id] || mutation.isPending}

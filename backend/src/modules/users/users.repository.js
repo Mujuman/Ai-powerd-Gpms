@@ -215,7 +215,7 @@ export async function findUserById(databasePool, userId) {
     profile = profRows[0] ?? null
   } else if (user.role === 'academic_advisor') {
     const [profRows] = await databasePool.execute(
-      `SELECT ap.title, ap.specialization, ap.max_groups
+      `SELECT ap.title, ap.specialization, ap.interests
          FROM advisor_profiles ap
         WHERE ap.user_id = ?
         LIMIT 1`,
@@ -224,7 +224,7 @@ export async function findUserById(databasePool, userId) {
     profile = profRows[0] ?? null
   } else if (user.role === 'examiner') {
     const [profRows] = await databasePool.execute(
-      `SELECT ep.title, ep.specialization
+      `SELECT ep.title, ep.specialization, ep.interests
          FROM examiner_profiles ep
         WHERE ep.user_id = ?
         LIMIT 1`,
@@ -345,7 +345,7 @@ export async function upsertAdvisorProfile(connection, userId, profile) {
   const fieldMap = {
     title: 'title',
     specialization: 'specialization',
-    maxGroups: 'max_groups',
+    interests: 'interests',
   }
 
   for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
@@ -380,6 +380,7 @@ export async function upsertExaminerProfile(connection, userId, profile) {
   const fieldMap = {
     title: 'title',
     specialization: 'specialization',
+    interests: 'interests',
   }
 
   for (const [jsKey, dbCol] of Object.entries(fieldMap)) {

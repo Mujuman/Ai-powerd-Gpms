@@ -49,6 +49,17 @@ test('department-created staff accounts are limited to the supported roles and p
   assert.equal(createStaffSchema.safeParse(valid).success, true)
   assert.equal(createStaffSchema.safeParse({ ...valid, role: 'system_administrator' }).success, false)
   assert.equal(createStaffSchema.safeParse({ ...valid, password: 'short' }).success, false)
+  assert.equal(createStaffSchema.safeParse({ ...valid, maxGroups: 5 }).success, false)
+
+  const optionalProfile = createStaffSchema.parse({
+    ...valid,
+    email: '  Advisor@Example.edu ',
+    interests: 'Distributed systems, accessibility',
+  })
+  assert.equal(optionalProfile.email, 'advisor@example.edu')
+  assert.equal(optionalProfile.title, '')
+  assert.equal(optionalProfile.specialization, '')
+  assert.equal(optionalProfile.interests, 'Distributed systems, accessibility')
 })
 
 test('advisor assignment and defense scheduling require valid IDs and timezone-aware dates', () => {

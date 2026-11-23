@@ -30,9 +30,11 @@ const STAFF_HEADER_ALIASES = new Map([
   ['staffrole', 'role'],
   ['title', 'title'],
   ['specialization', 'specialization'],
-  ['maxgroups', 'maxGroups'],
-  ['maximumgroups', 'maxGroups'],
-  ['maxactivegroups', 'maxGroups'],
+  ['interest', 'interests'],
+  ['interests', 'interests'],
+  ['instructorinterest', 'interests'],
+  ['instructorinterests', 'interests'],
+  ['areasofinterest', 'interests'],
 ])
 
 function cellText(value) {
@@ -139,12 +141,6 @@ export async function parseStaffWorkbook(buffer) {
     if (role === 'advisor' || role === 'academicadvisor') row.role = 'academic_advisor'
     else if (role === 'examiner') row.role = 'examiner'
 
-    if (row.maxGroups !== undefined && row.maxGroups !== '') {
-      const maxGroups = Number(row.maxGroups)
-      row.maxGroups = Number.isFinite(maxGroups) ? maxGroups : row.maxGroups
-    } else {
-      delete row.maxGroups
-    }
     rows.push(row)
   }
   if (!rows.length) throw new HttpError(400, 'The workbook must contain at least one staff row')
@@ -163,12 +159,13 @@ async function insertDepartmentStaff(connection, { id, data, departmentId, passw
     await upsertAdvisorProfile(connection, id, {
       title: data.title || null,
       specialization: data.specialization || null,
-      maxGroups: data.maxGroups,
+      interests: data.interests || null,
     })
   } else {
     await upsertExaminerProfile(connection, id, {
       title: data.title || null,
       specialization: data.specialization || null,
+      interests: data.interests || null,
     })
   }
   await setUserDepartments(connection, id, [departmentId], actor.id)
@@ -384,9 +381,8 @@ export async function updateStaff(userId, changes, actor) {
     for (const [field, column] of Object.entries({
       title: 'title',
       specialization: 'specialization',
-      maxGroups: 'max_groups',
+      interests: 'interests',
     })) {
-      if (changes.role === 'examiner' && field === 'maxGroups') continue
       if (changes[field] !== undefined) {
         profileUpdates.push(`${column} = ?`)
         profileParams.push(changes[field] || null)
@@ -474,21 +470,13 @@ export async function assignAdvisor(groupId, advisorUserId, filters, actor, meth
     )
     if (!advisor?.isActive) throw new HttpError(400, 'Select an active advisor assigned to this department')
     const [profileRows] = await connection.execute(
-      'SELECT max_groups AS maxGroups FROM advisor_profiles WHERE user_id = ? FOR UPDATE',
+      'SELECT user_id FROM advisor_profiles WHERE user_id = ? FOR UPDATE',
       [advisorUserId],
     )
     if (!profileRows[0]) throw new HttpError(400, 'Advisor profile is not configured')
-    const [workloadRows] = await connection.execute(
-      `SELECT COUNT(*) AS workload FROM project_advisor_assignments
-        WHERE advisor_user_id = ? AND is_active = TRUE`,
-      [advisorUserId],
-    )
     const current = await repository.currentAdvisorAssignment(connection, groupId, true)
     if (current?.advisorUserId === advisorUserId) {
       throw new HttpError(409, 'This advisor is already assigned to the project')
-    }
-    if (Number(workloadRows[0].workload) >= Number(profileRows[0].maxGroups)) {
-      throw new HttpError(409, 'The selected advisor has reached their active project capacity')
     }
     if (current) await repository.endAdvisorAssignment(connection, current.id)
     await repository.createAdvisorAssignment(connection, {
@@ -516,21 +504,21 @@ export async function assignAdvisorsWithAi(filters, actor) {
     repository.listUnassignedApprovedProjects(pool, departmentId),
     repository.listAdvisorCandidates(pool, departmentId),
   ])
-  const eligible = advisors.filter((advisor) => Number(advisor.activeWorkload) < Number(advisor.maxGroups))
   if (!projects.length) return { assigned: [], unassigned: [], modelName: null }
-  if (!eligible.length) throw new HttpError(409, 'Add an active advisor with available project capacity first')
+  if (!advisors.length) throw new HttpError(409, 'Add an active advisor to this department first')
 
   const items = [
     ...projects.map((project) => ({
       id: `project:${project.groupId}`,
       text: `${project.title}\n${project.description}`,
     })),
-    ...eligible.map((advisor) => ({
+    ...advisors.map((advisor) => ({
       id: `advisor:${advisor.userId}`,
-      text: `${advisor.title} ${advisor.specialization}`.trim() || 'Academic project supervision',
+      text: `${advisor.title} ${advisor.specialization} ${advisor.interests}`.trim()
+        || 'Academic project supervision',
     })),
   ]
-  const pairs = projects.flatMap((project) => eligible.map((advisor) => ({
+  const pairs = projects.flatMap((project) => advisors.map((advisor) => ({
     leftId: `project:${project.groupId}`,
     rightId: `advisor:${advisor.userId}`,
   })))
@@ -549,7 +537,6 @@ export async function assignAdvisorsWithAi(filters, actor) {
       const current = await repository.currentAdvisorAssignment(connection, project.groupId, true)
       if (current) continue
       const candidates = currentAdvisors
-        .filter((advisor) => Number(advisor.activeWorkload) < Number(advisor.maxGroups))
         .sort((left, right) => {
           const leftScore = scoreByPair.get(`project:${project.groupId}|advisor:${left.userId}`) ?? -1
           const rightScore = scoreByPair.get(`project:${project.groupId}|advisor:${right.userId}`) ?? -1
@@ -559,7 +546,7 @@ export async function assignAdvisorsWithAi(filters, actor) {
         })
       const selected = candidates[0]
       if (!selected) {
-        unassigned.push({ groupId: project.groupId, title: project.title, reason: 'All advisor capacities are full' })
+        unassigned.push({ groupId: project.groupId, title: project.title, reason: 'No active advisor is available' })
         continue
       }
       const assignmentId = randomUUID()
@@ -795,7 +782,8 @@ export async function assignExaminerWithAi(scheduleId, filters, actor) {
     { id: 'project', text: `${project.title}\n${project.description}` },
     ...candidates.map((candidate) => ({
       id: candidate.userId,
-      text: `${candidate.title} ${candidate.specialization}`.trim() || 'Graduation project examiner',
+      text: `${candidate.title} ${candidate.specialization} ${candidate.interests}`.trim()
+        || 'Graduation project examiner',
     })),
   ]
   const analysis = await analyzeSimilarity(

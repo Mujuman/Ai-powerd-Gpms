@@ -234,8 +234,8 @@ export async function listDepartmentStaff(connection, departmentId, role) {
     ? 'LEFT JOIN advisor_profiles ap ON ap.user_id = u.id'
     : 'LEFT JOIN examiner_profiles ep ON ep.user_id = u.id'
   const profileFields = role === 'academic_advisor'
-    ? 'ap.title, ap.specialization, ap.max_groups AS maxGroups'
-    : 'ep.title, ep.specialization, NULL AS maxGroups'
+    ? 'ap.title, ap.specialization, ap.interests'
+    : 'ep.title, ep.specialization, ep.interests'
   const workload = role === 'academic_advisor'
     ? `(SELECT COUNT(*) FROM project_advisor_assignments aa
          WHERE aa.advisor_user_id = u.id AND aa.is_active = TRUE)`
@@ -306,7 +306,7 @@ export async function listAdvisorCandidates(connection, departmentId) {
     `SELECT u.id AS userId, u.full_name AS fullName,
             COALESCE(ap.specialization, '') AS specialization,
             COALESCE(ap.title, '') AS title,
-            ap.max_groups AS maxGroups,
+            COALESCE(ap.interests, '') AS interests,
             (SELECT COUNT(*) FROM project_advisor_assignments aa
               WHERE aa.advisor_user_id = u.id AND aa.is_active = TRUE) AS activeWorkload
        FROM user_department_assignments uda
@@ -499,6 +499,7 @@ export async function listExaminerCandidates(connection, departmentId) {
     `SELECT u.id AS userId, u.full_name AS fullName,
             COALESCE(ep.specialization, '') AS specialization,
             COALESCE(ep.title, '') AS title,
+            COALESCE(ep.interests, '') AS interests,
             (SELECT COUNT(*) FROM defense_schedule_examiners de
               JOIN defense_schedules ds ON ds.id = de.schedule_id
               WHERE de.examiner_user_id = u.id AND de.is_active = TRUE AND ds.status = 'scheduled') AS activeWorkload

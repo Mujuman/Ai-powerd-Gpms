@@ -10,7 +10,7 @@ const EMPTY_FORM = {
   role: 'academic_advisor',
   title: '',
   specialization: '',
-  maxGroups: '5',
+  interests: '',
 }
 
 function ErrorNotice({ error, fallback }) {
@@ -64,7 +64,6 @@ export default function StaffPage() {
         return (await api.post('/projects/staff', {
           ...values,
           departmentId,
-          maxGroups: Number(values.maxGroups),
         })).data.data
       }
       if (action === 'update' || action === 'active') {
@@ -124,9 +123,7 @@ export default function StaffPage() {
         fullName: editingStaff.fullName,
         title: editingStaff.title || null,
         specialization: editingStaff.specialization || null,
-        ...(member.role === 'academic_advisor'
-          ? { maxGroups: Number(editingStaff.maxGroups) }
-          : {}),
+        interests: editingStaff.interests || null,
       },
     })
   }
@@ -196,7 +193,7 @@ export default function StaffPage() {
             <p className="muted-copy">
               Import up to 100 staff members from .xls, .xlsx, .xlsm, or .xlsb files.
               Required columns: <strong>fullName, email, password, role</strong>.
-              Optional columns: <strong>title, specialization, maxGroups</strong>.
+              Optional columns: <strong>title, specialization, interests</strong>.
               Role values: <strong>advisor</strong>, <strong>academic_advisor</strong>, or <strong>examiner</strong>.
               The workbook is validated before any accounts are created.
             </p>
@@ -253,22 +250,20 @@ export default function StaffPage() {
                     onChange={(event) => setForm({ ...form, password: event.target.value })} />
                 </label>
                 <label className="form-field">
-                  <span className="form-label">Title</span>
+                  <span className="form-label">Title (optional)</span>
                   <input className="form-input" maxLength={60} value={form.title}
                     onChange={(event) => setForm({ ...form, title: event.target.value })} />
                 </label>
                 <label className="form-field">
-                  <span className="form-label">Specialization</span>
-                  <input className="form-input" maxLength={160} value={form.specialization}
+                  <span className="form-label">Specialization (optional)</span>
+                  <textarea className="form-input" rows={3} maxLength={160} value={form.specialization}
                     onChange={(event) => setForm({ ...form, specialization: event.target.value })} />
                 </label>
-                {form.role === 'academic_advisor' && (
-                  <label className="form-field">
-                    <span className="form-label">Maximum active groups</span>
-                    <input className="form-input" type="number" min={0} max={255} required value={form.maxGroups}
-                      onChange={(event) => setForm({ ...form, maxGroups: event.target.value })} />
-                  </label>
-                )}
+                <label className="form-field">
+                  <span className="form-label">Areas of interest (optional)</span>
+                  <textarea className="form-input" rows={3} maxLength={2000} value={form.interests}
+                    onChange={(event) => setForm({ ...form, interests: event.target.value })} />
+                </label>
               </div>
               <button className="btn-primary" disabled={staffMutation.isPending}>
                 {staffMutation.isPending ? 'Creating…' : `Create ${form.role === 'examiner' ? 'examiner' : 'advisor'}`}
@@ -285,8 +280,8 @@ export default function StaffPage() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Staff member</th><th>Role</th><th>Title and specialization</th>
-                      <th>Active workload</th><th>Account</th><th>Actions</th>
+                      <th>Staff member</th><th>Role</th><th>Title, specialization and interests</th>
+                      <th>Assigned groups</th><th>Account</th><th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -300,20 +295,26 @@ export default function StaffPage() {
                         <td>{member.role === 'academic_advisor' ? 'Advisor' : 'Examiner'}</td>
                         <td>{editingStaff?.id === member.id ? (
                           <div className="head-review-actions">
-                            <input className="form-input" aria-label="Staff title" placeholder="Title"
+                            <input className="form-input" aria-label="Staff title" placeholder="Title (optional)"
                               value={editingStaff.title ?? ''}
                               onChange={(event) => setEditingStaff({ ...editingStaff, title: event.target.value })} />
-                            <input className="form-input" aria-label="Staff specialization" placeholder="Specialization"
+                            <textarea className="form-input" aria-label="Staff specialization"
+                              placeholder="Specialization (optional)" rows={2} maxLength={160}
                               value={editingStaff.specialization ?? ''}
                               onChange={(event) => setEditingStaff({ ...editingStaff, specialization: event.target.value })} />
-                            {member.role === 'academic_advisor' && (
-                              <input className="form-input" aria-label="Maximum groups" type="number" min={0} max={255}
-                                value={editingStaff.maxGroups ?? 0}
-                                onChange={(event) => setEditingStaff({ ...editingStaff, maxGroups: Number(event.target.value) })} />
-                            )}
+                            <textarea className="form-input" aria-label="Staff areas of interest"
+                              placeholder="Areas of interest (optional)" rows={2} maxLength={2000}
+                              value={editingStaff.interests ?? ''}
+                              onChange={(event) => setEditingStaff({ ...editingStaff, interests: event.target.value })} />
                           </div>
-                        ) : <>{member.title || '—'}{member.specialization ? ` · ${member.specialization}` : ''}</>}</td>
-                        <td>{member.activeWorkload}{member.maxGroups != null ? ` / ${member.maxGroups}` : ''}</td>
+                        ) : (
+                          <>
+                            <div>{member.title || '—'}</div>
+                            {member.specialization && <div className="muted-copy">{member.specialization}</div>}
+                            {member.interests && <div className="muted-copy">Interests: {member.interests}</div>}
+                          </>
+                        )}</td>
+                        <td>{member.activeWorkload}</td>
                         <td>
                           <span className={member.isActive ? 'status-active' : 'status-inactive'}>
                             {member.isActive ? 'Active' : 'Inactive'}

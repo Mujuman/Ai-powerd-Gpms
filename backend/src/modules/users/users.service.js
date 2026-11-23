@@ -27,37 +27,43 @@ export async function createUser(data, requestInfo = {}) {
   const passwordHash = await bcrypt.hash(data.password, PASSWORD_HASH_ROUNDS)
   const userId = randomUUID()
 
-  const user = await withTransaction(pool, async (connection) => {
-    await repoCreateUser(connection, {
-      id: userId,
-      email: data.email,
-      fullName: data.fullName,
-      passwordHash,
-      role: data.role,
-    })
+  try {
+    const user = await withTransaction(pool, async (connection) => {
+      await repoCreateUser(connection, {
+        id: userId,
+        email: data.email,
+        fullName: data.fullName,
+        passwordHash,
+        role: data.role,
+      })
 
-    if (data.departmentIds && data.departmentIds.length > 0) {
-      await repoSetUserDepartments(
-        connection,
-        userId,
-        data.departmentIds,
-        requestInfo.actorId ?? null,
-      )
+      if (data.departmentIds && data.departmentIds.length > 0) {
+        await repoSetUserDepartments(
+          connection,
+          userId,
+          data.departmentIds,
+          requestInfo.actorId ?? null,
+        )
+      }
+
+      await recordAudit(connection, {
+        userId: requestInfo.actorId ?? null,
+        action: 'users.create',
+        targetType: 'user',
+        targetId: userId,
+        remoteAddress: requestInfo.remoteAddress ?? null,
+        metadata: { email: data.email, role: data.role },
+      })
+
+      return repoFindUserById(connection, userId)
+    })
+    return user
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      throw new HttpError(409, 'An account already uses this email address')
     }
-
-    await recordAudit(connection, {
-      userId: requestInfo.actorId ?? null,
-      action: 'users.create',
-      targetType: 'user',
-      targetId: userId,
-      remoteAddress: requestInfo.remoteAddress ?? null,
-      metadata: { email: data.email, role: data.role },
-    })
-
-    return repoFindUserById(connection, userId)
-  })
-
-  return user
+    throw error
+  }
 }
 
 /**

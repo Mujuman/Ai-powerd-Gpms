@@ -38,7 +38,7 @@ const staffFields = {
   role: z.enum(['academic_advisor', 'examiner']),
   title: z.string().trim().max(60).optional().default(''),
   specialization: z.string().trim().max(160).optional().default(''),
-  maxGroups: z.number().int().min(0).max(255).optional().default(5),
+  interests: z.string().trim().max(2000).optional().default(''),
 }
 
 export const createStaffSchema = z.object(staffFields).strict()
@@ -48,7 +48,7 @@ export const updateStaffSchema = z.object({
   isActive: z.boolean().optional(),
   title: z.string().trim().max(60).nullable().optional(),
   specialization: z.string().trim().max(160).nullable().optional(),
-  maxGroups: z.number().int().min(0).max(255).optional(),
+  interests: z.string().trim().max(2000).nullable().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, 'At least one field is required')
 
 export const assignAdvisorSchema = z.object({

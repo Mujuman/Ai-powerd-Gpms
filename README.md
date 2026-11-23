@@ -6,7 +6,7 @@ AI-Powered Graduation Project Management System for university graduation-projec
 
 The current implementation includes five seeded roles, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, academic calendars, student registration and spreadsheet import, configurable eligibility rules and history, and department-scoped project groups. The Department Head project lifecycle includes student proposal submission and approval, similarity analysis, advisor/examiner management and matching, defense scheduling, examiner assessments, and department progress reports. Student project pages support editable local keyword-template title drafts, advisor messaging, private PDF/DOCX uploads, defense-correction uploads after a revision request, and viewing schedules and examiner outcomes. The AI service provides sentence-embedding similarity when configured; without it, the API explicitly labels and uses a local TF-IDF lexical baseline.
 
-Project documents are stored outside the public web root in `backend\storage\project-documents` by default. Keep that folder private and backed up as needed; `PROJECT_DOCUMENT_ROOT` can point to another private local directory. Run `npm --prefix backend run db:migrate` after updating to create the collaboration tables. Title drafts are deterministic templates, not generative AI, and similarity scores are advisory rather than automatic originality decisions.
+Project documents are stored outside the public web root in `backend\storage\project-documents` by default. Keep that folder private and backed up as needed; `PROJECT_DOCUMENT_ROOT` can point to another private local directory. Run `npm --prefix backend run db:migrate` after updating to create the collaboration tables and staff-interest columns. Title drafts are deterministic templates, not generative AI, and similarity scores are advisory rather than automatic originality decisions.
 
 ## Technology and local requirements
 
@@ -199,7 +199,7 @@ python -m unittest discover -s tests -v
 - `POST /api/students/:userId/graduate` and `POST /api/students/groups/:groupId/graduate` to graduate individual students or all current members of a group and revoke their login access; corresponding `/reinstate` routes restore active status and login access
 - `/api/projects/mine` for student proposal submission and review status
 - `/api/projects/submissions` and `/api/projects/submissions/:submissionId/review` for Head review
-- `/api/projects/staff` for Department Head advisor/examiner account management
+- `/api/projects/staff` for Department Head advisor/examiner account management; staff profiles support optional title, specialization, and interests, and advisor assignments have no active-group cap
 - `/api/projects/advisors/assign-ai` and `/api/projects/groups/:groupId/advisor` for advisor recommendations and reassignment
 - `/api/projects/similarity` for department-scoped project title/description comparisons
 - `/api/projects/defenses` and `/api/projects/defenses/:scheduleId/examiners` for defense scheduling and examiner assignment
