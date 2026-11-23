@@ -41,11 +41,13 @@ class SimilarityRequest(BaseModel):
 
 
 class TitleRecommendationRequest(BaseModel):
-    interest: str = Field(min_length=2, max_length=2000)
-    area: str = Field(min_length=2, max_length=2000)
-    tools: str = Field(min_length=2, max_length=2000)
-    problem: str = Field(default="", max_length=2000)
-    target_users: str = Field(default="", alias="targetUsers", max_length=2000)
+    project_idea: str = Field(alias="projectIdea", min_length=2, max_length=1000)
+    problem_statement: str = Field(alias="problemStatement", min_length=2, max_length=3000)
+    general_objective: str = Field(alias="generalObjective", min_length=2, max_length=1000)
+    specific_objectives: str = Field(alias="specificObjectives", min_length=2, max_length=3000)
+    project_description: str = Field(alias="projectDescription", min_length=2, max_length=5000)
+    technologies: str = Field(min_length=2, max_length=1000)
+    domain: str = Field(min_length=2, max_length=1000)
 
 
 @lru_cache(maxsize=1)
@@ -162,17 +164,22 @@ def title_recommendations(
 
     model_name, tokenizer, model = load_title_generation_model()
     prompt = (
-        "Generate five distinct, academically suitable undergraduate graduation project titles. "
-        "Use the student's interests, application area, and available tools. "
-        "Use the optional problem and target-user details when provided. "
-        "Make each title specific, feasible, and clearly related to the application area. "
-        "Do not copy an existing project title. Return only a numbered list with one title per line.\n"
-        f"Student interests: {request.interest}\n"
-        f"Application area: {request.area}\n"
-        f"Available tools and technologies: {request.tools}\n"
-        f"Specific problem to solve: {request.problem or 'Not specified'}\n"
-        f"Target users or beneficiaries: {request.target_users or 'Not specified'}\n"
-        "Titles:"
+        "You are an academic graduation project title recommendation assistant. "
+        "Analyze all the following student project information:\n"
+        f"Project Idea: {request.project_idea}\n"
+        f"Problem Statement: {request.problem_statement}\n"
+        f"General Objective: {request.general_objective}\n"
+        f"Specific Objectives: {request.specific_objectives}\n"
+        f"Project Description: {request.project_description}\n"
+        f"Proposed Technologies: {request.technologies}\n"
+        f"Project Domain: {request.domain}\n"
+        "Generate five clear, specific, professional graduation project titles.\n"
+        "Requirements:\n"
+        "1. Reflect the actual project idea.\n"
+        "2. Avoid unnecessarily complicated words.\n"
+        "3. Do not introduce features not mentioned by the student.\n"
+        "4. Do not change the original project scope.\n"
+        "5. Return only five suggested titles, one title per line."
     )
     try:
         model_inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
@@ -188,6 +195,6 @@ def title_recommendations(
         raise HTTPException(status_code=503, detail="The local title-generation model could not generate suggestions") from error
 
     suggestions = parse_generated_titles(text)
-    if not suggestions:
-        raise HTTPException(status_code=502, detail="The local title-generation model returned no valid project titles")
+    if len(suggestions) != 5:
+        raise HTTPException(status_code=502, detail="The local title-generation model did not return five distinct valid project titles")
     return {"modelName": model_name, "suggestions": suggestions}

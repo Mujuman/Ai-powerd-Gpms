@@ -136,8 +136,7 @@ export async function generateProjectTitles(preferences) {
   }
   if (typeof result?.modelName !== 'string'
     || !Array.isArray(result.suggestions)
-    || result.suggestions.length < 1
-    || result.suggestions.length > 5
+    || result.suggestions.length !== 5
     || result.suggestions.some((title) => (
       typeof title !== 'string' || title.trim().length < 8 || title.trim().length > 240
     ))) {

@@ -14,12 +14,17 @@ from app.main import (
 
 class FakeTokenizer:
     def __call__(self, prompt, **kwargs):
-        if "Student interests: machine learning" not in prompt:
-            raise AssertionError("Student interests were not included in the generation prompt")
-        if "Specific problem to solve: crop disease" not in prompt:
-            raise AssertionError("The specific problem was not included in the generation prompt")
-        if "Target users or beneficiaries: smallholder farmers" not in prompt:
-            raise AssertionError("Target users were not included in the generation prompt")
+        for expected in (
+            "Project Idea: AI-based student attendance system",
+            "Problem Statement: Manual attendance is slow and inaccurate",
+            "General Objective: Develop an automated attendance system",
+            "Specific Objectives: Automate attendance recording; Generate attendance reports",
+            "Project Description: Teachers record attendance and review reports",
+            "Proposed Technologies: Python, React, MySQL, OpenCV",
+            "Project Domain: Artificial Intelligence and Education",
+        ):
+            if expected not in prompt:
+                raise AssertionError(f"Project information was not included in the prompt: {expected}")
         if kwargs != {"return_tensors": "pt", "truncation": True, "max_length": 512}:
             raise AssertionError("Unexpected tokenizer options")
         return {"input_ids": [1]}
@@ -27,7 +32,13 @@ class FakeTokenizer:
     def decode(self, generated, **kwargs):
         if generated != [1] or kwargs != {"skip_special_tokens": True}:
             raise AssertionError("Unexpected generated output")
-        return "1. Crop Disease Detection with Machine Learning\n2. Smart Irrigation Planning Platform"
+        return (
+            "1. Automated Student Attendance Management Platform\n"
+            "2. Facial Recognition System for Classroom Attendance\n"
+            "3. Machine Learning-Based Attendance Monitoring Tool\n"
+            "4. Student Presence Tracking and Reporting Application\n"
+            "5. Digital Attendance Verification for University Classes"
+        )
 
 
 class FakeGenerationModel:
@@ -66,11 +77,13 @@ class TitleRecommendationTests(unittest.TestCase):
 
     def test_generates_titles_from_student_preferences_with_local_model(self):
         request = TitleRecommendationRequest(
-            interest="machine learning",
-            area="agriculture",
-            tools="Python and scikit-learn",
-            problem="crop disease",
-            targetUsers="smallholder farmers",
+            projectIdea="AI-based student attendance system",
+            problemStatement="Manual attendance is slow and inaccurate",
+            generalObjective="Develop an automated attendance system",
+            specificObjectives="Automate attendance recording\nGenerate attendance reports",
+            projectDescription="Teachers record attendance and review reports",
+            technologies="Python, React, MySQL, OpenCV",
+            domain="Artificial Intelligence and Education",
         )
         with (
             patch.dict(os.environ, {"AI_SERVICE_TOKEN": "expected"}),
@@ -83,8 +96,11 @@ class TitleRecommendationTests(unittest.TestCase):
 
         self.assertEqual(result["modelName"], "google/flan-t5-base")
         self.assertEqual(result["suggestions"], [
-            "Crop Disease Detection with Machine Learning",
-            "Smart Irrigation Planning Platform",
+            "Automated Student Attendance Management Platform",
+            "Facial Recognition System for Classroom Attendance",
+            "Machine Learning-Based Attendance Monitoring Tool",
+            "Student Presence Tracking and Reporting Application",
+            "Digital Attendance Verification for University Classes",
         ])
 
     def test_parser_removes_duplicate_and_invalid_titles(self):
@@ -100,7 +116,7 @@ class TitleRecommendationTests(unittest.TestCase):
 
     def test_rejects_too_short_preferences(self):
         with self.assertRaises(ValidationError):
-            TitleRecommendationRequest(interest="x", area="agriculture", tools="Python")
+            TitleRecommendationRequest(projectIdea="x")
 
 
 if __name__ == "__main__":

@@ -109,11 +109,13 @@ export async function recommendTitles(groupId, preferences, actor) {
     {
       id: 'student-interests',
       text: [
-        preferences.interest,
-        preferences.area,
-        preferences.tools,
-        preferences.problem,
-        preferences.targetUsers,
+        preferences.projectIdea,
+        preferences.problemStatement,
+        preferences.generalObjective,
+        preferences.specificObjectives,
+        preferences.projectDescription,
+        preferences.technologies,
+        preferences.domain,
       ].filter(Boolean).join('\n').slice(0, 10000),
     },
     ...uniqueDrafts.map(({ id, title }) => ({ id, text: title })),

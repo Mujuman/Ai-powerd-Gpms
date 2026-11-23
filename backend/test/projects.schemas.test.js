@@ -98,23 +98,23 @@ test('advisor assignment and defense scheduling require valid IDs and timezone-a
 })
 
 test('student collaboration requests validate title ideas, messages, and document categories', () => {
+  const projectDetails = {
+    projectIdea: 'AI-based student attendance system',
+    problemStatement: 'Manual attendance can be slow and inaccurate.',
+    generalObjective: 'Develop an automated attendance management system.',
+    specificObjectives: 'Automate attendance recording\nGenerate attendance reports',
+    projectDescription: 'Teachers record attendance using a camera and review reports.',
+    technologies: 'Python, React, MySQL, OpenCV',
+    domain: 'Artificial Intelligence and Education',
+  }
+  assert.equal(titleRecommendationSchema.safeParse(projectDetails).success, true)
   assert.equal(titleRecommendationSchema.safeParse({
-    interest: 'Machine learning applications',
-    area: 'Campus transportation',
-    tools: 'Python and mobile apps',
-  }).success, true)
-  const detailedPreferences = titleRecommendationSchema.parse({
-    interest: 'Machine learning applications',
-    area: 'Campus transportation',
-    tools: 'Python and mobile apps',
-    problem: 'Students have difficulty finding available buses.',
-    targetUsers: 'Students and campus transport staff',
-  })
-  assert.equal(detailedPreferences.targetUsers, 'Students and campus transport staff')
+    ...projectDetails,
+    domain: undefined,
+  }).success, false)
   assert.equal(titleRecommendationSchema.safeParse({
-    interest: '',
-    area: 'Campus transportation',
-    tools: 'Python and mobile apps',
+    ...projectDetails,
+    projectIdea: '',
   }).success, false)
   assert.equal(projectMessageSchema.safeParse({ message: 'Please review my proposal.' }).success, true)
   assert.equal(projectMessageSchema.safeParse({ message: '   ' }).success, false)

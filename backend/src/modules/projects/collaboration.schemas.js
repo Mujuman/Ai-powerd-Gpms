@@ -1,11 +1,13 @@
 import { z } from 'zod'
 
 export const titleRecommendationSchema = z.object({
-  interest: z.string().trim().min(2).max(2000),
-  area: z.string().trim().min(2).max(2000),
-  tools: z.string().trim().min(2).max(2000),
-  problem: z.string().trim().max(2000).optional().default(''),
-  targetUsers: z.string().trim().max(2000).optional().default(''),
+  projectIdea: z.string().trim().min(2).max(1000),
+  problemStatement: z.string().trim().min(2).max(3000),
+  generalObjective: z.string().trim().min(2).max(1000),
+  specificObjectives: z.string().trim().min(2).max(3000),
+  projectDescription: z.string().trim().min(2).max(5000),
+  technologies: z.string().trim().min(2).max(1000),
+  domain: z.string().trim().min(2).max(1000),
 }).strict()
 
 export const projectMessageSchema = z.object({

@@ -11,11 +11,13 @@ export default function ProjectTitleIdeasPage() {
   const navigate = useNavigate()
   const [groupId, setGroupId] = useState('')
   const [preferences, setPreferences] = useState({
-    interest: '',
-    area: '',
-    tools: '',
-    problem: '',
-    targetUsers: '',
+    projectIdea: '',
+    problemStatement: '',
+    generalObjective: '',
+    specificObjectives: '',
+    projectDescription: '',
+    technologies: '',
+    domain: '',
   })
   const [recommendations, setRecommendations] = useState(null)
   const projectsQuery = useQuery({
@@ -46,7 +48,15 @@ export default function ProjectTitleIdeasPage() {
     })
   }
 
-  const canRecommend = ['interest', 'area', 'tools']
+  const canRecommend = [
+    'projectIdea',
+    'problemStatement',
+    'generalObjective',
+    'specificObjectives',
+    'projectDescription',
+    'technologies',
+    'domain',
+  ]
     .every((field) => preferences[field].trim().length >= 2)
 
   return (
@@ -54,7 +64,7 @@ export default function ProjectTitleIdeasPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Project title ideas</h1>
-          <p className="page-subtitle">Get project-only title suggestions based on your interests, application area, and tools.</p>
+          <p className="page-subtitle">Provide your project details to get clear, scope-appropriate title suggestions.</p>
         </div>
         <Link className="btn-secondary" to="/student/project/proposal">Go to proposal</Link>
       </div>
@@ -88,47 +98,75 @@ export default function ProjectTitleIdeasPage() {
           }}>
             {[
               {
-                field: 'interest',
-                label: 'Your project interests',
-                description: 'Describe a topic or problem you want to explore.',
-                placeholder: 'e.g. Detecting crop diseases with machine learning',
+                field: 'projectIdea',
+                label: 'Project idea',
+                description: 'Summarize the main concept of your project.',
+                placeholder: 'e.g. An AI-based student attendance system',
                 required: true,
+                maxLength: 1000,
+                rows: 3,
               },
               {
-                field: 'area',
-                label: 'Application domain',
-                description: 'Name the field or setting where the project will be used.',
-                placeholder: 'e.g. Crop farms and agricultural extension workers in Werabe',
+                field: 'problemStatement',
+                label: 'Problem statement',
+                description: 'Explain the problem and why it needs to be solved.',
+                placeholder: 'e.g. Manual attendance takes time and can produce inaccurate records',
                 required: true,
+                maxLength: 3000,
+                rows: 4,
               },
               {
-                field: 'tools',
-                label: 'Available tools or technologies',
-                description: 'List languages, platforms, methods, or equipment you can use.',
-                placeholder: 'e.g. Python, TensorFlow, Android, and local crop images',
+                field: 'generalObjective',
+                label: 'General objective',
+                description: 'State the overall goal of the project.',
+                placeholder: 'e.g. To develop an automated student attendance management system',
                 required: true,
+                maxLength: 1000,
+                rows: 3,
               },
               {
-                field: 'problem',
-                label: 'Specific problem to solve (optional)',
-                description: 'Explain the challenge your project should address.',
-                placeholder: 'e.g. Farmers identify crop disease too late to prevent losses',
-                required: false,
+                field: 'specificObjectives',
+                label: 'Specific objectives',
+                description: 'List the key tasks or functions, one per line.',
+                placeholder: 'e.g.\nAutomate attendance recording\nReduce recording errors\nGenerate attendance reports',
+                required: true,
+                maxLength: 3000,
+                rows: 5,
               },
               {
-                field: 'targetUsers',
-                label: 'Target users or beneficiaries (optional)',
-                description: 'Who is expected to use or benefit from the project?',
-                placeholder: 'e.g. Smallholder farmers and agricultural extension workers',
-                required: false,
+                field: 'projectDescription',
+                label: 'Project description',
+                description: 'Describe the project scope, how it will work, and its main features.',
+                placeholder: 'Explain what users will do with the system and what it will provide.',
+                required: true,
+                maxLength: 5000,
+                rows: 5,
               },
-            ].map(({ field, label, description, placeholder, required }) => (
+              {
+                field: 'technologies',
+                label: 'Proposed technologies',
+                description: 'List the tools, languages, platforms, or methods you plan to use.',
+                placeholder: 'e.g. Python, React, MySQL, and OpenCV',
+                required: true,
+                maxLength: 1000,
+                rows: 3,
+              },
+              {
+                field: 'domain',
+                label: 'Project domain',
+                description: 'Identify the field the project belongs to.',
+                placeholder: 'e.g. Artificial Intelligence and Education',
+                required: true,
+                maxLength: 1000,
+                rows: 3,
+              },
+            ].map(({ field, label, description, placeholder, required, maxLength, rows }) => (
               <div className="form-field" key={field}>
                 <label className="form-label" htmlFor={`title-ideas-${field}`}>{label}</label>
                 <span className="muted-copy" id={`title-ideas-${field}-help`}>{description}</span>
                 <textarea className="form-input" id={`title-ideas-${field}`}
                   aria-describedby={`title-ideas-${field}-help`}
-                  required={required} minLength={2} maxLength={2000} rows={3}
+                  required={required} minLength={2} maxLength={maxLength} rows={rows}
                   value={preferences[field]}
                   placeholder={placeholder}
                   onChange={(event) => updatePreference(field, event.target.value)} />
