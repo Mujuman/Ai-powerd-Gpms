@@ -28,7 +28,6 @@ const STAFF_HEADER_ALIASES = new Map([
   ['temporarypassword', 'password'],
   ['role', 'role'],
   ['staffrole', 'role'],
-  ['title', 'title'],
   ['specialization', 'specialization'],
   ['interest', 'interests'],
   ['interests', 'interests'],
@@ -126,6 +125,7 @@ export async function parseStaffWorkbook(buffer) {
   ))
   const required = ['fullName', 'email', 'password', 'role']
   const missing = required.filter((field) => !columns.includes(field))
+  if (!columns.includes('interests')) missing.push('interests')
   if (missing.length) throw new HttpError(400, `Missing required Excel columns: ${missing.join(', ')}`)
 
   const rows = []
@@ -157,15 +157,13 @@ async function insertDepartmentStaff(connection, { id, data, departmentId, passw
   })
   if (data.role === 'academic_advisor') {
     await upsertAdvisorProfile(connection, id, {
-      title: data.title || null,
       specialization: data.specialization || null,
-      interests: data.interests || null,
+      interests: data.interests,
     })
   } else {
     await upsertExaminerProfile(connection, id, {
-      title: data.title || null,
       specialization: data.specialization || null,
-      interests: data.interests || null,
+      interests: data.interests,
     })
   }
   await setUserDepartments(connection, id, [departmentId], actor.id)
@@ -379,13 +377,12 @@ export async function updateStaff(userId, changes, actor) {
     const profileUpdates = []
     const profileParams = []
     for (const [field, column] of Object.entries({
-      title: 'title',
       specialization: 'specialization',
       interests: 'interests',
     })) {
       if (changes[field] !== undefined) {
         profileUpdates.push(`${column} = ?`)
-        profileParams.push(changes[field] || null)
+        profileParams.push(field === 'interests' ? changes[field] : changes[field] || null)
       }
     }
     if (profileUpdates.length) {

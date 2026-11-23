@@ -199,7 +199,7 @@ python -m unittest discover -s tests -v
 - `POST /api/students/:userId/graduate` and `POST /api/students/groups/:groupId/graduate` to graduate individual students or all current members of a group and revoke their login access; corresponding `/reinstate` routes restore active status and login access
 - `/api/projects/mine` for student proposal submission and review status
 - `/api/projects/submissions` and `/api/projects/submissions/:submissionId/review` for Head review
-- `/api/projects/staff` for Department Head advisor/examiner account management; staff profiles support optional title, specialization, and interests, and advisor assignments have no active-group cap
+- `/api/projects/staff` for Department Head advisor/examiner account management; staff profiles require areas of interest, allow optional specialization, and advisor assignments have no active-group cap
 - `/api/projects/advisors/assign-ai` and `/api/projects/groups/:groupId/advisor` for advisor recommendations and reassignment
 - `/api/projects/similarity` for department-scoped project title/description comparisons
 - `/api/projects/defenses` and `/api/projects/defenses/:scheduleId/examiners` for defense scheduling and examiner assignment

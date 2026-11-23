@@ -46,13 +46,13 @@ export const updateStudentProfileSchema = z.object({
 export const updateAdvisorProfileSchema = z.object({
   title: z.string().trim().max(60).nullable().optional(),
   specialization: z.string().trim().max(160).nullable().optional(),
-  interests: z.string().trim().max(2000).nullable().optional(),
+  interests: z.string().trim().min(1, 'Interests are required').max(2000).optional(),
 }).strict()
 
 export const updateExaminerProfileSchema = z.object({
   title: z.string().trim().max(60).nullable().optional(),
   specialization: z.string().trim().max(160).nullable().optional(),
-  interests: z.string().trim().max(2000).nullable().optional(),
+  interests: z.string().trim().min(1, 'Interests are required').max(2000).optional(),
 }).strict()
 
 export const listUsersQuerySchema = z.object({

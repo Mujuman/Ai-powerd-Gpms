@@ -36,9 +36,8 @@ const staffFields = {
     'Password must be at most 72 UTF-8 bytes',
   ),
   role: z.enum(['academic_advisor', 'examiner']),
-  title: z.string().trim().max(60).optional().default(''),
   specialization: z.string().trim().max(160).optional().default(''),
-  interests: z.string().trim().max(2000).optional().default(''),
+  interests: z.string().trim().min(1, 'Interests are required').max(2000),
 }
 
 export const createStaffSchema = z.object(staffFields).strict()
@@ -46,9 +45,8 @@ export const createStaffSchema = z.object(staffFields).strict()
 export const updateStaffSchema = z.object({
   fullName: z.string().trim().min(1).max(160).optional(),
   isActive: z.boolean().optional(),
-  title: z.string().trim().max(60).nullable().optional(),
   specialization: z.string().trim().max(160).nullable().optional(),
-  interests: z.string().trim().max(2000).nullable().optional(),
+  interests: z.string().trim().min(1, 'Interests are required').max(2000).optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, 'At least one field is required')
 
 export const assignAdvisorSchema = z.object({

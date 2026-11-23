@@ -8,7 +8,6 @@ const EMPTY_FORM = {
   email: '',
   password: '',
   role: 'academic_advisor',
-  title: '',
   specialization: '',
   interests: '',
 }
@@ -121,9 +120,8 @@ export default function StaffPage() {
       role: member.role,
       changes: {
         fullName: editingStaff.fullName,
-        title: editingStaff.title || null,
         specialization: editingStaff.specialization || null,
-        interests: editingStaff.interests || null,
+        interests: editingStaff.interests.trim(),
       },
     })
   }
@@ -192,8 +190,8 @@ export default function StaffPage() {
             <h2 className="section-title">Import staff from Excel</h2>
             <p className="muted-copy">
               Import up to 100 staff members from .xls, .xlsx, .xlsm, or .xlsb files.
-              Required columns: <strong>fullName, email, password, role</strong>.
-              Optional columns: <strong>title, specialization, interests</strong>.
+              Required columns: <strong>fullName, email, password, role, interests</strong>.
+              Optional column: <strong>specialization</strong>.
               Role values: <strong>advisor</strong>, <strong>academic_advisor</strong>, or <strong>examiner</strong>.
               The workbook is validated before any accounts are created.
             </p>
@@ -250,18 +248,13 @@ export default function StaffPage() {
                     onChange={(event) => setForm({ ...form, password: event.target.value })} />
                 </label>
                 <label className="form-field">
-                  <span className="form-label">Title (optional)</span>
-                  <input className="form-input" maxLength={60} value={form.title}
-                    onChange={(event) => setForm({ ...form, title: event.target.value })} />
-                </label>
-                <label className="form-field">
                   <span className="form-label">Specialization (optional)</span>
                   <textarea className="form-input" rows={3} maxLength={160} value={form.specialization}
                     onChange={(event) => setForm({ ...form, specialization: event.target.value })} />
                 </label>
                 <label className="form-field">
-                  <span className="form-label">Areas of interest (optional)</span>
-                  <textarea className="form-input" rows={3} maxLength={2000} value={form.interests}
+                  <span className="form-label">Areas of interest (required)</span>
+                  <textarea className="form-input" rows={3} maxLength={2000} required value={form.interests}
                     onChange={(event) => setForm({ ...form, interests: event.target.value })} />
                 </label>
               </div>
@@ -280,7 +273,7 @@ export default function StaffPage() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Staff member</th><th>Role</th><th>Title, specialization and interests</th>
+                      <th>Staff member</th><th>Role</th><th>Specialization and interests</th>
                       <th>Assigned groups</th><th>Account</th><th>Actions</th>
                     </tr>
                   </thead>
@@ -295,23 +288,22 @@ export default function StaffPage() {
                         <td>{member.role === 'academic_advisor' ? 'Advisor' : 'Examiner'}</td>
                         <td>{editingStaff?.id === member.id ? (
                           <div className="head-review-actions">
-                            <input className="form-input" aria-label="Staff title" placeholder="Title (optional)"
-                              value={editingStaff.title ?? ''}
-                              onChange={(event) => setEditingStaff({ ...editingStaff, title: event.target.value })} />
                             <textarea className="form-input" aria-label="Staff specialization"
                               placeholder="Specialization (optional)" rows={2} maxLength={160}
                               value={editingStaff.specialization ?? ''}
                               onChange={(event) => setEditingStaff({ ...editingStaff, specialization: event.target.value })} />
-                            <textarea className="form-input" aria-label="Staff areas of interest"
-                              placeholder="Areas of interest (optional)" rows={2} maxLength={2000}
+                            <textarea className="form-input" aria-label="Staff areas of interest" required
+                              placeholder="Areas of interest (required)" rows={2} maxLength={2000}
                               value={editingStaff.interests ?? ''}
                               onChange={(event) => setEditingStaff({ ...editingStaff, interests: event.target.value })} />
+                            {!editingStaff.interests?.trim() && (
+                              <span className="form-field-error">Areas of interest are required.</span>
+                            )}
                           </div>
                         ) : (
                           <>
-                            <div>{member.title || '—'}</div>
-                            {member.specialization && <div className="muted-copy">{member.specialization}</div>}
-                            {member.interests && <div className="muted-copy">Interests: {member.interests}</div>}
+                            <div>{member.specialization || '—'}</div>
+                            <div className="muted-copy">Interests: {member.interests || 'Not provided'}</div>
                           </>
                         )}</td>
                         <td>{member.activeWorkload}</td>
@@ -324,7 +316,8 @@ export default function StaffPage() {
                           <div className="action-row">
                             {editingStaff?.id === member.id ? (
                               <>
-                                <button className="btn-primary" disabled={staffMutation.isPending}
+                                <button className="btn-primary"
+                                  disabled={staffMutation.isPending || !editingStaff.interests?.trim()}
                                   onClick={() => updateStaff(member)}>Save</button>
                                 <button className="btn-secondary" disabled={staffMutation.isPending}
                                   onClick={() => setEditingStaff(null)}>Cancel</button>
