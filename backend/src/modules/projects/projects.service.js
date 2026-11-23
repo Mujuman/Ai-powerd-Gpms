@@ -17,6 +17,7 @@ import * as repository from './projects.repository.js'
 import * as collaborationRepository from './collaboration.repository.js'
 
 const PASSWORD_HASH_ROUNDS = 12
+const PROJECT_AUTO_APPROVAL_THRESHOLD = 0.5
 const STAFF_HEADER_ALIASES = new Map([
   ['fullname', 'fullName'],
   ['name', 'fullName'],
@@ -34,6 +35,18 @@ const STAFF_HEADER_ALIASES = new Map([
   ['instructorinterests', 'interests'],
   ['areasofinterest', 'interests'],
 ])
+
+export function evaluateSubmissionApproval(comparisons) {
+  const highestSimilarity = comparisons.reduce(
+    (highest, comparison) => Math.max(highest, comparison.score),
+    0,
+  )
+  return {
+    automaticallyApproved: highestSimilarity <= PROJECT_AUTO_APPROVAL_THRESHOLD,
+    highestSimilarity,
+    threshold: PROJECT_AUTO_APPROVAL_THRESHOLD,
+  }
+}
 
 function cellText(value) {
   if (value === null || value === undefined) return ''
@@ -221,6 +234,17 @@ export async function submitProject(data, actor) {
       notice: 'No other approved projects are available for comparison yet.',
       comparisons: [],
     }
+  const approval = evaluateSubmissionApproval(similarityCheck.comparisons)
+  const reviewNote = approval.automaticallyApproved
+    ? similarityCheck.comparisons.length
+      ? `Automatically approved: highest similarity was ${Math.round(approval.highestSimilarity * 100)}%, at or below the ${approval.threshold * 100}% threshold.`
+      : 'Automatically approved: no approved projects were available for comparison.'
+    : null
+  similarityCheck.autoApproval = {
+    automaticallyApproved: approval.automaticallyApproved,
+    highestSimilarity: approval.highestSimilarity,
+    thresholdPercent: approval.threshold * 100,
+  }
 
   return withTransaction(pool, async (connection) => {
     const group = await repository.findStudentGroup(connection, groupId, actor.id, true)
@@ -241,14 +265,37 @@ export async function submitProject(data, actor) {
       description: data.description,
       submittedBy: actor.id,
     })
+    if (approval.automaticallyApproved) {
+      await repository.updateSubmissionReview(
+        connection,
+        submissionId,
+        null,
+        'approved',
+        reviewNote,
+      )
+    }
     await recordAudit(connection, {
       userId: actor.id,
-      action: 'project_submissions.submit',
+      action: approval.automaticallyApproved
+        ? 'project_submissions.auto_approved'
+        : 'project_submissions.submit',
       targetType: 'project_submission',
       targetId: submissionId,
-      metadata: { groupId, version },
+      metadata: {
+        groupId,
+        version,
+        highestSimilarity: approval.highestSimilarity,
+        autoApprovalThreshold: approval.threshold,
+      },
     })
-    return { id: submissionId, groupId, version, status: 'submitted', similarityCheck }
+    return {
+      id: submissionId,
+      groupId,
+      version,
+      status: approval.automaticallyApproved ? 'approved' : 'submitted',
+      reviewNote,
+      similarityCheck,
+    }
   })
 }
 

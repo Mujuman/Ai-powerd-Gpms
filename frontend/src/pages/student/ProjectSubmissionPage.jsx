@@ -80,13 +80,28 @@ export default function ProjectSubmissionPage() {
             {project.title && <div>
               <h3 className="section-title">{project.title}</h3>
               <p className="muted-copy">{project.description}</p>
-              {project.reviewNote && <p className="project-review-note"><strong>Department review:</strong> {project.reviewNote}</p>}
+              {project.reviewNote && <p className="project-review-note">
+                <strong>{project.reviewNote.startsWith('Automatically approved:')
+                  ? 'Automatic approval'
+                  : 'Department review'}:</strong> {project.reviewNote}
+              </p>}
             </div>}
             {similarityCheck && (
               <div className="import-preview" role="status" aria-live="polite">
                 <strong>AI similarity check</strong>
                 <p className="muted-copy">{similarityCheck.notice}</p>
                 {similarityCheck.modelName && <p className="muted-copy">Analysis: {similarityCheck.modelName}</p>}
+                {similarityCheck.autoApproval && (
+                  <p className="muted-copy">
+                    {similarityCheck.autoApproval.automaticallyApproved
+                      ? 'Automatically approved'
+                      : 'Sent to the Department Head for review'}
+                    {similarityCheck.comparisons.length
+                      ? ` · highest similarity ${Math.round(similarityCheck.autoApproval.highestSimilarity * 100)}%`
+                      : ' · no approved projects were available to compare'}
+                    {` · automatic approval cutoff ${similarityCheck.autoApproval.thresholdPercent}%`}
+                  </p>
+                )}
                 {similarityCheck.comparisons.length > 0 ? (
                   <ul>{similarityCheck.comparisons.slice(0, 5).map((comparison) => (
                     <li key={comparison.title}>
@@ -113,7 +128,12 @@ export default function ProjectSubmissionPage() {
               </form>
             )}
             {status === 'submitted' && <p className="muted-copy">Your proposal is awaiting Department Head review.</p>}
-            {status === 'approved' && <p className="muted-copy">Your title is approved. Contact your assigned advisor for next steps.</p>}
+            {status === 'approved' && <p className="muted-copy">
+              {project.reviewNote?.startsWith('Automatically approved:')
+                ? 'Your proposal was automatically approved because it is not sufficiently similar to approved projects.'
+                : 'Your title is approved.'}
+              {' '}Contact your assigned advisor for next steps.
+            </p>}
           </section>
         )
       })}

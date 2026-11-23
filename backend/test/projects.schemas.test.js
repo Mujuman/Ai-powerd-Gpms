@@ -8,6 +8,7 @@ import {
   studentSubmissionSchema,
   submitAssessmentSchema,
 } from '../src/modules/projects/projects.schemas.js'
+import { evaluateSubmissionApproval } from '../src/modules/projects/projects.service.js'
 import {
   correctionReviewSchema,
   projectDocumentSchema,
@@ -36,6 +37,19 @@ test('a rejected project title must include a reason', () => {
     decision: 'rejected',
     note: 'Please narrow the project scope.',
   }).success, true)
+})
+
+test('proposals at or below 50 percent similarity are automatically approved', () => {
+  const atThreshold = evaluateSubmissionApproval([{ score: 0.5 }, { score: 0.12 }])
+  assert.equal(atThreshold.automaticallyApproved, true)
+  assert.equal(atThreshold.highestSimilarity, 0.5)
+
+  const aboveThreshold = evaluateSubmissionApproval([{ score: 0.5001 }])
+  assert.equal(aboveThreshold.automaticallyApproved, false)
+
+  const noComparisons = evaluateSubmissionApproval([])
+  assert.equal(noComparisons.automaticallyApproved, true)
+  assert.equal(noComparisons.highestSimilarity, 0)
 })
 
 test('department-created staff accounts are limited to the supported roles and password policy', () => {
