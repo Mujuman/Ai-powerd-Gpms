@@ -105,8 +105,7 @@ The setup script creates `ai-service\.venv`. Install its dependencies if you did
 
 ```powershell
 Set-Location ai-service
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 & .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -114,7 +113,7 @@ Check `http://127.0.0.1:8000/health`. Generate a random token with `node -e "con
 
 ```powershell
 $env:AI_SERVICE_TOKEN = "<same private value as backend\.env>"
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+& .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 This enables local FLAN-T5 title generation and Sentence Transformer similarity. On first use, the AI service loads `AI_TITLE_GENERATION_MODEL` (defaults to `google/flan-t5-base`) and `AI_EMBEDDING_MODEL` (defaults to `sentence-transformers/all-MiniLM-L6-v2`). If model weights are not cached, Transformers downloads them once; inference then runs locally without an external inference API. Keep the token configured in both processes. When it is missing, title generation reports an explicit configuration error, while similarity uses the clearly labeled local TF-IDF baseline.

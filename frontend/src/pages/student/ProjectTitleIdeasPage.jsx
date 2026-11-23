@@ -177,7 +177,7 @@ export default function ProjectTitleIdeasPage() {
             </button>
             {recommendationMutation.isPending && (
               <p className="muted-copy" role="status" aria-live="polite">
-                The local AI model may take longer on its first request while it loads. Later requests reuse the loaded model.
+                The local AI models may take longer on the first request while they load. Later requests reuse the loaded models.
               </p>
             )}
           </form>
