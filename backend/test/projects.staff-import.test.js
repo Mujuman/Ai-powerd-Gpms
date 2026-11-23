@@ -10,11 +10,11 @@ async function createStaffWorkbook(rows) {
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }
 
-test('staff Excel import reads advisor and examiner rows with optional staff fields', async () => {
+test('staff Excel import reads required interests and optional specialization', async () => {
   const buffer = await createStaffWorkbook([
-    ['Full Name', 'Email', 'Temporary Password', 'Staff Role', 'Title', 'Specialization', 'Instructor Interests'],
-    ['Advisor One', 'advisor@example.edu', 'temporary-password', 'Academic Advisor', 'Lecturer', 'AI', 'Distributed systems'],
-    ['Examiner One', 'examiner@example.edu', 'another-password', 'Examiner', 'Professor', 'Networks', 'Cybersecurity'],
+    ['Full Name', 'Email', 'Temporary Password', 'Staff Role', 'Specialization', 'Instructor Interests'],
+    ['Advisor One', 'advisor@example.edu', 'temporary-password', 'Academic Advisor', 'AI', 'Distributed systems'],
+    ['Examiner One', 'examiner@example.edu', 'another-password', 'Examiner', 'Networks', 'Cybersecurity'],
   ])
 
   const rows = await parseStaffWorkbook(buffer)
@@ -25,7 +25,6 @@ test('staff Excel import reads advisor and examiner rows with optional staff fie
       email: 'advisor@example.edu',
       password: 'temporary-password',
       role: 'academic_advisor',
-      title: 'Lecturer',
       specialization: 'AI',
       interests: 'Distributed systems',
     },
@@ -35,7 +34,6 @@ test('staff Excel import reads advisor and examiner rows with optional staff fie
       email: 'examiner@example.edu',
       password: 'another-password',
       role: 'examiner',
-      title: 'Professor',
       specialization: 'Networks',
       interests: 'Cybersecurity',
     },
