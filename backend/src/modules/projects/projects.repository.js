@@ -592,10 +592,29 @@ export async function listAssessments(connection, departmentId) {
       ORDER BY da.submitted_at DESC`,
     [departmentId],
   )
+  if (!rows.length) return rows
+  const groupIds = [...new Set(rows.map((row) => row.groupId))]
+  const placeholders = groupIds.map(() => '?').join(', ')
+  const [members] = await connection.execute(
+    `SELECT gm.group_id AS groupId, u.id AS userId, u.full_name AS fullName,
+            sp.student_id AS studentId
+       FROM student_group_members gm
+       JOIN users u ON u.id = gm.student_user_id
+       LEFT JOIN student_profiles sp ON sp.user_id = u.id
+      WHERE gm.group_id IN (${placeholders}) AND gm.is_active = TRUE
+      ORDER BY u.full_name`,
+    groupIds,
+  )
+  const membersByGroup = new Map(groupIds.map((id) => [id, []]))
+  for (const member of members) membersByGroup.get(member.groupId).push(member)
   return rows.map((row) => ({
     ...row,
     rubric: parseJson(row.rubric, null),
-    studentGrades: parseJson(row.studentGrades, []),
+    studentGrades: parseJson(row.studentGrades, []).map((grade) => ({
+      ...grade,
+      studentName: membersByGroup.get(row.groupId).find((member) =>
+        member.userId === grade.studentUserId)?.fullName ?? 'Student',
+    })),
   }))
 }
 

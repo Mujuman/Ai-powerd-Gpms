@@ -420,16 +420,22 @@ export default function ProjectsPage() {
           <Section id="assessment-review" title="Examiner evaluations" description="Review outcomes and written evaluation records submitted by assigned examiners.">
             <div className="table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Group / project</th><th>Defense</th><th>Examiner</th><th>Assignment</th><th>Outcome</th><th>Comments</th><th>Submitted</th></tr></thead>
+                <thead><tr><th>Group / project</th><th>Defense</th><th>Examiner</th><th>Assignment</th><th>Outcome</th><th>Student grades</th><th>Comments</th><th>Submitted</th></tr></thead>
                 <tbody>{(assessmentsQuery.data ?? []).map((assessment) => (
                   <tr key={assessment.id}>
                     <td>{assessment.groupName}<br /><span className="muted-copy">{assessment.title}</span></td>
                     <td>{assessment.defenseType}<br />{formatDate(assessment.scheduledAt)}</td>
                     <td>{assessment.examinerName}</td><td>{assessment.assignmentMethod}</td>
-                    <td>{assessment.outcome}</td><td>{assessment.comments}</td><td>{formatDate(assessment.submittedAt)}</td>
+                    <td>{assessment.outcome}</td>
+                    <td>{assessment.studentGrades?.length
+                      ? assessment.studentGrades.map((grade) => (
+                        <p key={grade.studentUserId}>{grade.studentName}: {grade.grade} / 100</p>
+                      ))
+                      : '—'}</td>
+                    <td>{assessment.comments}</td><td>{formatDate(assessment.submittedAt)}</td>
                   </tr>
                 ))}
-                  {assessmentsQuery.data?.length === 0 && <tr><td className="table-empty" colSpan={7}>No examiner evaluations have been submitted yet.</td></tr>}
+                  {assessmentsQuery.data?.length === 0 && <tr><td className="table-empty" colSpan={8}>No examiner evaluations have been submitted yet.</td></tr>}
                 </tbody>
               </table>
             </div>
