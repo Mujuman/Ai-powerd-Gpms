@@ -2286,6 +2286,10 @@ textarea.form-input {
 }
 
 @media (max-width: 480px) {
+  .sidebar {
+    width: 100%;
+  }
+
   .sidebar-brand {
     padding: 0.7rem 0.8rem;
   }
