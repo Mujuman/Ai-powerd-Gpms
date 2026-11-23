@@ -29,6 +29,7 @@ const NAV_LINKS = {
   student: [
     { label: 'Dashboard', to: '/student/dashboard' },
     { label: 'Project group', to: '/student/project', end: true },
+    { label: 'Title ideas', to: '/student/project/title-ideas' },
     { label: 'Project proposal', to: '/student/project/proposal' },
     { label: 'Advisor chat', to: '/student/project/advisor-chat' },
     { label: 'Project documents', to: '/student/project/documents' },

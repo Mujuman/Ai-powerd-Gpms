@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useLocation } from 'react-router-dom'
 import api from '../../lib/api'
 
 function message(error, fallback) {
@@ -7,21 +8,13 @@ function message(error, fallback) {
 }
 
 export default function ProjectSubmissionPage() {
+  const location = useLocation()
   const queryClient = useQueryClient()
   const [forms, setForms] = useState({})
-  const [recommendationInputs, setRecommendationInputs] = useState({})
-  const [recommendations, setRecommendations] = useState({})
   const [submissionResults, setSubmissionResults] = useState({})
   const projectsQuery = useQuery({
     queryKey: ['student-projects'],
     queryFn: async () => (await api.get('/projects/mine')).data.data,
-  })
-  const recommendationMutation = useMutation({
-    mutationFn: async ({ groupId, interest, area, tools }) =>
-      (await api.post(`/projects/mine/${groupId}/title-recommendations`, { interest, area, tools })).data.data,
-    onSuccess: (data, variables) => {
-      setRecommendations((current) => ({ ...current, [variables.groupId]: data }))
-    },
   })
   const submitMutation = useMutation({
     mutationFn: async ({ groupId, title, description }) =>
@@ -33,15 +26,17 @@ export default function ProjectSubmissionPage() {
   })
   const projects = projectsQuery.data ?? []
 
-  function updateForm(groupId, field, value) {
+  useEffect(() => {
+    const { groupId, title } = location.state ?? {}
+    if (!groupId || !title) return
     setForms((current) => ({
       ...current,
-      [groupId]: { ...current[groupId], [field]: value },
+      [groupId]: { ...current[groupId], title },
     }))
-  }
+  }, [location.state])
 
-  function updateRecommendationInput(groupId, field, value) {
-    setRecommendationInputs((current) => ({
+  function updateForm(groupId, field, value) {
+    setForms((current) => ({
       ...current,
       [groupId]: { ...current[groupId], [field]: value },
     }))
@@ -58,20 +53,17 @@ export default function ProjectSubmissionPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Project proposal</h1>
-          <p className="page-subtitle">Get project-only title suggestions from your interests, application area, and tools; submit a detailed proposal and see its similarity analysis.</p>
+          <p className="page-subtitle">Submit a detailed proposal and see its similarity analysis.</p>
         </div>
+        <Link className="btn-secondary" to="/student/project/title-ideas">Get title ideas</Link>
       </div>
       {projectsQuery.isError && <div className="table-error" role="alert">{message(projectsQuery.error, 'Could not load your project groups')}</div>}
       {submitMutation.error && <div className="table-error" role="alert">{message(submitMutation.error, 'Could not submit the project')}</div>}
-      {recommendationMutation.error && <div className="table-error" role="alert">
-        {message(recommendationMutation.error, 'Could not create title suggestions')}
-      </div>}
       {projectsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
       {projects.map((project) => {
         const status = project.submissionStatus
         const canSubmit = !status || status === 'rejected'
         const values = forms[project.groupId] ?? {}
-        const recommendationValues = recommendationInputs[project.groupId] ?? {}
         const similarityCheck = submissionResults[project.groupId]
         return (
           <section className="academic-card" key={project.groupId}>
@@ -115,65 +107,6 @@ export default function ProjectSubmissionPage() {
                     value={values.description ?? ''}
                     onChange={(event) => updateForm(project.groupId, 'description', event.target.value)} />
                 </label>
-                <div className="form-grid">
-                  {[
-                    ['interest', "Student's interests"],
-                    ['area', 'Project application area'],
-                    ['tools', 'Tools or technologies'],
-                  ].map(([field, label]) => (
-                    <label className="form-field" key={field}>
-                      <span className="form-label">{label}</span>
-                      <input className="form-input" required minLength={2} maxLength={2000}
-                        value={recommendationValues[field] ?? ''}
-                        onChange={(event) => updateRecommendationInput(project.groupId, field, event.target.value)} />
-                    </label>
-                  ))}
-                </div>
-                <div className="action-row">
-                  <button type="button" className="btn-secondary"
-                    disabled={['interest', 'area', 'tools'].some((field) =>
-                      (recommendationValues[field] ?? '').trim().length < 2)
-                      || recommendationMutation.isPending}
-                    onClick={() => recommendationMutation.mutate({
-                      groupId: project.groupId,
-                      ...recommendationValues,
-                    })}>
-                    {recommendationMutation.isPending
-                      && recommendationMutation.variables?.groupId === project.groupId
-                      ? 'Creating ideas…'
-                      : 'Recommend project titles'}
-                  </button>
-                </div>
-                {recommendations[project.groupId] && (
-                  <div className="import-preview" aria-live="polite">
-                    <p className="muted-copy">{recommendations[project.groupId].notice}</p>
-                    <p className="muted-copy">
-                      Draft method: {recommendations[project.groupId].generationMethod}
-                      {recommendations[project.groupId].similarityModel
-                        ? ` · originality check: ${recommendations[project.groupId].similarityModel}`
-                        : ''}
-                    </p>
-                    {recommendations[project.groupId].suggestions.map((idea) => (
-                      <div className="action-row" key={idea.title}>
-                        <div>
-                          <strong>{idea.title}</strong>
-                          <p className="muted-copy">
-                            Idea relevance: {Math.round(idea.relevanceScore * 100)}%
-                          </p>
-                          {idea.closestApprovedTitleSimilarity !== null && (
-                            <p className="muted-copy">
-                              Closest approved-title similarity: {Math.round(idea.closestApprovedTitleSimilarity * 100)}%
-                            </p>
-                          )}
-                        </div>
-                        <button type="button" className="btn-secondary"
-                          onClick={() => updateForm(project.groupId, 'title', idea.title)}>
-                          Use draft
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
                 <button className="btn-primary" disabled={submitMutation.isPending}>
                   {submitMutation.isPending ? 'Submitting…' : status === 'rejected' ? 'Resubmit proposal' : 'Submit proposal'}
                 </button>

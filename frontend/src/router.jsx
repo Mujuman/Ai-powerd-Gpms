@@ -25,6 +25,7 @@ import StudentProjectGroupPage from './pages/student/ProjectGroupPage'
 import StudentAdvisorChatPage from './pages/student/ProjectAdvisorChatPage'
 import StudentProjectDocumentsPage from './pages/student/ProjectDocumentsPage'
 import StudentDefenseSchedulePage from './pages/student/ProjectDefenseSchedulePage'
+import StudentProjectTitleIdeasPage from './pages/student/ProjectTitleIdeasPage'
 import { RoleRedirect } from './components/auth/RoleRedirect'
 import { RouteErrorPage } from './components/RouteErrorPage'
 
@@ -127,6 +128,7 @@ export const router = createBrowserRouter([
                   { path: 'dashboard', element: <StudentDashboard /> },
                   { path: 'academic-record', element: <AcademicRecordPage /> },
                   { path: 'project', element: <StudentProjectGroupPage /> },
+                  { path: 'project/title-ideas', element: <StudentProjectTitleIdeasPage /> },
                   { path: 'project/proposal', element: <StudentProjectPage /> },
                   { path: 'project/advisor-chat', element: <StudentAdvisorChatPage /> },
                   { path: 'project/documents', element: <StudentProjectDocumentsPage /> },

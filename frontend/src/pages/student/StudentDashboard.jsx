@@ -33,11 +33,19 @@ const WORK_AREAS = [
   },
   {
     title: 'Project proposal',
-    description: 'Get project title ideas, submit a detailed proposal, and see its similarity analysis and review status.',
+    description: 'Submit a detailed proposal and see its similarity analysis and review status.',
     icon: FileText,
     status: 'Available',
     to: '/student/project/proposal',
-    tasks: ['Get project title ideas', 'Submit or resubmit your proposal'],
+    tasks: ['Submit or resubmit your proposal', 'Review the Department Head decision'],
+  },
+  {
+    title: 'Project title ideas',
+    description: 'Explore project-only title suggestions based on your interests, application area, and tools.',
+    icon: FileText,
+    status: 'Available',
+    to: '/student/project/title-ideas',
+    tasks: ['Enter your interests and tools', 'Use a suggested title in your proposal'],
   },
   {
     title: 'Project documents',
