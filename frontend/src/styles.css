@@ -1369,6 +1369,86 @@ textarea.form-input {
   gap: 1rem;
 }
 
+.student-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.student-overview-card {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding: 1rem;
+  color: inherit;
+  background: white;
+  border: 1px solid #e5eaf2;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgb(25 42 75 / 3%);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.student-overview-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--brand-orange-border);
+  box-shadow: 0 10px 24px rgb(25 42 75 / 9%);
+}
+
+.student-overview-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  color: var(--brand-navy);
+  background: var(--brand-orange-soft);
+  border-radius: 11px;
+}
+
+.student-overview-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.student-overview-title {
+  color: #61708a;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.student-overview-copy strong {
+  overflow: hidden;
+  color: #17233c;
+  font-size: 0.98rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-overview-copy strong.has-error {
+  color: #c53030;
+}
+
+.student-overview-detail {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #61708a;
+  font-size: 0.77rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.student-overview-arrow {
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+  color: #8290a6;
+}
+
 .overview-section-heading {
   display: flex;
   align-items: flex-end;
@@ -1608,12 +1688,14 @@ textarea.form-input {
   .overview-hero { flex-direction: column; align-items: flex-start; }
   .overview-hero-action { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; }
   .overview-work-grid { grid-template-columns: 1fr; }
+  .student-overview-grid { grid-template-columns: minmax(0, 1fr); }
   .overview-card-description { min-height: 0; }
 }
 
 @media (min-width: 641px) and (max-width: 960px) {
   .head-work-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-work-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .student-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 480px) {
