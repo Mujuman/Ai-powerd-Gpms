@@ -4,6 +4,9 @@ export const titleRecommendationSchema = z.object({
   interest: z.string().trim().min(2).max(2000),
   area: z.string().trim().min(2).max(2000),
   tools: z.string().trim().min(2).max(2000),
+  problem: z.string().trim().max(2000).optional().default(''),
+  targetUsers: z.string().trim().max(2000).optional().default(''),
+  desiredOutcome: z.string().trim().max(2000).optional().default(''),
 }).strict()
 
 export const projectMessageSchema = z.object({

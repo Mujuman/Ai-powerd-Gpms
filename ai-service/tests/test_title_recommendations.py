@@ -16,6 +16,12 @@ class FakeTokenizer:
     def __call__(self, prompt, **kwargs):
         if "Student interests: machine learning" not in prompt:
             raise AssertionError("Student interests were not included in the generation prompt")
+        if "Specific problem to solve: crop disease" not in prompt:
+            raise AssertionError("The specific problem was not included in the generation prompt")
+        if "Target users or beneficiaries: smallholder farmers" not in prompt:
+            raise AssertionError("Target users were not included in the generation prompt")
+        if "Expected outcome or key features: disease identification" not in prompt:
+            raise AssertionError("The expected outcome was not included in the generation prompt")
         if kwargs != {"return_tensors": "pt", "truncation": True, "max_length": 512}:
             raise AssertionError("Unexpected tokenizer options")
         return {"input_ids": [1]}
@@ -65,6 +71,9 @@ class TitleRecommendationTests(unittest.TestCase):
             interest="machine learning",
             area="agriculture",
             tools="Python and scikit-learn",
+            problem="crop disease",
+            targetUsers="smallholder farmers",
+            desiredOutcome="disease identification",
         )
         with (
             patch.dict(os.environ, {"AI_SERVICE_TOKEN": "expected"}),

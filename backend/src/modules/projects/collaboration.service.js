@@ -106,7 +106,17 @@ export async function recommendTitles(groupId, preferences, actor) {
   }
 
   const items = [
-    { id: 'student-interests', text: `${preferences.interest}\n${preferences.area}\n${preferences.tools}` },
+    {
+      id: 'student-interests',
+      text: [
+        preferences.interest,
+        preferences.area,
+        preferences.tools,
+        preferences.problem,
+        preferences.targetUsers,
+        preferences.desiredOutcome,
+      ].filter(Boolean).join('\n').slice(0, 10000),
+    },
     ...uniqueDrafts.map(({ id, title }) => ({ id, text: title })),
     ...approvedTitles.map(({ id, title }) => ({ id: `approved-${id}`, text: title })),
   ]

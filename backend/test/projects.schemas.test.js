@@ -103,6 +103,15 @@ test('student collaboration requests validate title ideas, messages, and documen
     area: 'Campus transportation',
     tools: 'Python and mobile apps',
   }).success, true)
+  const detailedPreferences = titleRecommendationSchema.parse({
+    interest: 'Machine learning applications',
+    area: 'Campus transportation',
+    tools: 'Python and mobile apps',
+    problem: 'Students have difficulty finding available buses.',
+    targetUsers: 'Students and campus transport staff',
+    desiredOutcome: 'Provide live bus locations and arrival estimates.',
+  })
+  assert.equal(detailedPreferences.targetUsers, 'Students and campus transport staff')
   assert.equal(titleRecommendationSchema.safeParse({
     interest: '',
     area: 'Campus transportation',
