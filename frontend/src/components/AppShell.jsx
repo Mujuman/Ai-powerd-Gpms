@@ -20,6 +20,7 @@ const NAV_LINKS = {
   academic_advisor: [
     { label: 'Dashboard', to: '/advisor/dashboard' },
     { label: 'Assigned projects', to: '/advisor/projects' },
+    { label: 'Student project chat', to: '/advisor/chat' },
   ],
   examiner: [
     { label: 'Dashboard', to: '/examiner/dashboard' },
@@ -27,7 +28,11 @@ const NAV_LINKS = {
   ],
   student: [
     { label: 'Dashboard', to: '/student/dashboard' },
-    { label: 'Project workspace', to: '/student/project' },
+    { label: 'Project group', to: '/student/project', end: true },
+    { label: 'Project proposal', to: '/student/project/proposal' },
+    { label: 'Advisor chat', to: '/student/project/advisor-chat' },
+    { label: 'Project documents', to: '/student/project/documents' },
+    { label: 'Defense schedule', to: '/student/project/defense' },
     { label: 'Academic Record', to: '/student/academic-record' },
   ],
 }
@@ -59,10 +64,11 @@ export function AppShell() {
         </div>
 
         <nav className="sidebar-nav" aria-label="Role navigation">
-          {links.map(({ label, to }) => (
+          {links.map(({ label, to, end }) => (
             <NavLink
               key={to}
               to={to}
+              end={end}
               className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
             >
               {label}

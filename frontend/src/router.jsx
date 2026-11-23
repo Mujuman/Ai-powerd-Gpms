@@ -16,10 +16,15 @@ import HeadStaffPage from './pages/head/StaffPage'
 import StudentProjectPage from './pages/student/ProjectSubmissionPage'
 import AdvisorDashboard from './pages/advisor/AdvisorDashboard'
 import AdvisorProjectsPage from './pages/advisor/ProjectsPage'
+import AdvisorChatPage from './pages/advisor/AdvisorChatPage'
 import ExaminerDashboard from './pages/examiner/ExaminerDashboard'
 import ExaminerDefensesPage from './pages/examiner/DefensesPage'
 import StudentDashboard from './pages/student/StudentDashboard'
 import AcademicRecordPage from './pages/student/AcademicRecordPage'
+import StudentProjectGroupPage from './pages/student/ProjectGroupPage'
+import StudentAdvisorChatPage from './pages/student/ProjectAdvisorChatPage'
+import StudentProjectDocumentsPage from './pages/student/ProjectDocumentsPage'
+import StudentDefenseSchedulePage from './pages/student/ProjectDefenseSchedulePage'
 import { RoleRedirect } from './components/auth/RoleRedirect'
 import { RouteErrorPage } from './components/RouteErrorPage'
 
@@ -88,6 +93,7 @@ export const router = createBrowserRouter([
                   { index: true, element: <Navigate to="/advisor/dashboard" replace /> },
                   { path: 'dashboard', element: <AdvisorDashboard /> },
                   { path: 'projects', element: <AdvisorProjectsPage /> },
+                  { path: 'chat', element: <AdvisorChatPage /> },
                 ],
               },
             ],
@@ -120,7 +126,11 @@ export const router = createBrowserRouter([
                   { index: true, element: <Navigate to="/student/dashboard" replace /> },
                   { path: 'dashboard', element: <StudentDashboard /> },
                   { path: 'academic-record', element: <AcademicRecordPage /> },
-                  { path: 'project', element: <StudentProjectPage /> },
+                  { path: 'project', element: <StudentProjectGroupPage /> },
+                  { path: 'project/proposal', element: <StudentProjectPage /> },
+                  { path: 'project/advisor-chat', element: <StudentAdvisorChatPage /> },
+                  { path: 'project/documents', element: <StudentProjectDocumentsPage /> },
+                  { path: 'project/defense', element: <StudentDefenseSchedulePage /> },
                 ],
               },
             ],

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  addGroupMembersSchema,
   createGroupSchema,
   departmentQuerySchema,
   generateGroupsSchema,
@@ -19,6 +20,21 @@ test('group validation rejects duplicate members and oversized policy values', (
   const duplicateMembers = createGroupSchema.safeParse({
     departmentId,
     studentUserIds: [studentId, studentId],
+  })
+
+  test('group leader must be one of the selected group members', () => {
+    assert.equal(addGroupMembersSchema.safeParse({
+      studentUserIds: [studentId],
+      leaderUserId: studentId,
+    }).success, true)
+    assert.equal(addGroupMembersSchema.safeParse({
+      studentUserIds: [studentId],
+      leaderUserId: null,
+    }).success, true)
+    assert.equal(addGroupMembersSchema.safeParse({
+      studentUserIds: [studentId],
+      leaderUserId: departmentId,
+    }).success, false)
   })
   assert.equal(duplicateMembers.success, false)
 
