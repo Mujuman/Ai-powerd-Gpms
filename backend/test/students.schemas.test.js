@@ -22,20 +22,6 @@ test('group validation rejects duplicate members and oversized policy values', (
     studentUserIds: [studentId, studentId],
   })
 
-  test('group leader must be one of the selected group members', () => {
-    assert.equal(addGroupMembersSchema.safeParse({
-      studentUserIds: [studentId],
-      leaderUserId: studentId,
-    }).success, true)
-    assert.equal(addGroupMembersSchema.safeParse({
-      studentUserIds: [studentId],
-      leaderUserId: null,
-    }).success, true)
-    assert.equal(addGroupMembersSchema.safeParse({
-      studentUserIds: [studentId],
-      leaderUserId: departmentId,
-    }).success, false)
-  })
   assert.equal(duplicateMembers.success, false)
 
   const groupWithAcademicYear = createGroupSchema.safeParse({
@@ -59,12 +45,28 @@ test('group validation rejects duplicate members and oversized policy values', (
     grouping: { maximumGroupSize: 101 },
   })
 
-  test('group names use the next available sequential number', () => {
-    const existingNames = new Set(['Group 1', 'Group 3'])
-    assert.equal(nextGroupName(existingNames), 'Group 2')
-    assert.equal(nextGroupName(existingNames), 'Group 4')
-  })
   assert.equal(oversizedRule.success, false)
+})
+
+test('group leader must be one of the selected group members', () => {
+  assert.equal(addGroupMembersSchema.safeParse({
+    studentUserIds: [studentId],
+    leaderUserId: studentId,
+  }).success, true)
+  assert.equal(addGroupMembersSchema.safeParse({
+    studentUserIds: [studentId],
+    leaderUserId: null,
+  }).success, true)
+  assert.equal(addGroupMembersSchema.safeParse({
+    studentUserIds: [studentId],
+    leaderUserId: departmentId,
+  }).success, false)
+})
+
+test('group names use the next available sequential number', () => {
+  const existingNames = new Set(['Group 1', 'Group 3'])
+  assert.equal(nextGroupName(existingNames), 'Group 2')
+  assert.equal(nextGroupName(existingNames), 'Group 4')
 })
 
 test('department rules reject contradictory GPA ranges', () => {
