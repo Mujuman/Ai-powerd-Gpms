@@ -57,6 +57,7 @@ export default function StaffPage() {
   const queryClient = useQueryClient()
   const departments = Array.isArray(user?.departments) ? user.departments : []
   const [departmentId, setDepartmentId] = useState('')
+  const [activeTab, setActiveTab] = useState('list')
   const [form, setForm] = useState(EMPTY_FORM)
   const [staffFile, setStaffFile] = useState(null)
   const [editingStaff, setEditingStaff] = useState(null)
@@ -237,6 +238,17 @@ export default function StaffPage() {
 
       {departmentId && (
         <>
+          <div className="student-page-tabs" role="tablist" aria-label="Department staff sections">
+            <button type="button" role="tab" id="staff-list-tab" aria-controls="staff-list-panel"
+              aria-selected={activeTab === 'list'} className={`student-page-tab${activeTab === 'list' ? ' active' : ''}`}
+              onClick={() => setActiveTab('list')}>Staff list</button>
+            <button type="button" role="tab" id="staff-manage-tab" aria-controls="staff-manage-panel"
+              aria-selected={activeTab === 'manage'} className={`student-page-tab${activeTab === 'manage' ? ' active' : ''}`}
+              onClick={() => setActiveTab('manage')}>Add & import</button>
+          </div>
+
+          {activeTab === 'manage' && (
+          <div id="staff-manage-panel" role="tabpanel" aria-labelledby="staff-manage-tab" className="page-content">
           <section className="academic-card">
             <h2 className="section-title">Import staff from Excel</h2>
             <p className="muted-copy">
@@ -306,9 +318,17 @@ export default function StaffPage() {
               </button>
             </form>
           </section>
+          </div>
+          )}
 
+          {activeTab === 'list' && (
           <section className="academic-card">
-            <h2 className="section-title">Department staff</h2>
+            <div className="page-header">
+              <div>
+                <h2 className="section-title">Department staff</h2>
+                <p className="page-subtitle">Manage advisors and examiners assigned to this department.</p>
+              </div>
+            </div>
             {staffQuery.isLoading && <div className="table-loading" aria-busy="true">Loading staff…</div>}
             {staffQuery.data && (
               <div className="table-wrapper">
@@ -356,6 +376,7 @@ export default function StaffPage() {
               </div>
             )}
           </section>
+          )}
 
           {editingStaff && (
             <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-staff-title"
