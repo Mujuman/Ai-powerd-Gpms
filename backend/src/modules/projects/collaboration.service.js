@@ -100,14 +100,14 @@ export async function recommendTitles(groupId, preferences, actor) {
     return {
       generationMethod: generated.modelName,
       similarityModel: null,
-      notice: 'All generated titles matched an approved title and were removed. Adjust your interests or application area and try again.',
+      notice: 'All generated titles matched an approved title and were removed. Revise your project details and try again.',
       suggestions: [],
     }
   }
 
   const items = [
     {
-      id: 'student-interests',
+      id: 'project-details',
       text: [
         preferences.projectIdea,
         preferences.problemStatement,
@@ -121,7 +121,7 @@ export async function recommendTitles(groupId, preferences, actor) {
     ...uniqueDrafts.map(({ id, title }) => ({ id, text: title })),
     ...approvedTitles.map(({ id, title }) => ({ id: `approved-${id}`, text: title })),
   ]
-  const pairs = uniqueDrafts.map(({ id }) => ({ leftId: 'student-interests', rightId: id }))
+  const pairs = uniqueDrafts.map(({ id }) => ({ leftId: 'project-details', rightId: id }))
   for (const draft of uniqueDrafts) {
     for (const approved of approvedTitles) {
       pairs.push({ leftId: draft.id, rightId: `approved-${approved.id}` })
@@ -137,7 +137,7 @@ export async function recommendTitles(groupId, preferences, actor) {
       scores.get(`${id}|approved-${approved.id}`) ?? 0)
     return {
       title,
-      relevanceScore: scores.get(`student-interests|${id}`) ?? 0,
+      relevanceScore: scores.get(`project-details|${id}`) ?? 0,
       closestApprovedTitleSimilarity: similarScores.length ? Math.max(...similarScores) : null,
     }
   }).sort((left, right) => right.relevanceScore - left.relevanceScore)
@@ -145,7 +145,7 @@ export async function recommendTitles(groupId, preferences, actor) {
   return {
     generationMethod: generated.modelName,
     similarityModel: analysis.modelName,
-    notice: 'These titles were generated locally from your interests, application area, and tools. Similarity scores are advisory, not a plagiarism decision.',
+    notice: 'These titles were generated locally from your project information and compared with approved project titles. Similarity scores are advisory, not a plagiarism decision.',
     suggestions,
   }
 }
