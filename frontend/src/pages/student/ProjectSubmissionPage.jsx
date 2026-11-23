@@ -12,22 +12,31 @@ export default function ProjectSubmissionPage() {
   const queryClient = useQueryClient()
   const [forms, setForms] = useState({})
   const [submissionResults, setSubmissionResults] = useState({})
+  const autoReviewQuery = useQuery({
+    queryKey: ['student-project-auto-review'],
+    queryFn: async () => (await api.post('/projects/mine/auto-review')).data.data,
+  })
   const projectsQuery = useQuery({
     queryKey: ['student-projects'],
-    queryFn: async () => {
-      await api.post('/projects/mine/auto-review')
-      return (await api.get('/projects/mine')).data.data
-    },
+    enabled: autoReviewQuery.isSuccess || autoReviewQuery.isError,
+    queryFn: async () => (await api.get('/projects/mine')).data.data,
   })
   const submitMutation = useMutation({
     mutationFn: async ({ groupId, title, description }) =>
       (await api.post('/projects/mine', { groupId, title, description })).data.data,
     onSuccess: (data, variables) => {
-      setSubmissionResults((current) => ({ ...current, [variables.groupId]: data.similarityCheck }))
+      setSubmissionResults((current) => ({
+        ...current,
+        [variables.groupId]: {
+          ...data.similarityCheck,
+          advisorAssignment: data.advisorAssignment,
+        },
+      }))
       void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
     },
   })
   const projects = projectsQuery.data ?? []
+  const isLoading = autoReviewQuery.isLoading || projectsQuery.isLoading
 
   useEffect(() => {
     const { groupId, title } = location.state ?? {}
@@ -61,15 +70,21 @@ export default function ProjectSubmissionPage() {
         <Link className="btn-secondary" to="/student/project/title-ideas">Get title ideas</Link>
       </div>
       {projectsQuery.isError && <div className="table-error" role="alert">
-        {message(projectsQuery.error, 'Could not check proposal similarity or load your project groups')}
+        {message(projectsQuery.error, 'Could not load your project groups')}
+      </div>}
+      {autoReviewQuery.isError && <div className="table-error" role="alert">
+        {message(autoReviewQuery.error, 'Could not complete the automatic proposal review or advisor assignment')}
       </div>}
       {submitMutation.error && <div className="table-error" role="alert">{message(submitMutation.error, 'Could not submit the project')}</div>}
-      {projectsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
+      {isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
       {projects.map((project) => {
         const status = project.submissionStatus
         const canSubmit = !status || status === 'rejected'
         const values = forms[project.groupId] ?? {}
         const similarityCheck = submissionResults[project.groupId]
+        const advisorAssignmentIssue = autoReviewQuery.data?.advisorAssignments?.find(
+          (assignment) => assignment.groupId === project.groupId && assignment.status === 'unassigned',
+        )
         return (
           <section className="academic-card" key={project.groupId}>
             <div className="page-header">
@@ -116,7 +131,19 @@ export default function ProjectSubmissionPage() {
                     </li>
                   ))}</ul>
                 ) : <p className="muted-copy">Nothing to compare yet.</p>}
+                {similarityCheck.advisorAssignment?.status === 'assigned' && (
+                  <p className="muted-copy">AI assigned advisor: {similarityCheck.advisorAssignment.advisorName}</p>
+                )}
+                {similarityCheck.advisorAssignment?.status === 'unassigned' && (
+                  <p className="table-error" role="alert">{similarityCheck.advisorAssignment.reason}</p>
+                )}
               </div>
+            )}
+            {advisorAssignmentIssue && (
+              <p className="table-error" role="alert">
+                AI advisor assignment needs attention: {advisorAssignmentIssue.reason}
+                {' '}The system will retry when you revisit this page.
+              </p>
             )}
             {canSubmit && (
               <form className="rules-form" onSubmit={(event) => submit(event, project.groupId)}>
@@ -148,7 +175,7 @@ export default function ProjectSubmissionPage() {
           </section>
         )
       })}
-      {!projectsQuery.isLoading && projects.length === 0 && (
+      {!isLoading && projects.length === 0 && (
         <section className="academic-card"><p className="muted-copy">You are not currently assigned to an active project group. Contact your Department Head.</p></section>
       )}
 
