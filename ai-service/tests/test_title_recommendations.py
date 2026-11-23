@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from app.main import (
     TitleRecommendationRequest,
     build_title_recommendation_prompt,
+    complete_title_suggestions,
     parse_generated_titles,
     title_recommendations,
 )
@@ -118,6 +119,43 @@ class TitleRecommendationTests(unittest.TestCase):
         self.assertEqual(parse_generated_titles(
             "1. Crop Disease Detection 2. Smart Irrigation Planning"
         ), ["Crop Disease Detection", "Smart Irrigation Planning"])
+
+    def test_completes_one_model_title_with_distinct_brief_based_suggestions(self):
+        request = TitleRecommendationRequest(
+            projectIdea="AI-based student attendance system",
+            problemStatement="Manual attendance is slow and inaccurate",
+            generalObjective="Develop an automated attendance system",
+            specificObjectives="Automate attendance recording\nGenerate attendance reports",
+            projectDescription="A system for teachers to manage attendance",
+            technologies="Python, React, MySQL",
+            domain="Artificial Intelligence and Education",
+        )
+
+        suggestions = complete_title_suggestions(
+            request,
+            ["A student attendance management system"],
+        )
+
+        self.assertEqual(len(suggestions), 5)
+        self.assertEqual(len({title.casefold() for title in suggestions}), 5)
+        self.assertEqual(suggestions[0], "A student attendance management system")
+
+    def test_discards_unrelated_model_output_and_uses_project_brief(self):
+        request = TitleRecommendationRequest(
+            projectIdea="AI-based student attendance system",
+            problemStatement="Manual attendance is slow and inaccurate",
+            generalObjective="Develop an automated attendance system",
+            specificObjectives="Automate attendance recording\nGenerate attendance reports",
+            projectDescription="A system for teachers to manage attendance",
+            technologies="Python, React, MySQL",
+            domain="Artificial Intelligence and Education",
+        )
+
+        suggestions = complete_title_suggestions(request, ["Future Embeddings"])
+
+        self.assertEqual(len(suggestions), 5)
+        self.assertEqual(suggestions[0], request.project_idea)
+        self.assertNotIn("Future Embeddings", suggestions)
 
     def test_rejects_too_short_preferences(self):
         with self.assertRaises(ValidationError):

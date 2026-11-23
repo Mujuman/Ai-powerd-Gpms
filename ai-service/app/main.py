@@ -115,6 +115,69 @@ def parse_generated_titles(text: str) -> list[str]:
     return titles
 
 
+def complete_title_suggestions(
+    request: TitleRecommendationRequest,
+    generated_titles: list[str],
+) -> list[str]:
+    def compact(value: str, max_length: int) -> str:
+        value = re.sub(r"\s+", " ", value).strip(" \t\r\n.,;:")
+        if len(value) > max_length:
+            value = value[:max_length].rsplit(" ", 1)[0].strip(" \t\r\n.,;:")
+        return value
+
+    def meaningful_terms(value: str) -> set[str]:
+        generic_terms = {
+            "application", "based", "development", "management", "platform",
+            "project", "solution", "system", "tool",
+        }
+        return {
+            term for term in re.findall(r"[a-z0-9]+", value.casefold())
+            if len(term) >= 4 and term not in generic_terms
+        }
+
+    idea = compact(request.project_idea, 90)
+    if not idea:
+        idea = compact(request.general_objective, 90) or "Student Project"
+    concept = re.sub(r"^(?:a|an|the)\s+", "", idea, flags=re.IGNORECASE).strip()
+    if not concept:
+        concept = idea
+    domain = compact(request.domain, 45) or "the stated domain"
+    technologies = compact(request.technologies, 45) or "the proposed technologies"
+    idea_terms = meaningful_terms(
+        " ".join((request.project_idea, request.general_objective, request.specific_objectives))
+    )
+
+    suggestions = []
+    seen = set()
+
+    def add(title: str) -> None:
+        title = compact(title, 240)
+        normalized = title.casefold()
+        if 8 <= len(title) <= 240 and normalized not in seen:
+            seen.add(normalized)
+            suggestions.append(title)
+
+    for title in generated_titles:
+        title_terms = meaningful_terms(title)
+        if not idea_terms or idea_terms.intersection(title_terms):
+            add(title)
+
+    for title in (
+        idea,
+        f"Design and Development of {concept}",
+        f"Development and Implementation of {concept}",
+        f"{concept} for {domain}",
+        f"Development of {concept} Using {technologies}",
+        f"A {domain} Approach to {concept}",
+        f"Implementation of {concept} for {domain}",
+    ):
+        add(title)
+        if len(suggestions) == 5:
+            break
+
+    return suggestions[:5]
+
+
 def build_title_recommendation_prompt(request: TitleRecommendationRequest) -> str:
     objectives = []
     for line in request.specific_objectives.splitlines():
@@ -205,7 +268,7 @@ def title_recommendations(
     except (OSError, RuntimeError, ValueError) as error:
         raise HTTPException(status_code=503, detail="The local title-generation model could not generate suggestions") from error
 
-    suggestions = parse_generated_titles(text)
+    suggestions = complete_title_suggestions(request, parse_generated_titles(text))
     if len(suggestions) != 5:
-        raise HTTPException(status_code=502, detail="The local title-generation model did not return five distinct valid project titles")
+        raise HTTPException(status_code=502, detail="Could not create five distinct project titles from the submitted project brief")
     return {"modelName": model_name, "suggestions": suggestions}
