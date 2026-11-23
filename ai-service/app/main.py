@@ -1,5 +1,6 @@
 import hmac
 import os
+import re
 from functools import lru_cache
 from math import fsum
 
@@ -39,6 +40,12 @@ class SimilarityRequest(BaseModel):
         return self
 
 
+class TitleRecommendationRequest(BaseModel):
+    interest: str = Field(min_length=2, max_length=2000)
+    area: str = Field(min_length=2, max_length=2000)
+    tools: str = Field(min_length=2, max_length=2000)
+
+
 @lru_cache(maxsize=1)
 def load_embedding_model():
     try:
@@ -57,6 +64,45 @@ def load_embedding_model():
             status_code=503,
             detail=f"The configured sentence-embedding model is unavailable: {model_name}",
         ) from error
+
+
+@lru_cache(maxsize=1)
+def load_title_generation_model():
+    try:
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+    except (ImportError, OSError) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Transformers dependencies could not be loaded; install the AI service requirements in a compatible Python environment",
+        ) from error
+
+    model_name = os.getenv("AI_TITLE_GENERATION_MODEL", "google/flan-t5-base")
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        model.eval()
+        return model_name, tokenizer, model
+    except (OSError, RuntimeError) as error:
+        raise HTTPException(
+            status_code=503,
+            detail=f"The configured title-generation model is unavailable: {model_name}",
+        ) from error
+
+
+def parse_generated_titles(text: str) -> list[str]:
+    candidates = re.split(r"[\r\n]+|(?<=\.)\s+(?=\d+[.)]\s)", text)
+    titles = []
+    seen = set()
+    for candidate in candidates:
+        title = re.sub(r"^\s*(?:\d+[.)]\s*|[-*]\s*|title\s*:\s*)", "", candidate, flags=re.IGNORECASE)
+        title = title.strip().strip("\"'").strip()
+        normalized = title.casefold()
+        if 8 <= len(title) <= 240 and normalized not in seen:
+            seen.add(normalized)
+            titles.append(title)
+        if len(titles) == 5:
+            break
+    return titles
 
 
 @app.get("/health")
@@ -93,3 +139,44 @@ def similarity(
             "score": score,
         })
     return {"modelName": model_name, "scores": scores}
+
+
+@app.post("/api/v1/title-recommendations")
+def title_recommendations(
+    request: TitleRecommendationRequest,
+    service_token: str | None = Header(default=None, alias="X-AI-Service-Token"),
+) -> dict:
+    expected_token = os.getenv("AI_SERVICE_TOKEN")
+    if not expected_token:
+        raise HTTPException(status_code=503, detail="AI service authentication is not configured")
+    if not service_token or not hmac.compare_digest(service_token, expected_token):
+        raise HTTPException(status_code=401, detail="Invalid internal service token")
+
+    model_name, tokenizer, model = load_title_generation_model()
+    prompt = (
+        "Generate five distinct, academically suitable undergraduate graduation project titles. "
+        "Use the student's interests, application area, and available tools. "
+        "Make each title specific, feasible, and clearly related to the application area. "
+        "Do not copy an existing project title. Return only a numbered list with one title per line.\n"
+        f"Student interests: {request.interest}\n"
+        f"Application area: {request.area}\n"
+        f"Available tools and technologies: {request.tools}\n"
+        "Titles:"
+    )
+    try:
+        model_inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+        generated = model.generate(
+            **model_inputs,
+            max_new_tokens=160,
+            num_beams=4,
+            no_repeat_ngram_size=3,
+            early_stopping=True,
+        )
+        text = tokenizer.decode(generated[0], skip_special_tokens=True)
+    except (OSError, RuntimeError, ValueError) as error:
+        raise HTTPException(status_code=503, detail="The local title-generation model could not generate suggestions") from error
+
+    suggestions = parse_generated_titles(text)
+    if not suggestions:
+        raise HTTPException(status_code=502, detail="The local title-generation model returned no valid project titles")
+    return {"modelName": model_name, "suggestions": suggestions}

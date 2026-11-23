@@ -5,7 +5,7 @@ import { HttpError } from '../../utils/http-error.js'
 import { withTransaction } from '../../database/transaction.js'
 import { pool } from '../../database/pool.js'
 import { recordAudit } from '../audit/audit.repository.js'
-import { analyzeSimilarity } from './ai-client.js'
+import { analyzeSimilarity, generateProjectTitles } from './ai-client.js'
 import * as repository from './collaboration.repository.js'
 
 const DOCUMENT_ROOT = path.resolve(
@@ -34,29 +34,8 @@ const ALLOWED_DOCUMENT_TYPES = new Map([
   }],
 ])
 
-const STOP_WORDS = new Set([
-  'a', 'about', 'above', 'after', 'an', 'and', 'are', 'as', 'at', 'be', 'by',
-  'for', 'from', 'in', 'into', 'is', 'it', 'of', 'on', 'or', 'that', 'the',
-  'this', 'to', 'using', 'with',
-])
-
 function normalizedTitle(title) {
   return title.normalize('NFKD').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
-}
-
-function makeTitleDrafts({ interest, area, tools }) {
-  const words = `${interest} ${area} ${tools}`.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
-  const topicWords = [...new Set(words.filter((word) => word.length > 2 && !STOP_WORDS.has(word)))]
-    .slice(0, 8)
-  if (topicWords.length < 2) {
-    throw new HttpError(400, 'Add specific project interests, an application area, and tools')
-  }
-  const topic = topicWords.map((word) => `${word[0].toLocaleUpperCase()}${word.slice(1)}`).join(' ')
-  return [
-    `${topic} Project Using Practical Tools`,
-    `Design and Implementation of a ${topic} Project`,
-    `Development of a ${topic} Project Platform`,
-  ]
 }
 
 function safeOriginalFilename(filename) {
@@ -106,17 +85,22 @@ export async function recommendTitles(groupId, preferences, actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
   const group = await authorizeGroup(groupId, actor)
   const approvedTitles = await repository.listApprovedTitles(pool, group.departmentId, groupId)
-  const drafts = makeTitleDrafts(preferences)
+  const generated = await generateProjectTitles(preferences)
   const approvedByNormalizedTitle = new Set(approvedTitles.map(({ title }) => normalizedTitle(title)))
-  const uniqueDrafts = [...new Set(drafts)]
-    .filter((title) => !approvedByNormalizedTitle.has(normalizedTitle(title)))
-    .map((title, index) => ({ id: `suggestion-${index}`, title }))
+  const seenDrafts = new Set()
+  const uniqueDrafts = []
+  for (const title of generated.suggestions) {
+    const normalized = normalizedTitle(title)
+    if (seenDrafts.has(normalized) || approvedByNormalizedTitle.has(normalized)) continue
+    seenDrafts.add(normalized)
+    uniqueDrafts.push({ id: `suggestion-${uniqueDrafts.length}`, title })
+  }
 
   if (!uniqueDrafts.length) {
     return {
-      generationMethod: 'local-keyword-templates-v1',
+      generationMethod: generated.modelName,
       similarityModel: null,
-      notice: 'All draft titles matched an approved title and were removed. Add more detail to your idea and try again.',
+      notice: 'All generated titles matched an approved title and were removed. Adjust your interests or application area and try again.',
       suggestions: [],
     }
   }
@@ -148,9 +132,9 @@ export async function recommendTitles(groupId, preferences, actor) {
   }).sort((left, right) => right.relevanceScore - left.relevanceScore)
 
   return {
-    generationMethod: 'local-keyword-templates-v1',
+    generationMethod: generated.modelName,
     similarityModel: analysis.modelName,
-    notice: 'These project-title drafts use your interests, application area, and tools. Similarity scores are advisory, not a plagiarism decision.',
+    notice: 'These titles were generated locally from your interests, application area, and tools. Similarity scores are advisory, not a plagiarism decision.',
     suggestions,
   }
 }

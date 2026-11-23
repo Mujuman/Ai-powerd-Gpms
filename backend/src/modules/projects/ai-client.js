@@ -102,3 +102,49 @@ export async function analyzeSimilarity(items, pairs) {
   }
   return result
 }
+
+export async function generateProjectTitles(preferences) {
+  if (!config.aiServiceToken
+    || config.aiServiceToken === 'replace-with-a-separate-random-internal-token') {
+    throw new HttpError(503, 'Configure the local AI service token to generate project title recommendations')
+  }
+
+  let response
+  try {
+    response = await fetch(`${config.aiServiceUrl.replace(/\/+$/, '')}/api/v1/title-recommendations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-AI-Service-Token': config.aiServiceToken,
+      },
+      body: JSON.stringify(preferences),
+      signal: AbortSignal.timeout(180000),
+    })
+  } catch (error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      throw new HttpError(503, 'Local title generation timed out while loading or running FLAN-T5')
+    }
+    throw new HttpError(503, 'Local title generation service is unavailable')
+  }
+
+  const result = await response.json().catch(() => null)
+  if (!response.ok) {
+    const message = typeof result?.detail === 'string'
+      ? result.detail
+      : 'Local title generation service rejected the request'
+    throw new HttpError(response.status === 503 ? 503 : 502, message)
+  }
+  if (typeof result?.modelName !== 'string'
+    || !Array.isArray(result.suggestions)
+    || result.suggestions.length < 1
+    || result.suggestions.length > 5
+    || result.suggestions.some((title) => (
+      typeof title !== 'string' || title.trim().length < 8 || title.trim().length > 240
+    ))) {
+    throw new HttpError(502, 'Local title generation service returned invalid suggestions')
+  }
+  return {
+    modelName: result.modelName,
+    suggestions: result.suggestions.map((title) => title.trim()),
+  }
+}
