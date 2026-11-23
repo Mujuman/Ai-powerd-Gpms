@@ -53,6 +53,8 @@ test('department-created staff accounts are limited to the supported roles and p
 
   const optionalProfile = createStaffSchema.parse({
     ...valid,
+    title: undefined,
+    specialization: undefined,
     email: '  Advisor@Example.edu ',
     interests: 'Distributed systems, accessibility',
   })
