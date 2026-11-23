@@ -130,11 +130,10 @@ export default function GroupsPage() {
     },
   })
   const graduateGroupMutation = useMutation({
-    mutationFn: async ({ groupId, reinstate }) => (await api.post(
-      `/students/groups/${groupId}/${reinstate ? 'reinstate' : 'graduate'}`,
-      null,
-      { params: { departmentId } },
-    )).data.data,
+    mutationFn: async ({ groupId, reinstate }) => {
+      const path = `/students/groups/${groupId}/${reinstate ? 'reinstate' : 'graduate'}`
+      return (await api.post(path, null, { params: { departmentId } })).data.data
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })

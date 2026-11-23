@@ -176,11 +176,10 @@ export default function StudentsPage() {
     },
   })
   const graduateStudentMutation = useMutation({
-    mutationFn: async ({ userId, reinstate }) => (await api.post(
-      `/students/${userId}/${reinstate ? 'reinstate' : 'graduate'}`,
-      null,
-      { params: { departmentId } },
-    })).data,
+    mutationFn: async ({ userId, reinstate }) => {
+      const path = `/students/${userId}/${reinstate ? 'reinstate' : 'graduate'}`
+      return (await api.post(path, null, { params: { departmentId } })).data
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['student-batch-options', departmentId] })
