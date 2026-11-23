@@ -124,7 +124,10 @@ export async function generateProjectTitles(preferences) {
     if (error.name === 'TimeoutError' || error.name === 'AbortError') {
       throw new HttpError(503, 'Local title generation timed out while loading or running FLAN-T5')
     }
-    throw new HttpError(503, 'Local title generation service is unavailable')
+    throw new HttpError(
+      503,
+      `Local title generation service is unavailable at ${config.aiServiceUrl}; start it and try again`,
+    )
   }
 
   const result = await response.json().catch(() => null)

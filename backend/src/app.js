@@ -5,6 +5,7 @@ import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import { config } from './config/env.js'
 import { pool } from './database/pool.js'
+import { apiErrorHandler } from './utils/api-error-handler.js'
 import { authRoutes } from './modules/auth/auth.routes.js'
 import { usersRoutes } from './modules/users/users.routes.js'
 import { departmentsRoutes } from './modules/departments/departments.routes.js'
@@ -60,15 +61,4 @@ app.use('/api/academics', academicsRoutes)
 app.use('/api/students', studentsRoutes)
 app.use('/api/projects', projectsRoutes)
 
-app.use((error, _request, response, next) => {
-  if (response.headersSent) return next(error)
-  const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 500
-    ? error.status
-    : 500
-  if (status === 500) console.error('Request failed:', error)
-  response.status(status).json({
-    success: false,
-    message: status === 500 ? 'Internal server error' : error.message,
-    ...(error.details ? { errors: error.details } : {}),
-  })
-})
+app.use(apiErrorHandler)
