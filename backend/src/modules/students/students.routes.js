@@ -24,6 +24,7 @@ const departmentManagers = requireRoles('department_head', 'system_administrator
 
 studentsRoutes.get('/', departmentManagers, studentsController.listStudents)
 studentsRoutes.post('/register', departmentManagers, studentsController.registerStudent)
+studentsRoutes.post('/:userId/temporary-password', departmentManagers, studentsController.issueTemporaryPassword)
 studentsRoutes.get('/me', requireRoles('student'), studentsController.getMe)
 studentsRoutes.get('/rules/:departmentId', departmentManagers, studentsController.getRules)
 studentsRoutes.put('/rules/:departmentId', departmentManagers, studentsController.saveRules)

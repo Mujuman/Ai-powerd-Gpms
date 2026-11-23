@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import * as XLSX from '@e965/xlsx'
 import { pool } from '../../database/pool.js'
 import { withTransaction } from '../../database/transaction.js'
+import { revokeAllRefreshTokens } from '../auth/auth.repository.js'
 import { recordAudit } from '../audit/audit.repository.js'
 import { createUser as insertUser, setUserDepartments } from '../users/users.repository.js'
 import { removeUploadedStudentDocuments } from '../projects/collaboration.service.js'
@@ -444,6 +445,46 @@ export async function registerStudent(data, actor) {
     email: data.email,
     departmentId,
   }
+}
+
+export async function issueStudentTemporaryPassword(userId, actor, requestedDepartmentId) {
+  const departmentId = await resolveDepartment(actor, requestedDepartmentId)
+  const temporaryPassword = randomBytes(12).toString('base64url')
+  const passwordHash = await bcrypt.hash(temporaryPassword, PASSWORD_HASH_ROUNDS)
+  let credential
+
+  await withTransaction(pool, async (connection) => {
+    const student = await repository.findStudentForUpdate(connection, userId)
+    if (!student || student.role !== 'student') throw new HttpError(404, 'Student not found')
+    if (student.departmentId !== departmentId) {
+      throw new HttpError(403, 'You may only manage students in your assigned departments')
+    }
+    if (!student.isActive) throw new HttpError(409, 'Inactive students cannot sign in')
+
+    await connection.execute(
+      `UPDATE users
+          SET password_hash = ?, must_change_password = TRUE, password_changed_at = NULL
+        WHERE id = ?`,
+      [passwordHash, userId],
+    )
+    await revokeAllRefreshTokens(connection, userId)
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'students.temporary_password.issue',
+      targetType: 'user',
+      targetId: userId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { studentId: student.studentId, departmentId },
+    })
+    credential = {
+      userId,
+      fullName: student.fullName,
+      email: student.email,
+      temporaryPassword,
+    }
+  })
+
+  return credential
 }
 
 export async function getStudent(userId, actor) {

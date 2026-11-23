@@ -49,6 +49,7 @@ export default function StudentsPage() {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [importResult, setImportResult] = useState(null)
+  const [issuedCredential, setIssuedCredential] = useState(null)
   const [editingStudent, setEditingStudent] = useState(null)
   const [studentForm, setStudentForm] = useState({
     fullName: '', email: '', password: '', studentId: '', cohort: '', yearLevel: '', gpa: '',
@@ -188,6 +189,13 @@ export default function StudentsPage() {
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
     },
   })
+  const temporaryPasswordMutation = useMutation({
+    mutationFn: async (userId) =>
+      (await api.post(`/students/${userId}/temporary-password`, null, {
+        params: { departmentId },
+      })).data.data,
+    onSuccess: setIssuedCredential,
+  })
 
   function numberOrNull(value) {
     return value === '' ? null : Number(value)
@@ -229,10 +237,18 @@ export default function StudentsPage() {
     }
   }
 
+  function issueTemporaryPassword(student) {
+    if (window.confirm(`Issue a new temporary password for ${student.fullName}? Their current sessions will be revoked.`)) {
+      setIssuedCredential(null)
+      temporaryPasswordMutation.mutate(student.userId)
+    }
+  }
+
   const students = studentsQuery.data?.data ?? []
   const formError = registerStudentMutation.error
     ?? deleteStudentMutation.error
     ?? graduateStudentMutation.error
+    ?? temporaryPasswordMutation.error
 
   return (
     <div className="page-content">
@@ -257,6 +273,14 @@ export default function StudentsPage() {
       {!departmentId && <p className="muted-copy">Select or assign a department to manage academic records.</p>}
       {departmentsQuery.isError && <ErrorMessage error={departmentsQuery.error} fallback="Could not load departments" />}
       {formError && <ErrorMessage error={formError} fallback="The operation failed" />}
+      {issuedCredential && (
+        <div className="import-preview" role="status">
+          <strong>Temporary password for {issuedCredential.fullName}</strong>
+          <p>{issuedCredential.email} · <code>{issuedCredential.temporaryPassword}</code></p>
+          <p className="muted-copy">Give this to the student privately. It is shown once, and they must change it before continuing.</p>
+          <button type="button" className="btn-secondary" onClick={() => setIssuedCredential(null)}>Dismiss</button>
+        </div>
+      )}
 
       {departmentId && (
         <>
@@ -487,6 +511,9 @@ export default function StudentsPage() {
                             })}>Edit</button>
                           <button className="btn-secondary" disabled={deleteStudentMutation.isPending}
                             onClick={() => deleteStudent(student)}>Delete</button>
+                          <button className="btn-secondary"
+                            disabled={!student.isActive || temporaryPasswordMutation.isPending}
+                            onClick={() => issueTemporaryPassword(student)}>Issue temp password</button>
                           <button className={student.enrollmentStatus === 'graduated' ? 'btn-secondary' : 'btn-danger'}
                             disabled={graduateStudentMutation.isPending}
                             onClick={() => graduateStudent(student)}>

@@ -49,6 +49,16 @@ export const studentsController = {
       })
     } catch (error) { next(error) }
   },
+  issueTemporaryPassword: async (request, response, next) => {
+    try {
+      const userId = parse(uuidSchema, request.params.userId)
+      const filters = parse(departmentQuerySchema, request.query)
+      response.json({
+        success: true,
+        data: await service.issueStudentTemporaryPassword(userId, actor(request), filters.departmentId),
+      })
+    } catch (error) { next(error) }
+  },
   getStudent: async (request, response, next) => {
     try {
       const userId = parse(uuidSchema, request.params.userId)
