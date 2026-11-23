@@ -106,7 +106,10 @@ export async function analyzeSimilarity(items, pairs) {
 export async function generateProjectTitles(preferences) {
   if (!config.aiServiceToken
     || config.aiServiceToken === 'replace-with-a-separate-random-internal-token') {
-    throw new HttpError(503, 'Configure the local AI service token to generate project title recommendations')
+    throw new HttpError(
+      503,
+      'Set AI_SERVICE_TOKEN in backend/.env and the AI service process to the same private value',
+    )
   }
 
   let response

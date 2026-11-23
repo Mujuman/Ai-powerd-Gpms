@@ -110,7 +110,14 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Check `http://127.0.0.1:8000/health`. Set `AI_SERVICE_TOKEN` in both the AI service process and `backend\.env` to the same private token to enable local FLAN-T5 title generation and Sentence Transformer similarity. On first use, the AI service loads `AI_TITLE_GENERATION_MODEL` (defaults to `google/flan-t5-base`) and `AI_EMBEDDING_MODEL` (defaults to `sentence-transformers/all-MiniLM-L6-v2`). If model weights are not cached, Transformers downloads them once; inference then runs locally without an external inference API. Keep the token configured in both processes. When it is missing, title generation reports an explicit configuration error, while similarity uses the clearly labeled local TF-IDF baseline.
+Check `http://127.0.0.1:8000/health`. Generate a random token with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`, put it in `backend\.env` as `AI_SERVICE_TOKEN`, and set the same value in the AI service terminal before starting FastAPI:
+
+```powershell
+$env:AI_SERVICE_TOKEN = "<same private value as backend\.env>"
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+This enables local FLAN-T5 title generation and Sentence Transformer similarity. On first use, the AI service loads `AI_TITLE_GENERATION_MODEL` (defaults to `google/flan-t5-base`) and `AI_EMBEDDING_MODEL` (defaults to `sentence-transformers/all-MiniLM-L6-v2`). If model weights are not cached, Transformers downloads them once; inference then runs locally without an external inference API. Keep the token configured in both processes. When it is missing, title generation reports an explicit configuration error, while similarity uses the clearly labeled local TF-IDF baseline.
 
 ## Start Redis and Celery on Windows
 
