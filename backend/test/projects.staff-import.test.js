@@ -40,6 +40,24 @@ test('staff Excel import reads required interests and optional specialization', 
   ])
 })
 
+test('staff Excel import accepts more than 100 staff rows', async () => {
+  const rows = [
+    ['Full Name', 'Email', 'Temporary Password', 'Staff Role', 'Instructor Interests'],
+  ]
+  for (let index = 1; index <= 101; index += 1) {
+    rows.push([
+      `Staff ${index}`,
+      `staff${index}@example.edu`,
+      'temporary-password',
+      index % 2 ? 'Advisor' : 'Examiner',
+      'Computer systems',
+    ])
+  }
+
+  const parsedRows = await parseStaffWorkbook(await createStaffWorkbook(rows))
+  assert.equal(parsedRows.length, 101)
+})
+
 test('staff Excel import requires the account columns and rejects invalid workbook content', async () => {
   const buffer = await createStaffWorkbook([
     ['Full Name', 'Email', 'Role'],

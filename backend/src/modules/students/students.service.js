@@ -81,7 +81,6 @@ export async function parseStudentWorkbook(buffer) {
   if (worksheetRowCount < 2) {
     throw new HttpError(400, 'The workbook must contain a header and at least one student row')
   }
-  if (worksheetRowCount > 2001) throw new HttpError(400, 'A student import may contain at most 2,000 rows')
 
   function getRowValues(rowIndex) {
     const values = []

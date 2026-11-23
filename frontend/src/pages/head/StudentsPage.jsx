@@ -332,7 +332,7 @@ export default function StudentsPage() {
             </form>
             <form className="import-form" onSubmit={uploadPreview}>
               <label className="form-field">
-                <span className="form-label">Excel workbook (.xls, .xlsx, .xlsm, .xlsb; max 5 MB)</span>
+                <span className="form-label">Excel workbook (.xls, .xlsx, .xlsm, .xlsb; no row limit, max 5 MB)</span>
                 <input className="form-input file-input" type="file" accept=".xls,.xlsx,.xlsm,.xlsb" required
                   onChange={(event) => {
                     setFile(event.target.files?.[0] ?? null)

@@ -17,7 +17,6 @@ import * as repository from './projects.repository.js'
 import * as collaborationRepository from './collaboration.repository.js'
 
 const PASSWORD_HASH_ROUNDS = 12
-const STAFF_IMPORT_MAX_ROWS = 100
 const STAFF_HEADER_ALIASES = new Map([
   ['fullname', 'fullName'],
   ['name', 'fullName'],
@@ -107,9 +106,6 @@ export async function parseStaffWorkbook(buffer) {
   const range = XLSX.utils.decode_range(sheet['!ref'])
   const rowCount = range.e.r - range.s.r + 1
   if (rowCount < 2) throw new HttpError(400, 'The workbook must contain headers and at least one staff row')
-  if (rowCount > STAFF_IMPORT_MAX_ROWS + 1) {
-    throw new HttpError(400, `A staff import may contain at most ${STAFF_IMPORT_MAX_ROWS} rows`)
-  }
 
   function getRowValues(rowIndex) {
     const values = []
