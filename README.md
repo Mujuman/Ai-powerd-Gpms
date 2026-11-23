@@ -4,7 +4,7 @@ AI-Powered Graduation Project Management System for university graduation-projec
 
 ## Current implementation status
 
-The current implementation includes five seeded roles, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, academic calendars, student registration and spreadsheet import, configurable eligibility rules and history, and department-scoped project groups. The Department Head project lifecycle includes student proposal submission and approval, similarity analysis, advisor/examiner management and matching, defense scheduling, examiner assessments, and department progress reports. Student project pages support local FLAN-T5 title generation from a project idea, problem statement, objectives, description, proposed technologies, and domain; advisor messaging; private PDF/DOCX uploads; defense-correction uploads after a revision request; and viewing schedules and examiner outcomes. Automatically approved proposals are assigned to an active advisor using the configured similarity model and current advisor workload.
+The current implementation includes five seeded roles and a default catalogue of academic departments, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, academic calendars, student registration and spreadsheet import, configurable eligibility rules and history, and department-scoped project groups. The Department Head project lifecycle includes student proposal submission and approval, similarity analysis, advisor/examiner management and matching, defense scheduling, examiner assessments, and department progress reports. Student project pages support local FLAN-T5 title generation from a project idea, problem statement, objectives, description, proposed technologies, and domain; advisor messaging; private PDF/DOCX uploads; defense-correction uploads after a revision request; and viewing schedules and examiner outcomes. Automatically approved proposals are assigned to an active advisor using the configured similarity model and current advisor workload.
 
 Project documents are stored outside the public web root in `backend\storage\project-documents` by default. Keep that folder private and backed up as needed; `PROJECT_DOCUMENT_ROOT` can point to another private local directory. Run `npm --prefix backend run db:migrate` after updating to create the collaboration tables, staff-interest columns, and student workflow fields. Similarity scores are advisory rather than automatic originality decisions.
 
@@ -60,7 +60,7 @@ All services run as local processes. Frontend and API development servers bind t
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-5. Apply migrations and role seeds:
+5. Apply migrations, role seeds, and the default academic department catalog:
 
    ```powershell
    npm --prefix backend run db:setup

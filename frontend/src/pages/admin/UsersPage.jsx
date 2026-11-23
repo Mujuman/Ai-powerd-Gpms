@@ -45,7 +45,7 @@ async function fetchUsers({ page, limit, role, departmentId, search, isActive })
 }
 
 async function fetchDepartments() {
-  const { data } = await api.get('/departments')
+  const { data } = await api.get('/departments', { params: { limit: 100 } })
   return data.data
 }
 

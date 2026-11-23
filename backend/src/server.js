@@ -3,12 +3,14 @@ import { config, validateEnvironment } from './config/env.js'
 import { pool } from './database/pool.js'
 import { runMigrations } from './database/migrations.js'
 import { seedRoles } from './database/seed-roles.js'
+import { seedDepartments } from './database/seed-departments.js'
 
 validateEnvironment()
 
 async function start() {
   await runMigrations()
   await seedRoles()
+  await seedDepartments()
 
   const server = app.listen(config.port, config.host, () => {
     console.log(`AI-GPMS API listening on port ${config.port}`)
