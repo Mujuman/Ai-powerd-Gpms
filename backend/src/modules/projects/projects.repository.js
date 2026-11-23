@@ -24,6 +24,7 @@ export async function listStudentGroups(connection, studentUserId) {
   const [rows] = await connection.execute(
     `SELECT g.id AS groupId, g.name AS groupName, g.department_id AS departmentId,
             d.name AS departmentName, d.code AS departmentCode,
+            g.leader_user_id AS leaderUserId,
             (SELECT ps.id FROM project_submissions ps
               WHERE ps.group_id = g.id ORDER BY ps.version DESC LIMIT 1) AS submissionId,
             (SELECT ps.title FROM project_submissions ps
@@ -46,12 +47,29 @@ export async function listStudentGroups(connection, studentUserId) {
       ORDER BY g.created_at DESC`,
     [studentUserId],
   )
-  return rows
+  if (!rows.length) return rows
+  const placeholders = rows.map(() => '?').join(', ')
+  const [members] = await connection.execute(
+    `SELECT gm.group_id AS groupId, u.id AS userId, u.full_name AS fullName,
+            sp.student_id AS studentId,
+            CASE WHEN u.id = g.leader_user_id THEN TRUE ELSE FALSE END AS isLeader
+       FROM student_group_members gm
+       JOIN student_groups g ON g.id = gm.group_id
+       JOIN users u ON u.id = gm.student_user_id
+       LEFT JOIN student_profiles sp ON sp.user_id = u.id
+      WHERE gm.group_id IN (${placeholders}) AND gm.is_active = TRUE
+      ORDER BY u.full_name`,
+    rows.map((row) => row.groupId),
+  )
+  const membersByGroup = new Map(rows.map((row) => [row.groupId, []]))
+  for (const member of members) membersByGroup.get(member.groupId).push(member)
+  return rows.map((row) => ({ ...row, members: membersByGroup.get(row.groupId) }))
 }
 
 export async function listAdvisorProjects(connection, advisorUserId) {
   const [rows] = await connection.execute(
     `SELECT g.id AS groupId, g.name AS groupName, d.name AS departmentName,
+            g.leader_user_id AS leaderUserId,
             ps.title, ps.description, ps.status AS submissionStatus,
             ps.review_note AS reviewNote
        FROM project_advisor_assignments aa
@@ -67,8 +85,11 @@ export async function listAdvisorProjects(connection, advisorUserId) {
   if (!rows.length) return rows
   const placeholders = rows.map(() => '?').join(', ')
   const [members] = await connection.execute(
-    `SELECT gm.group_id AS groupId, u.full_name AS fullName, sp.student_id AS studentId
+    `SELECT gm.group_id AS groupId, u.id AS userId, u.full_name AS fullName,
+            sp.student_id AS studentId,
+            CASE WHEN u.id = g.leader_user_id THEN TRUE ELSE FALSE END AS isLeader
        FROM student_group_members gm
+       JOIN student_groups g ON g.id = gm.group_id
        JOIN users u ON u.id = gm.student_user_id
        LEFT JOIN student_profiles sp ON sp.user_id = u.id
       WHERE gm.group_id IN (${placeholders}) AND gm.is_active = TRUE

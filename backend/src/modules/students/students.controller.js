@@ -197,8 +197,8 @@ export const studentsController = {
   replaceGroupMembers: async (request, response, next) => {
     try {
       const groupId = parse(uuidSchema, request.params.groupId)
-      const { studentUserIds } = parse(addGroupMembersSchema, request.body)
-      await service.replaceGroupMembers(groupId, studentUserIds, actor(request))
+      const { studentUserIds, leaderUserId } = parse(addGroupMembersSchema, request.body)
+      await service.replaceGroupMembers(groupId, studentUserIds, leaderUserId, actor(request))
       response.json({ success: true, message: 'Group members updated' })
     } catch (error) { next(error) }
   },

@@ -28,13 +28,6 @@ function ErrorMessage({ error, fallback }) {
   )
 }
 
-function getGroupLeader(members) {
-  return members.reduce((leader, member) => {
-    if (member.gpa == null || !Number.isFinite(Number(member.gpa))) return leader
-    return !leader || Number(member.gpa) > Number(leader.gpa) ? member : leader
-  }, null)
-}
-
 export default function GroupsPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -66,10 +59,6 @@ export default function GroupsPage() {
   })
   const visibleGroups = (groupsQuery.data ?? [])
     .filter((group) => group.name.trim().toLowerCase() !== 'demo project team')
-  const groupLeaders = new Map(visibleGroups.map((group) => [
-    group.id,
-    getGroupLeader(group.members),
-  ]))
   const groupedStudentIds = new Set((groupsQuery.data ?? [])
     .filter((group) => group.isActive)
     .flatMap((group) => group.members.map((member) => member.userId)))
@@ -108,6 +97,7 @@ export default function GroupsPage() {
   const groupMembersMutation = useMutation({
     mutationFn: async () => (await api.put(`/students/groups/${editingGroup.id}/members`, {
       studentUserIds: editingGroup.memberIds,
+      leaderUserId: editingGroup.leaderUserId || null,
     })).data.data,
     onSuccess: () => {
       setEditingGroup(null)
@@ -318,7 +308,7 @@ export default function GroupsPage() {
                                   {member.enrollmentStatus === 'graduated' && (
                                     <span className="group-leader-badge">Graduated</span>
                                   )}
-                                  {member.userId === groupLeaders.get(group.id)?.userId && (
+                                  {member.userId === group.leaderUserId && (
                                     <span className="group-leader-badge">Leader</span>
                                   )}
                                 </span>
@@ -347,6 +337,7 @@ export default function GroupsPage() {
                             setEditingGroup({
                               id: group.id,
                               memberIds: group.members.map((member) => member.userId),
+                              leaderUserId: group.leaderUserId ?? '',
                             })
                           }}>Edit members</button>
                           <button className="btn-secondary" disabled={deleteGroupMutation.isPending}
@@ -382,6 +373,22 @@ export default function GroupsPage() {
                 <p className="muted-copy">
                   {editingGroup.memberIds.length} student{editingGroup.memberIds.length === 1 ? '' : 's'} selected.
                 </p>
+                <label className="form-field">
+                  <span className="form-label">Group leader</span>
+                  <select className="form-input" value={editingGroup.leaderUserId}
+                    onChange={(event) => setEditingGroup((current) => ({
+                      ...current,
+                      leaderUserId: event.target.value,
+                    }))}>
+                    <option value="">Select a leader</option>
+                    {students.filter((student) => editingGroup.memberIds.includes(student.userId))
+                      .map((student) => (
+                        <option key={student.userId} value={student.userId}>
+                          {student.fullName} ({student.studentId})
+                        </option>
+                      ))}
+                  </select>
+                </label>
                 <div className="group-members-list" role="group" aria-label="Available students">
                   {editableStudents.map((student) => (
                     <label className="group-member-option" key={student.userId}>

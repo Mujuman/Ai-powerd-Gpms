@@ -866,7 +866,7 @@ export async function generateGroups(data, actor) {
   })
 }
 
-export async function replaceGroupMembers(groupId, studentUserIds, actor) {
+export async function replaceGroupMembers(groupId, studentUserIds, requestedLeaderUserId, actor) {
   await withTransaction(pool, async (connection) => {
     const group = await repository.findGroup(connection, groupId, true)
     if (!group) throw new HttpError(404, 'Student group not found')
@@ -887,17 +887,24 @@ export async function replaceGroupMembers(groupId, studentUserIds, actor) {
       groupId,
       group.projectType,
     )
+    const leaderUserId = requestedLeaderUserId === undefined
+      ? (studentUserIds.includes(group.leaderUserId) ? group.leaderUserId : null)
+      : requestedLeaderUserId
+    if (leaderUserId !== null && !studentUserIds.includes(leaderUserId)) {
+      throw new HttpError(400, 'The group leader must be an active member of this group')
+    }
     await repository.deactivateGroupMembers(connection, groupId)
     for (const studentUserId of studentUserIds) {
       await repository.addGroupMember(connection, groupId, studentUserId, actor.id)
     }
+    await repository.setGroupLeader(connection, groupId, leaderUserId)
     await recordAudit(connection, {
       userId: actor.id,
       action: 'student_groups.members_replaced',
       targetType: 'student_group',
       targetId: groupId,
       remoteAddress: actor.remoteAddress,
-      metadata: { memberCount: studentUserIds.length },
+      metadata: { memberCount: studentUserIds.length, leaderUserId },
     })
   })
 }

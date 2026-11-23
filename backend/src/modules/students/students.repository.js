@@ -561,6 +561,7 @@ export async function listGroups(databasePool, { departmentId }) {
   const [rows] = await databasePool.execute(
     `SELECT g.id, g.department_id AS departmentId, d.code AS departmentCode,
             g.name, g.project_type AS projectType, g.is_active AS isActive,
+            g.leader_user_id AS leaderUserId,
             (SELECT COUNT(*) FROM student_group_members gm
               WHERE gm.group_id = g.id AND gm.is_active = TRUE) AS memberCount
        FROM student_groups g
@@ -629,11 +630,18 @@ export async function findGroup(connection, groupId, lock = false) {
   const [rows] = await connection.execute(
     `SELECT id, department_id AS departmentId,
             name, project_type AS projectType,
-            is_active AS isActive
+            is_active AS isActive, leader_user_id AS leaderUserId
        FROM student_groups WHERE id = ?${lock ? ' FOR UPDATE' : ''}`,
     [groupId],
   )
   return rows[0] ?? null
+}
+
+export async function setGroupLeader(connection, groupId, leaderUserId) {
+  await connection.execute(
+    'UPDATE student_groups SET leader_user_id = ? WHERE id = ?',
+    [leaderUserId, groupId],
+  )
 }
 
 export async function insertGroup(connection, group) {

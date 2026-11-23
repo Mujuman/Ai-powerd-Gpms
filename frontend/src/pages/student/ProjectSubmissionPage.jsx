@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ProjectCollaborationPanel } from '../../components/projects/ProjectCollaborationPanel'
 import api from '../../lib/api'
 
 function message(error, fallback) {
@@ -16,11 +15,6 @@ export default function ProjectSubmissionPage() {
   const projectsQuery = useQuery({
     queryKey: ['student-projects'],
     queryFn: async () => (await api.get('/projects/mine')).data.data,
-  })
-  const defensesQuery = useQuery({
-    queryKey: ['student-defenses'],
-    queryFn: async () => (await api.get('/projects/mine/defenses')).data.data,
-    refetchInterval: 15000,
   })
   const recommendationMutation = useMutation({
     mutationFn: async ({ groupId, interest, area, tools }) =>
@@ -187,14 +181,6 @@ export default function ProjectSubmissionPage() {
             )}
             {status === 'submitted' && <p className="muted-copy">Your proposal is awaiting Department Head review.</p>}
             {status === 'approved' && <p className="muted-copy">Your title is approved. Contact your assigned advisor for next steps.</p>}
-            <ProjectCollaborationPanel
-              groupId={project.groupId}
-              role="student"
-              advisorAssigned={Boolean(project.advisorName)}
-              correctionAllowed={defensesQuery.data?.some((schedule) =>
-                schedule.groupId === project.groupId
-                && schedule.results?.some((result) => result.outcome === 'revision_required')) === true}
-            />
           </section>
         )
       })}
@@ -202,42 +188,6 @@ export default function ProjectSubmissionPage() {
         <section className="academic-card"><p className="muted-copy">You are not currently assigned to an active project group. Contact your Department Head.</p></section>
       )}
 
-      <section className="academic-card">
-        <h2 className="section-title">Defense schedule</h2>
-        {defensesQuery.error && <div className="table-error" role="alert">{message(defensesQuery.error, 'Could not load defense schedules')}</div>}
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead><tr><th>Group</th><th>Defense</th><th>Date and time</th><th>Venue</th><th>Status</th><th>Examiners and results</th></tr></thead>
-            <tbody>{(defensesQuery.data ?? []).map((schedule) => (
-              <tr key={schedule.id}>
-                <td>{schedule.groupName}</td><td>{schedule.defenseType}</td>
-                <td>{new Date(schedule.scheduledAt).toLocaleString()}</td><td>{schedule.venue}</td><td>{schedule.status}</td>
-                <td>
-                  {schedule.examiners?.map((examiner) => (
-                    <p key={examiner.userId}>
-                      {examiner.fullName} · {examiner.assignmentMethod === 'ai' ? 'AI assigned' : 'assigned'}
-                      {examiner.isChairperson ? ' · Chairperson' : ''}
-                    </p>
-                  ))}
-                  {schedule.results?.map((result) => (
-                    <div key={result.id}>
-                      <strong>{result.examinerName}: {result.outcome.replaceAll('_', ' ')}</strong>
-                      <p>{result.comments}</p>
-                      {result.studentGrades?.map((grade) => (
-                        <p key={grade.studentUserId}>Your grade: {grade.grade} / 100</p>
-                      ))}
-                      {result.rubric && <pre>{JSON.stringify(result.rubric, null, 2)}</pre>}
-                    </div>
-                  ))}
-                  {!schedule.examiners?.length && !schedule.results?.length && 'No examiner results yet.'}
-                </td>
-              </tr>
-            ))}
-              {defensesQuery.data?.length === 0 && <tr><td className="table-empty" colSpan={6}>No defenses are scheduled for your groups.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </section>
     </div>
   )
 }

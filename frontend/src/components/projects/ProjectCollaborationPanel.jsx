@@ -13,6 +13,7 @@ function formatDate(value) {
 export function ProjectCollaborationPanel({
   groupId,
   role,
+  mode = 'all',
   advisorAssigned = true,
   correctionAllowed = false,
 }) {
@@ -26,12 +27,13 @@ export function ProjectCollaborationPanel({
     queryKey: ['project-messages', groupId],
     queryFn: async () => (await api.get(`/projects/groups/${groupId}/messages`)).data.data,
     refetchInterval: 5000,
-    enabled: role !== 'examiner',
+    enabled: role !== 'examiner' && mode !== 'documents',
   })
   const documentsQuery = useQuery({
     queryKey: ['project-documents', groupId],
     queryFn: async () => (await api.get(`/projects/groups/${groupId}/documents`)).data.data,
     refetchInterval: 15000,
+    enabled: mode !== 'messages',
   })
   const sendMutation = useMutation({
     mutationFn: async () => (await api.post(`/projects/groups/${groupId}/messages`, {
@@ -96,7 +98,7 @@ export function ProjectCollaborationPanel({
 
   return (
     <section className="academic-card">
-      {role !== 'examiner' && (
+      {role !== 'examiner' && mode !== 'documents' && (
         <>
           <h3 className="section-title">Advisor messages</h3>
           <p className="page-subtitle">Messages refresh automatically every five seconds.</p>
@@ -137,6 +139,7 @@ export function ProjectCollaborationPanel({
         </>
       )}
 
+      {mode !== 'messages' && <>
       <h3 className="section-title">{role === 'examiner' ? 'Defense corrections' : 'Project documents'}</h3>
       {documentsQuery.error && <div className="table-error" role="alert">
         {message(documentsQuery.error, 'Could not load project documents')}
@@ -222,6 +225,7 @@ export function ProjectCollaborationPanel({
           )}
         </>
       )}
+      </>}
     </section>
   )
 }
