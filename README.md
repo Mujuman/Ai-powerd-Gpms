@@ -4,9 +4,9 @@ AI-Powered Graduation Project Management System for university graduation-projec
 
 ## Current implementation status
 
-The current implementation includes five seeded roles, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, academic calendars, student registration and spreadsheet import, configurable eligibility rules and history, and department-scoped project groups. The Department Head project lifecycle includes student proposal submission and approval, similarity analysis, advisor/examiner management and matching, defense scheduling, examiner assessments, and department progress reports. Student project pages support editable local keyword-template title drafts, advisor messaging, private PDF/DOCX uploads, defense-correction uploads after a revision request, and viewing schedules and examiner outcomes. The AI service provides sentence-embedding similarity when configured; without it, the API explicitly labels and uses a local TF-IDF lexical baseline.
+The current implementation includes five seeded roles, JWT authentication, rotating refresh sessions, password changes and reset support, audit/login records, department and user administration, academic calendars, student registration and spreadsheet import, configurable eligibility rules and history, and department-scoped project groups. The Department Head project lifecycle includes student proposal submission and approval, similarity analysis, advisor/examiner management and matching, defense scheduling, examiner assessments, and department progress reports. Student project pages support local FLAN-T5 title generation, advisor messaging, private PDF/DOCX uploads, defense-correction uploads after a revision request, and viewing schedules and examiner outcomes. Automatically approved proposals are assigned to an active advisor using the configured similarity model and current advisor workload.
 
-Project documents are stored outside the public web root in `backend\storage\project-documents` by default. Keep that folder private and backed up as needed; `PROJECT_DOCUMENT_ROOT` can point to another private local directory. Run `npm --prefix backend run db:migrate` after updating to create the collaboration tables, staff-interest columns, and student workflow fields. Title drafts are deterministic templates, not generative AI, and similarity scores are advisory rather than automatic originality decisions.
+Project documents are stored outside the public web root in `backend\storage\project-documents` by default. Keep that folder private and backed up as needed; `PROJECT_DOCUMENT_ROOT` can point to another private local directory. Run `npm --prefix backend run db:migrate` after updating to create the collaboration tables, staff-interest columns, and student workflow fields. Similarity scores are advisory rather than automatic originality decisions.
 
 API rate limits are disabled when `NODE_ENV=development` to simplify local testing. Rate limits remain enabled in other environments.
 
@@ -110,7 +110,7 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Check `http://127.0.0.1:8000/health`. To enable sentence-embedding analysis, set `AI_SERVICE_TOKEN` in the AI service process to the same private token configured for the backend. The first similarity request loads `AI_EMBEDDING_MODEL` (defaults to `sentence-transformers/all-MiniLM-L6-v2`); that model must be available locally or downloaded. If the embedding runtime or model cannot load while AI is enabled, the service returns HTTP 503 rather than silently presenting lexical results as semantic AI. If no token is configured in the backend, project recommendations and title comparisons use the clearly labeled local TF-IDF lexical baseline instead.
+Check `http://127.0.0.1:8000/health`. Set `AI_SERVICE_TOKEN` in both the AI service process and `backend\.env` to the same private token to enable local FLAN-T5 title generation and Sentence Transformer similarity. On first use, the AI service loads `AI_TITLE_GENERATION_MODEL` (defaults to `google/flan-t5-base`) and `AI_EMBEDDING_MODEL` (defaults to `sentence-transformers/all-MiniLM-L6-v2`). If model weights are not cached, Transformers downloads them once; inference then runs locally without an external inference API. Keep the token configured in both processes. When it is missing, title generation reports an explicit configuration error, while similarity uses the clearly labeled local TF-IDF baseline.
 
 ## Start Redis and Celery on Windows
 
@@ -166,7 +166,7 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 ## Environment variables
 
-`.env.example` is a template, not a credential file. Backend scripts load the optional `backend/.env`; values already supplied by the shell take precedence. `AI_SERVICE_URL` and `AI_SERVICE_TOKEN` enable the internal sentence-embedding service; leave the token blank to use the local TF-IDF baseline. The AI service process must receive the same token as the backend. `REDIS_URL` is used by Celery.
+`.env.example` is a template, not a credential file. Backend scripts load the optional `backend/.env`; values already supplied by the shell take precedence. `AI_SERVICE_URL` and `AI_SERVICE_TOKEN` enable the internal local-model service; the AI service process must receive the same token as the backend. `AI_TITLE_GENERATION_MODEL` and `AI_EMBEDDING_MODEL` optionally select the local title-generation and sentence-embedding models. `REDIS_URL` is used by Celery.
 
 ## Useful commands
 

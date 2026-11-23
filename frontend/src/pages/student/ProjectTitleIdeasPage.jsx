@@ -99,9 +99,9 @@ export default function ProjectTitleIdeasPage() {
             <div className="import-preview" aria-live="polite">
               <p className="muted-copy">{recommendations.notice}</p>
               <p className="muted-copy">
-                Draft method: {recommendations.generationMethod}
+                Generation model: {recommendations.generationMethod}
                 {recommendations.similarityModel
-                  ? ` · originality check: ${recommendations.similarityModel}`
+                  ? ` · similarity check: ${recommendations.similarityModel}`
                   : ''}
               </p>
               {recommendations.suggestions.map((idea) => (
