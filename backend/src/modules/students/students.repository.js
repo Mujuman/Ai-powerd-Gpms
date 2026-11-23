@@ -69,7 +69,7 @@ export async function updateStudent(connection, userId, student, departmentId) {
     `UPDATE student_profiles
         SET student_id = ?, department_id = ?, program = ?, cohort = ?,
             year_level = ?, gpa = ?, academic_year = ?, semester = ?
-      WHERE sp.user_id = ?`,
+      WHERE user_id = ?`,
     [
       student.studentId,
       departmentId,
@@ -165,7 +165,7 @@ export async function reinstateStudent(connection, userId) {
     `UPDATE student_profiles sp
        LEFT JOIN student_graduation_snapshots snapshot ON snapshot.student_user_id = sp.user_id
         SET sp.enrollment_status = COALESCE(snapshot.enrollment_status, 'active')
-      WHERE user_id = ?`,
+      WHERE sp.user_id = ?`,
     [userId],
   )
   await connection.execute(
