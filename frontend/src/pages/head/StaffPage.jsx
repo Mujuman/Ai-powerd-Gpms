@@ -12,21 +12,42 @@ const EMPTY_FORM = {
   interests: '',
 }
 
-function ErrorNotice({ error, fallback }) {
-  if (!error) return null
-  const details = Array.isArray(error?.response?.data?.errors) ? error.response.data.errors : []
+function getErrorToast(error, fallback) {
+  const response = error?.response?.data
+  const details = Array.isArray(response?.errors)
+    ? response.errors.map((detail) => (
+      `${detail.path ? `${detail.path}: ` : ''}${detail.message}`
+    ))
+    : []
+  return {
+    id: Date.now(),
+    type: 'error',
+    message: response?.message ?? fallback,
+    details,
+  }
+}
+
+function ToastPopup({ toast, onDismiss }) {
+  if (!toast) return null
   return (
-    <div className="table-error" role="alert">
-      {error?.response?.data?.message ?? fallback}
-      {details.length > 0 && (
-        <ul>
-          {details.map((detail, index) => (
-            <li key={`${detail.path ?? 'error'}-${index}`}>
-              {detail.path ? `${detail.path}: ` : ''}{detail.message}
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="toast-viewport">
+      <div
+        className={`toast-popup toast-popup-${toast.type}`}
+        role={toast.type === 'error' ? 'alert' : 'status'}
+        aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+      >
+        <div className="toast-popup-header">
+          <span>{toast.message}</span>
+          <button type="button" className="toast-popup-dismiss" onClick={onDismiss}>
+            Dismiss
+          </button>
+        </div>
+        {toast.details.length > 0 && (
+          <ul className="toast-popup-details">
+            {toast.details.map((detail, index) => <li key={`${detail}-${index}`}>{detail}</li>)}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }
@@ -38,8 +59,8 @@ export default function StaffPage() {
   const [departmentId, setDepartmentId] = useState('')
   const [form, setForm] = useState(EMPTY_FORM)
   const [staffFile, setStaffFile] = useState(null)
-  const [staffImportResult, setStaffImportResult] = useState(null)
   const [editingStaff, setEditingStaff] = useState(null)
+  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     if (!departmentId && departments.length === 1) setDepartmentId(departments[0].id)
@@ -51,6 +72,17 @@ export default function StaffPage() {
     queryFn: async () => (await api.get('/projects/staff', { params: { departmentId } })).data.data,
   })
   const staff = Array.isArray(staffQuery.data) ? staffQuery.data : []
+
+  useEffect(() => {
+    if (!staffQuery.error) return
+    setToast(getErrorToast(staffQuery.error, 'Could not load staff'))
+  }, [staffQuery.error])
+
+  useEffect(() => {
+    if (!toast) return undefined
+    const timeout = window.setTimeout(() => setToast(null), 6000)
+    return () => window.clearTimeout(timeout)
+  }, [toast])
 
   function invalidateStaff() {
     void queryClient.invalidateQueries({ queryKey: ['head-project-staff', departmentId] })
@@ -82,6 +114,24 @@ export default function StaffPage() {
       if (variables.action === 'create') setForm({ ...EMPTY_FORM })
       if (variables.action === 'update') setEditingStaff(null)
       invalidateStaff()
+      const messages = {
+        create: 'Staff account created successfully.',
+        update: 'Staff account updated successfully.',
+        active: variables.changes.isActive
+          ? 'Staff account activated successfully.'
+          : 'Staff account deactivated successfully.',
+        delete: 'Staff account deleted successfully.',
+      }
+      setToast({ id: Date.now(), type: 'success', message: messages[variables.action], details: [] })
+    },
+    onError: (error, variables) => {
+      const fallbacks = {
+        create: 'Could not create staff account',
+        update: 'Could not update staff account',
+        active: 'Could not change staff account status',
+        delete: 'Could not delete staff account',
+      }
+      setToast(getErrorToast(error, fallbacks[variables.action]))
     },
   })
 
@@ -94,8 +144,16 @@ export default function StaffPage() {
     },
     onSuccess: (result) => {
       setStaffFile(null)
-      setStaffImportResult(result)
       invalidateStaff()
+      setToast({
+        id: Date.now(),
+        type: 'success',
+        message: `Imported ${result.imported} staff members (${result.advisors} advisors, ${result.examiners} examiners).`,
+        details: [],
+      })
+    },
+    onError: (error) => {
+      setToast(getErrorToast(error, 'Could not import staff'))
     },
   })
 
@@ -109,7 +167,6 @@ export default function StaffPage() {
 
   function submitStaffImport(event) {
     event.preventDefault()
-    setStaffImportResult(null)
     staffImportMutation.mutate()
   }
 
@@ -150,6 +207,7 @@ export default function StaffPage() {
 
   return (
     <div className="page-content">
+      <ToastPopup toast={toast} onDismiss={() => setToast(null)} />
       <div className="page-header">
         <div>
           <h1 className="page-title">Advisors and examiners</h1>
@@ -178,14 +236,6 @@ export default function StaffPage() {
 
       {departmentId && (
         <>
-          <ErrorNotice error={staffMutation.error}
-            fallback={staffMutation.variables?.action === 'update'
-              ? 'Could not update staff account'
-              : staffMutation.variables?.action === 'active'
-                ? 'Could not change staff account status'
-                : staffMutation.variables?.action === 'delete'
-                  ? 'Could not delete staff account'
-                  : 'Could not create staff account'} />
           <section className="academic-card">
             <h2 className="section-title">Import staff from Excel</h2>
             <p className="muted-copy">
@@ -202,7 +252,6 @@ export default function StaffPage() {
                   type="file" accept=".xls,.xlsx,.xlsm,.xlsb" required
                   onChange={(event) => {
                     setStaffFile(event.target.files?.[0] ?? null)
-                    setStaffImportResult(null)
                     staffImportMutation.reset()
                   }} />
               </label>
@@ -210,13 +259,6 @@ export default function StaffPage() {
                 disabled={!staffFile || staffImportMutation.isPending}>
                 {staffImportMutation.isPending ? 'Importing staff…' : 'Import staff from Excel'}
               </button>
-              <ErrorNotice error={staffImportMutation.error} fallback="Could not import staff" />
-              {staffImportResult && (
-                <p className="status-active" role="status">
-                  Imported {staffImportResult.imported} staff members
-                  ({staffImportResult.advisors} advisors, {staffImportResult.examiners} examiners).
-                </p>
-              )}
             </form>
           </section>
 
@@ -267,7 +309,6 @@ export default function StaffPage() {
           <section className="academic-card">
             <h2 className="section-title">Department staff</h2>
             {staffQuery.isLoading && <div className="table-loading" aria-busy="true">Loading staff…</div>}
-            <ErrorNotice error={staffQuery.error} fallback="Could not load staff" />
             {staffQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
