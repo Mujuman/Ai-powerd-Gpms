@@ -73,6 +73,14 @@ export const studentsController = {
       response.json({ success: true, message: 'Student graduated and login access revoked' })
     } catch (error) { next(error) }
   },
+  reinstateStudent: async (request, response, next) => {
+    try {
+      const userId = parse(uuidSchema, request.params.userId)
+      const filters = parse(departmentQuerySchema, request.query)
+      await service.reinstateStudent(userId, actor(request), filters.departmentId)
+      response.json({ success: true, message: 'Student pre-graduation account state restored' })
+    } catch (error) { next(error) }
+  },
   deleteStudent: async (request, response, next) => {
     try {
       const userId = parse(uuidSchema, request.params.userId)
@@ -166,6 +174,16 @@ export const studentsController = {
       })
     } catch (error) { next(error) }
   },
+  reinstateGroup: async (request, response, next) => {
+    try {
+      const groupId = parse(uuidSchema, request.params.groupId)
+      const filters = parse(departmentQuerySchema, request.query)
+      response.json({
+        success: true,
+        data: await service.reinstateGroup(groupId, actor(request), filters.departmentId),
+      })
+    } catch (error) { next(error) }
+  },
   replaceGroupMembers: async (request, response, next) => {
     try {
       const groupId = parse(uuidSchema, request.params.groupId)
@@ -189,4 +207,4 @@ export const studentsController = {
       })
     } catch (error) { next(error) }
   },
-}
+}

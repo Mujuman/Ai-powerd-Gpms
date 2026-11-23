@@ -246,10 +246,33 @@ export async function graduateStudent(userId, actor, requestedDepartmentId) {
     }
     if (student.enrollmentStatus === 'graduated') throw new HttpError(409, 'This student has already graduated')
 
+    await repository.snapshotStudentGraduation(connection, userId)
     await repository.graduateStudent(connection, userId)
     await recordAudit(connection, {
       userId: actor.id,
       action: 'students.graduate',
+      targetType: 'user',
+      targetId: userId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { studentId: student.studentId, departmentId },
+    })
+  })
+}
+
+export async function reinstateStudent(userId, actor, requestedDepartmentId) {
+  const departmentId = await resolveDepartment(actor, requestedDepartmentId)
+  await withTransaction(pool, async (connection) => {
+    const student = await repository.findStudentForUpdate(connection, userId)
+    if (!student || student.role !== 'student') throw new HttpError(404, 'Student not found')
+    if (student.departmentId !== departmentId) {
+      throw new HttpError(403, 'You may only manage students in your assigned departments')
+    }
+    if (student.enrollmentStatus !== 'graduated') throw new HttpError(409, 'This student is not graduated')
+
+    await repository.reinstateStudent(connection, userId)
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'students.reinstate',
       targetType: 'user',
       targetId: userId,
       remoteAddress: actor.remoteAddress,
@@ -272,6 +295,7 @@ export async function graduateGroup(groupId, actor, requestedDepartmentId) {
     const newlyGraduated = students.filter((student) => student.enrollmentStatus !== 'graduated').length
     if (!newlyGraduated) throw new HttpError(409, 'All students in this group have already graduated')
 
+    await repository.snapshotGroupGraduation(connection, groupId)
     await repository.graduateGroupStudents(connection, groupId)
     await recordAudit(connection, {
       userId: actor.id,
@@ -282,6 +306,34 @@ export async function graduateGroup(groupId, actor, requestedDepartmentId) {
       metadata: { departmentId, groupName: group.name, graduatedCount: newlyGraduated },
     })
     return { groupId, graduatedCount: newlyGraduated }
+  })
+}
+
+export async function reinstateGroup(groupId, actor, requestedDepartmentId) {
+  const departmentId = await resolveDepartment(actor, requestedDepartmentId)
+  return withTransaction(pool, async (connection) => {
+    const group = await repository.findGroup(connection, groupId, true)
+    if (!group || !group.isActive) throw new HttpError(404, 'Active student group not found')
+    if (group.departmentId !== departmentId) {
+      throw new HttpError(403, 'You may only manage groups in your assigned departments')
+    }
+
+    const students = await repository.findActiveGroupStudents(connection, groupId)
+    if (!students.length) throw new HttpError(409, 'This group has no active student members')
+    if (students.some((student) => student.enrollmentStatus !== 'graduated')) {
+      throw new HttpError(409, 'Every student in this group must be graduated before reinstating the group')
+    }
+
+    await repository.reinstateGroupStudents(connection, groupId)
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'student_groups.reinstate',
+      targetType: 'student_group',
+      targetId: groupId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { departmentId, groupName: group.name, reinstatedCount: students.length },
+    })
+    return { groupId, reinstatedCount: students.length }
   })
 }
 

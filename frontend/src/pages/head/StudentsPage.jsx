@@ -176,8 +176,10 @@ export default function StudentsPage() {
     },
   })
   const graduateStudentMutation = useMutation({
-    mutationFn: async (userId) => (await api.post(`/students/${userId}/graduate`, null, {
-      params: { departmentId },
+    mutationFn: async ({ userId, reinstate }) => (await api.post(
+      `/students/${userId}/${reinstate ? 'reinstate' : 'graduate'}`,
+      null,
+      { params: { departmentId } },
     })).data,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
@@ -218,10 +220,12 @@ export default function StudentsPage() {
   }
 
   function graduateStudent(student) {
-    if (window.confirm(
-      `Graduate ${student.fullName}? Their login access will be disabled, and they will remain in the student and project records.`,
-    )) {
-      graduateStudentMutation.mutate(student.userId)
+    const reinstate = student.enrollmentStatus === 'graduated'
+    const confirmation = reinstate
+      ? `Reinstate ${student.fullName}? Their enrollment status will return to active and they will be able to log in again.`
+      : `Graduate ${student.fullName}? Their login access will be disabled, and they will remain in the student and project records.`
+    if (window.confirm(confirmation)) {
+      graduateStudentMutation.mutate({ userId: student.userId, reinstate })
     }
   }
 
@@ -443,10 +447,10 @@ export default function StudentsPage() {
                             })}>Edit</button>
                           <button className="btn-secondary" disabled={deleteStudentMutation.isPending}
                             onClick={() => deleteStudent(student)}>Delete</button>
-                          <button className="btn-danger"
-                            disabled={student.enrollmentStatus === 'graduated' || graduateStudentMutation.isPending}
+                          <button className={student.enrollmentStatus === 'graduated' ? 'btn-secondary' : 'btn-danger'}
+                            disabled={graduateStudentMutation.isPending}
                             onClick={() => graduateStudent(student)}>
-                            {student.enrollmentStatus === 'graduated' ? 'Graduated' : 'Graduate'}
+                            {student.enrollmentStatus === 'graduated' ? 'Reinstate' : 'Graduate'}
                           </button>
                         </div></td>
                       </tr>

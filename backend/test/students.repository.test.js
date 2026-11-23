@@ -12,6 +12,8 @@ import {
   listGroups,
   listGroupNames,
   permanentlyDeleteStudent,
+  reinstateGroupStudents,
+  reinstateStudent,
 } from '../src/modules/students/students.repository.js'
 import { findSessionUserById } from '../src/modules/users/users.repository.js'
 
@@ -192,6 +194,27 @@ test('deactivated graduated accounts cannot load an authenticated session', asyn
   assert.match(query, /u\.is_active/)
 })
 
+test('reinstating a student restores active status and account access', async () => {
+  const statements = []
+  const connection = {
+    async execute(query, parameters) {
+      statements.push({ query, parameters })
+      return [{ affectedRows: 1 }]
+    },
+  }
+
+  await reinstateStudent(connection, 'student-id')
+  assert.equal(statements.length, 3)
+  assert.match(statements[0].query, /enrollment_status = 'active'/)
+  assert.match(statements[1].query, /UPDATE student_academic_records/)
+  assert.match(statements[2].query, /UPDATE users SET is_active = TRUE/)
+  assert.deepEqual(statements.map(({ parameters }) => parameters), [
+    ['student-id'],
+    ['student-id'],
+    ['student-id'],
+  ])
+})
+
 test('group graduation loads current members and blocks their accounts while preserving memberships', async () => {
   const queries = []
   const connection = {
@@ -218,6 +241,28 @@ test('group graduation loads current members and blocks their accounts while pre
   assert.equal(queries.length, 5)
   assert.deepEqual(queries.slice(1).map(({ parameters }) => parameters), [
     ['group-id'],
+    ['group-id'],
+    ['group-id'],
+    ['group-id'],
+  ])
+})
+
+test('reinstating a graduated group restores active status and account access for its members', async () => {
+  const statements = []
+  const connection = {
+    async execute(query, parameters) {
+      statements.push({ query, parameters })
+      return [{ affectedRows: 1 }]
+    },
+  }
+
+  await reinstateGroupStudents(connection, 'group-id')
+  assert.equal(statements.length, 3)
+  assert.match(statements[0].query, /enrollment_status = 'active'/)
+  assert.match(statements[1].query, /UPDATE student_academic_records sar/)
+  assert.match(statements[2].query, /UPDATE users u/)
+  assert.match(statements[2].query, /is_active = TRUE/)
+  assert.deepEqual(statements.map(({ parameters }) => parameters), [
     ['group-id'],
     ['group-id'],
     ['group-id'],

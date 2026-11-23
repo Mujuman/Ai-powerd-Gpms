@@ -196,7 +196,7 @@ python -m unittest discover -s tests -v
 - `/api/students/rules/:departmentId`, `/api/students/eligibility`, and `/api/students/eligibility/evaluate`
 - `POST /api/students/register` for Department Head student account and record creation
 - `/api/students/groups` and `/api/students/groups/:groupId/members`
-- `POST /api/students/:userId/graduate` and `POST /api/students/groups/:groupId/graduate` to graduate individual students or all current members of a group and revoke their login access
+- `POST /api/students/:userId/graduate` and `POST /api/students/groups/:groupId/graduate` to graduate individual students or all current members of a group and revoke their login access; corresponding `/reinstate` routes restore active status and login access
 - `/api/projects/mine` for student proposal submission and review status
 - `/api/projects/submissions` and `/api/projects/submissions/:submissionId/review` for Head review
 - `/api/projects/staff` for Department Head advisor/examiner account management

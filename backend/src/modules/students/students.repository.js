@@ -92,6 +92,49 @@ export async function updateStudent(connection, userId, student, departmentId) {
   )
 }
 
+export async function snapshotStudentGraduation(connection, userId) {
+  await connection.execute(
+    `INSERT INTO student_graduation_snapshots (student_user_id, was_active, enrollment_status)
+     SELECT sp.user_id, u.is_active, sp.enrollment_status
+       FROM student_profiles sp
+       JOIN users u ON u.id = sp.user_id
+      WHERE sp.user_id = ?`,
+    [userId],
+  )
+  await connection.execute(
+    `INSERT INTO student_graduation_academic_snapshots
+       (student_user_id, academic_record_id, enrollment_status)
+     SELECT student_user_id, id, enrollment_status
+       FROM student_academic_records
+      WHERE student_user_id = ?`,
+    [userId],
+  )
+}
+
+export async function snapshotGroupGraduation(connection, groupId) {
+  await connection.execute(
+    `INSERT INTO student_graduation_snapshots (student_user_id, was_active, enrollment_status)
+     SELECT sp.user_id, u.is_active, sp.enrollment_status
+       FROM student_group_members gm
+       JOIN student_profiles sp ON sp.user_id = gm.student_user_id
+       JOIN users u ON u.id = sp.user_id
+      WHERE gm.group_id = ? AND gm.is_active = TRUE
+        AND sp.enrollment_status <> 'graduated'`,
+    [groupId],
+  )
+  await connection.execute(
+    `INSERT INTO student_graduation_academic_snapshots
+       (student_user_id, academic_record_id, enrollment_status)
+     SELECT sar.student_user_id, sar.id, sar.enrollment_status
+       FROM student_group_members gm
+       JOIN student_profiles sp ON sp.user_id = gm.student_user_id
+       JOIN student_academic_records sar ON sar.student_user_id = sp.user_id
+      WHERE gm.group_id = ? AND gm.is_active = TRUE
+        AND sp.enrollment_status <> 'graduated'`,
+    [groupId],
+  )
+}
+
 export async function graduateStudent(connection, userId) {
   await connection.execute(
     `UPDATE student_profiles
@@ -113,6 +156,40 @@ export async function graduateStudent(connection, userId) {
     `UPDATE refresh_tokens
         SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP(3))
       WHERE user_id = ?`,
+    [userId],
+  )
+}
+
+export async function reinstateStudent(connection, userId) {
+  await connection.execute(
+    `UPDATE student_profiles sp
+       LEFT JOIN student_graduation_snapshots snapshot ON snapshot.student_user_id = sp.user_id
+        SET sp.enrollment_status = COALESCE(snapshot.enrollment_status, 'active')
+      WHERE user_id = ?`,
+    [userId],
+  )
+  await connection.execute(
+    `UPDATE student_academic_records sar
+       LEFT JOIN student_graduation_academic_snapshots snapshot
+         ON snapshot.student_user_id = sar.student_user_id
+        AND snapshot.academic_record_id = sar.id
+        SET sar.enrollment_status = COALESCE(snapshot.enrollment_status, 'active')
+      WHERE sar.student_user_id = ?`,
+    [userId],
+  )
+  await connection.execute(
+    `UPDATE users u
+       LEFT JOIN student_graduation_snapshots snapshot ON snapshot.student_user_id = u.id
+        SET u.is_active = COALESCE(snapshot.was_active, TRUE)
+      WHERE u.id = ?`,
+    [userId],
+  )
+  await connection.execute(
+    'DELETE FROM student_graduation_academic_snapshots WHERE student_user_id = ?',
+    [userId],
+  )
+  await connection.execute(
+    'DELETE FROM student_graduation_snapshots WHERE student_user_id = ?',
     [userId],
   )
 }
@@ -157,6 +234,47 @@ export async function graduateGroupStudents(connection, groupId) {
     `UPDATE refresh_tokens rt
        JOIN student_group_members gm ON gm.student_user_id = rt.user_id
         SET rt.revoked_at = COALESCE(rt.revoked_at, CURRENT_TIMESTAMP(3))
+      WHERE gm.group_id = ? AND gm.is_active = TRUE`,
+    [groupId],
+  )
+}
+
+export async function reinstateGroupStudents(connection, groupId) {
+  await connection.execute(
+    `UPDATE student_profiles sp
+       JOIN student_group_members gm ON gm.student_user_id = sp.user_id
+       LEFT JOIN student_graduation_snapshots snapshot ON snapshot.student_user_id = sp.user_id
+        SET sp.enrollment_status = COALESCE(snapshot.enrollment_status, 'active')
+      WHERE gm.group_id = ? AND gm.is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `UPDATE student_academic_records sar
+       JOIN student_group_members gm ON gm.student_user_id = sar.student_user_id
+       LEFT JOIN student_graduation_academic_snapshots snapshot
+         ON snapshot.student_user_id = sar.student_user_id
+        AND snapshot.academic_record_id = sar.id
+        SET sar.enrollment_status = COALESCE(snapshot.enrollment_status, 'active')
+      WHERE gm.group_id = ? AND gm.is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `UPDATE users u
+       JOIN student_group_members gm ON gm.student_user_id = u.id
+       LEFT JOIN student_graduation_snapshots snapshot ON snapshot.student_user_id = u.id
+        SET u.is_active = COALESCE(snapshot.was_active, TRUE)
+      WHERE gm.group_id = ? AND gm.is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `DELETE snapshot FROM student_graduation_academic_snapshots snapshot
+       JOIN student_group_members gm ON gm.student_user_id = snapshot.student_user_id
+      WHERE gm.group_id = ? AND gm.is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `DELETE snapshot FROM student_graduation_snapshots snapshot
+       JOIN student_group_members gm ON gm.student_user_id = snapshot.student_user_id
       WHERE gm.group_id = ? AND gm.is_active = TRUE`,
     [groupId],
   )

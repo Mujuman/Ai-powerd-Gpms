@@ -130,8 +130,8 @@ export default function GroupsPage() {
     },
   })
   const graduateGroupMutation = useMutation({
-    mutationFn: async (groupId) => (await api.post(
-      `/students/groups/${groupId}/graduate`,
+    mutationFn: async ({ groupId, reinstate }) => (await api.post(
+      `/students/groups/${groupId}/${reinstate ? 'reinstate' : 'graduate'}`,
       null,
       { params: { departmentId } },
     )).data.data,
@@ -162,12 +162,16 @@ export default function GroupsPage() {
   }
 
   function graduateGroup(group) {
-    const activeMembers = group.members.filter((member) => member.enrollmentStatus !== 'graduated')
-    if (activeMembers.length === 0) return
-    const confirmed = window.confirm(
-      `Graduate all ${activeMembers.length} remaining student${activeMembers.length === 1 ? '' : 's'} in "${group.name}"? Their login access will be disabled, but group and project history will be kept.`,
-    )
-    if (confirmed) graduateGroupMutation.mutate(group.id)
+    const reinstate = group.members.length > 0
+      && group.members.every((member) => member.enrollmentStatus === 'graduated')
+    const affectedCount = reinstate
+      ? group.members.length
+      : group.members.filter((member) => member.enrollmentStatus !== 'graduated').length
+    if (affectedCount === 0) return
+    const confirmed = window.confirm(reinstate
+      ? `Reinstate all ${affectedCount} students in "${group.name}"? Their enrollment status will return to active and they will be able to log in again.`
+      : `Graduate all ${affectedCount} remaining students in "${group.name}"? Their login access will be disabled, but group and project history will be kept.`)
+    if (confirmed) graduateGroupMutation.mutate({ groupId: group.id, reinstate })
   }
 
   return (
@@ -324,17 +328,21 @@ export default function GroupsPage() {
                           ) : '—'}
                         </td>
                         <td><div className="action-row group-row-actions">
-                          <button className="btn-danger"
-                            disabled={graduateGroupMutation.isPending
-                              || group.members.every((member) => member.enrollmentStatus === 'graduated')}
-                            onClick={() => graduateGroup(group)}>
-                            {graduateGroupMutation.isPending && graduateGroupMutation.variables === group.id
-                              ? 'Graduating…'
-                              : group.members.length > 0
-                                && group.members.every((member) => member.enrollmentStatus === 'graduated')
-                                ? 'Graduated'
-                                : 'Graduate group'}
-                          </button>
+                          {(() => {
+                            const allGraduated = group.members.length > 0
+                              && group.members.every((member) => member.enrollmentStatus === 'graduated')
+                            const pending = graduateGroupMutation.isPending
+                              && graduateGroupMutation.variables?.groupId === group.id
+                            return (
+                              <button className={allGraduated ? 'btn-secondary' : 'btn-danger'}
+                                disabled={graduateGroupMutation.isPending || group.members.length === 0}
+                                onClick={() => graduateGroup(group)}>
+                                {pending
+                                  ? allGraduated ? 'Reinstating…' : 'Graduating…'
+                                  : allGraduated ? 'Reinstate group' : 'Graduate group'}
+                              </button>
+                            )
+                          })()}
                           <button className="btn-secondary" onClick={() => {
                             setMemberSearch('')
                             setEditingGroup({
