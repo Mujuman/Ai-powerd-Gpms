@@ -1,5 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { KeyRound, LogOut } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { RoleBadge } from './ui/RoleBadge'
 
@@ -80,6 +80,10 @@ export function AppShell() {
             <span className="shell-username" aria-label={`Signed in as ${user.fullName}`}>
               {user.fullName}
             </span>
+            <Link to="/account/change-password" className="btn-icon"
+              aria-label="Change password" title="Change password">
+              <KeyRound size={18} />
+            </Link>
             <button
               onClick={handleLogout}
               className="btn-icon"

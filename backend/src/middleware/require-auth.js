@@ -35,6 +35,11 @@ export async function requireAuth(request, _response, next) {
       return
     }
     request.user = user
+    if (user.mustChangePassword
+      && !(request.baseUrl === '/api/auth' && request.path === '/change-password')) {
+      next(new HttpError(403, 'Change your initial password before continuing'))
+      return
+    }
     next()
   } catch (error) {
     next(error)

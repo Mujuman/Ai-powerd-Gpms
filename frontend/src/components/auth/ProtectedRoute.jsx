@@ -17,6 +17,10 @@ export function ProtectedRoute({ allowedRoles }) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
+  if (user.mustChangePassword && location.pathname !== '/account/change-password') {
+    return <Navigate to="/account/change-password" replace />
+  }
+
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">

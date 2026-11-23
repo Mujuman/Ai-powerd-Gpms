@@ -10,7 +10,9 @@ function message(error, fallback) {
 export default function ProjectSubmissionPage() {
   const queryClient = useQueryClient()
   const [forms, setForms] = useState({})
+  const [recommendationInputs, setRecommendationInputs] = useState({})
   const [recommendations, setRecommendations] = useState({})
+  const [submissionResults, setSubmissionResults] = useState({})
   const projectsQuery = useQuery({
     queryKey: ['student-projects'],
     queryFn: async () => (await api.get('/projects/mine')).data.data,
@@ -21,8 +23,8 @@ export default function ProjectSubmissionPage() {
     refetchInterval: 15000,
   })
   const recommendationMutation = useMutation({
-    mutationFn: async ({ groupId, description }) =>
-      (await api.post(`/projects/mine/${groupId}/title-recommendations`, { description })).data.data,
+    mutationFn: async ({ groupId, interest, area, tools }) =>
+      (await api.post(`/projects/mine/${groupId}/title-recommendations`, { interest, area, tools })).data.data,
     onSuccess: (data, variables) => {
       setRecommendations((current) => ({ ...current, [variables.groupId]: data }))
     },
@@ -30,7 +32,8 @@ export default function ProjectSubmissionPage() {
   const submitMutation = useMutation({
     mutationFn: async ({ groupId, title, description }) =>
       (await api.post('/projects/mine', { groupId, title, description })).data.data,
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      setSubmissionResults((current) => ({ ...current, [variables.groupId]: data.similarityCheck }))
       void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
     },
   })
@@ -38,6 +41,13 @@ export default function ProjectSubmissionPage() {
 
   function updateForm(groupId, field, value) {
     setForms((current) => ({
+      ...current,
+      [groupId]: { ...current[groupId], [field]: value },
+    }))
+  }
+
+  function updateRecommendationInput(groupId, field, value) {
+    setRecommendationInputs((current) => ({
       ...current,
       [groupId]: { ...current[groupId], [field]: value },
     }))
@@ -67,6 +77,8 @@ export default function ProjectSubmissionPage() {
         const status = project.submissionStatus
         const canSubmit = !status || status === 'rejected'
         const values = forms[project.groupId] ?? {}
+        const recommendationValues = recommendationInputs[project.groupId] ?? {}
+        const similarityCheck = submissionResults[project.groupId]
         return (
           <section className="academic-card" key={project.groupId}>
             <div className="page-header">
@@ -84,6 +96,20 @@ export default function ProjectSubmissionPage() {
               <p className="muted-copy">{project.description}</p>
               {project.reviewNote && <p className="project-review-note"><strong>Department review:</strong> {project.reviewNote}</p>}
             </div>}
+            {similarityCheck && (
+              <div className="import-preview" role="status" aria-live="polite">
+                <strong>AI similarity check</strong>
+                <p className="muted-copy">{similarityCheck.notice}</p>
+                {similarityCheck.modelName && <p className="muted-copy">Analysis: {similarityCheck.modelName}</p>}
+                {similarityCheck.comparisons.length > 0 ? (
+                  <ul>{similarityCheck.comparisons.slice(0, 5).map((comparison) => (
+                    <li key={comparison.title}>
+                      {comparison.title} · {Math.round(comparison.score * 100)}% similarity
+                    </li>
+                  ))}</ul>
+                ) : <p className="muted-copy">Nothing to compare yet.</p>}
+              </div>
+            )}
             {canSubmit && (
               <form className="rules-form" onSubmit={(event) => submit(event, project.groupId)}>
                 <label className="form-field"><span className="form-label">Project title</span>
@@ -97,16 +123,32 @@ export default function ProjectSubmissionPage() {
                 </label>
                 <div className="action-row">
                   <button type="button" className="btn-secondary"
-                    disabled={(values.description ?? '').trim().length < 30 || recommendationMutation.isPending}
+                    disabled={['interest', 'area', 'tools'].some((field) =>
+                      (recommendationValues[field] ?? '').trim().length < 2)
+                      || recommendationMutation.isPending}
                     onClick={() => recommendationMutation.mutate({
                       groupId: project.groupId,
-                      description: values.description,
+                      ...recommendationValues,
                     })}>
                     {recommendationMutation.isPending
                       && recommendationMutation.variables?.groupId === project.groupId
                       ? 'Creating ideas…'
-                      : 'Get title ideas'}
+                      : 'Recommend project titles'}
                   </button>
+                </div>
+                <div className="form-grid">
+                  {[
+                    ['interest', "Student's interests"],
+                    ['area', 'Project application area'],
+                    ['tools', 'Tools or technologies'],
+                  ].map(([field, label]) => (
+                    <label className="form-field" key={field}>
+                      <span className="form-label">{label}</span>
+                      <input className="form-input" required minLength={2} maxLength={2000}
+                        value={recommendationValues[field] ?? ''}
+                        onChange={(event) => updateRecommendationInput(project.groupId, field, event.target.value)} />
+                    </label>
+                  ))}
                 </div>
                 {recommendations[project.groupId] && (
                   <div className="import-preview" aria-live="polite">

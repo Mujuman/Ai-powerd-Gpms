@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { AppShell } from './components/AppShell'
 import LoginPage from './components/auth/LoginPage'
+import ChangePasswordPage from './components/auth/ChangePasswordPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import UsersPage from './pages/admin/UsersPage'
 import DepartmentsPage from './pages/admin/DepartmentsPage'
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
         children: [
           // Root → redirect to role-specific dashboard
           { index: true, path: '/', element: <RoleRedirect /> },
+          { path: '/account/change-password', element: <ChangePasswordPage /> },
 
           // ── System Administrator ─────────────────────────────────────────
           {

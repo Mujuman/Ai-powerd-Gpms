@@ -192,6 +192,35 @@ export async function submitProject(data, actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Only students may submit project titles')
   const groupId = data.groupId
   const submissionId = randomUUID()
+  const group = await repository.findStudentGroup(pool, groupId, actor.id)
+  if (!group) throw new HttpError(404, 'Active project group not found')
+  const approvedTitles = await collaborationRepository.listApprovedTitles(pool, group.departmentId, groupId)
+  const similarityCheck = approvedTitles.length
+    ? await analyzeSimilarity(
+      [
+        { id: 'student-proposal', text: `${data.title}\n${data.description}` },
+        ...approvedTitles.map(({ id, title, description }) => ({
+          id: `approved-${id}`,
+          text: `${title}\n${description}`,
+        })),
+      ],
+      approvedTitles.map(({ id }) => ({
+        leftId: 'student-proposal',
+        rightId: `approved-${id}`,
+      })),
+    ).then((analysis) => ({
+      modelName: analysis.modelName,
+      notice: 'Compare the proposal with approved projects. Similarity is advisory and does not determine plagiarism.',
+      comparisons: approvedTitles.map((project) => ({
+        title: project.title,
+        score: analysis.scores.find((score) => score.rightId === `approved-${project.id}`)?.score ?? 0,
+      })).sort((left, right) => right.score - left.score),
+    }))
+    : {
+      modelName: null,
+      notice: 'No other approved projects are available for comparison yet.',
+      comparisons: [],
+    }
 
   return withTransaction(pool, async (connection) => {
     const group = await repository.findStudentGroup(connection, groupId, actor.id, true)
@@ -219,7 +248,7 @@ export async function submitProject(data, actor) {
       targetId: submissionId,
       metadata: { groupId, version },
     })
-    return { id: submissionId, groupId, version, status: 'submitted' }
+    return { id: submissionId, groupId, version, status: 'submitted', similarityCheck }
   })
 }
 

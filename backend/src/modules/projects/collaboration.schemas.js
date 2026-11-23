@@ -1,7 +1,9 @@
 import { z } from 'zod'
 
 export const titleRecommendationSchema = z.object({
-  description: z.string().trim().min(30).max(10000),
+  interest: z.string().trim().min(2).max(2000),
+  area: z.string().trim().min(2).max(2000),
+  tools: z.string().trim().min(2).max(2000),
 }).strict()
 
 export const projectMessageSchema = z.object({

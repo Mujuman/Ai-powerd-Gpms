@@ -355,12 +355,31 @@ export default function StudentsPage() {
               </button>
             </form>
             <p className="muted-copy">
-              New imported accounts receive a random initial password. Students can set their password through the password-reset option on the sign-in page.
+              New imported accounts receive a temporary password shown only once after import confirmation. Give each student their password; they must change it before using the system.
             </p>
             {importResult && (
-              <p className="status-active" role="status">
-                Imported {importResult.imported} student records; created {importResult.created} new student accounts.
-              </p>
+              <div className="import-preview" role="status">
+                <p className="status-active">
+                  Imported {importResult.imported} student records; created {importResult.created} new student accounts.
+                </p>
+                {importResult.initialCredentials?.length > 0 && (
+                  <>
+                    <p className="muted-copy">Copy these temporary passwords now; they will not be shown again.</p>
+                    <div className="table-wrapper">
+                      <table className="data-table">
+                        <thead><tr><th>Student</th><th>Email</th><th>Temporary password</th></tr></thead>
+                        <tbody>{importResult.initialCredentials.map((credential) => (
+                          <tr key={credential.email}>
+                            <td>{credential.fullName}</td>
+                            <td>{credential.email}</td>
+                            <td><code>{credential.temporaryPassword}</code></td>
+                          </tr>
+                        ))}</tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
             <ErrorMessage error={importMutation.error} fallback="Could not preview the student import" />
             {preview && (

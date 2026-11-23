@@ -44,18 +44,18 @@ function normalizedTitle(title) {
   return title.normalize('NFKD').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
 }
 
-function makeTitleDrafts(description) {
-  const words = description.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+function makeTitleDrafts({ interest, area, tools }) {
+  const words = `${interest} ${area} ${tools}`.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
   const topicWords = [...new Set(words.filter((word) => word.length > 2 && !STOP_WORDS.has(word)))]
-    .slice(0, 6)
+    .slice(0, 8)
   if (topicWords.length < 2) {
-    throw new HttpError(400, 'Add a specific problem or project idea to get title suggestions')
+    throw new HttpError(400, 'Add specific project interests, an application area, and tools')
   }
   const topic = topicWords.map((word) => `${word[0].toLocaleUpperCase()}${word.slice(1)}`).join(' ')
   return [
-    `Design and Implementation of a ${topic} System`,
-    `Development of a ${topic} Platform`,
-    `An Intelligent Solution for ${topic}`,
+    `${topic} Project Using Practical Tools`,
+    `Design and Implementation of a ${topic} Project`,
+    `Development of a ${topic} Project Platform`,
   ]
 }
 
@@ -96,11 +96,11 @@ function assertDocument(file) {
   }
 }
 
-export async function recommendTitles(groupId, description, actor) {
+export async function recommendTitles(groupId, preferences, actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
   const group = await authorizeGroup(groupId, actor)
   const approvedTitles = await repository.listApprovedTitles(pool, group.departmentId, groupId)
-  const drafts = makeTitleDrafts(description)
+  const drafts = makeTitleDrafts(preferences)
   const approvedByNormalizedTitle = new Set(approvedTitles.map(({ title }) => normalizedTitle(title)))
   const uniqueDrafts = [...new Set(drafts)]
     .filter((title) => !approvedByNormalizedTitle.has(normalizedTitle(title)))
@@ -116,11 +116,11 @@ export async function recommendTitles(groupId, description, actor) {
   }
 
   const items = [
-    { id: 'student-idea', text: description },
+    { id: 'student-interests', text: `${preferences.interest}\n${preferences.area}\n${preferences.tools}` },
     ...uniqueDrafts.map(({ id, title }) => ({ id, text: title })),
     ...approvedTitles.map(({ id, title }) => ({ id: `approved-${id}`, text: title })),
   ]
-  const pairs = uniqueDrafts.map(({ id }) => ({ leftId: 'student-idea', rightId: id }))
+  const pairs = uniqueDrafts.map(({ id }) => ({ leftId: 'student-interests', rightId: id }))
   for (const draft of uniqueDrafts) {
     for (const approved of approvedTitles) {
       pairs.push({ leftId: draft.id, rightId: `approved-${approved.id}` })
@@ -136,7 +136,7 @@ export async function recommendTitles(groupId, description, actor) {
       scores.get(`${id}|approved-${approved.id}`) ?? 0)
     return {
       title,
-      relevanceScore: scores.get(`student-idea|${id}`) ?? 0,
+      relevanceScore: scores.get(`student-interests|${id}`) ?? 0,
       closestApprovedTitleSimilarity: similarScores.length ? Math.max(...similarScores) : null,
     }
   }).sort((left, right) => right.relevanceScore - left.relevanceScore)
@@ -144,7 +144,7 @@ export async function recommendTitles(groupId, description, actor) {
   return {
     generationMethod: 'local-keyword-templates-v1',
     similarityModel: analysis.modelName,
-    notice: 'These are editable drafts based on your idea. Similarity scores are advisory, not a plagiarism decision; revise any draft that may overlap with existing work.',
+    notice: 'These project-title drafts use your interests, application area, and tools. Similarity scores are advisory, not a plagiarism decision.',
     suggestions,
   }
 }

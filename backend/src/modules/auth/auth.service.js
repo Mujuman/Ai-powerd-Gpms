@@ -23,6 +23,7 @@ function safeUser(user) {
     email: user.email,
     fullName: user.full_name,
     role: user.role,
+    mustChangePassword: Boolean(user.mustChangePassword),
     departments: user.departments ?? [],
   }
 }
@@ -208,7 +209,14 @@ export function createAuthService({
       await authRepository.revokeAllRefreshTokens(connection, userId)
       const tokens = await issueSession(connection, userId)
       await addAudit(connection, 'auth.password.changed', userId, requestInfo)
-      return { ...tokens, user: safeUser({ ...user, password_hash: newHash }) }
+      return {
+        ...tokens,
+        user: safeUser({
+          ...user,
+          password_hash: newHash,
+          mustChangePassword: false,
+        }),
+      }
     })
     if (!session) throw new HttpError(400, 'Current password is incorrect')
     return session

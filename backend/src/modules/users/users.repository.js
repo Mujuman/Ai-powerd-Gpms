@@ -5,6 +5,7 @@ import { pool } from '../../database/pool.js'
 export async function findLoginUserByEmail(email, databasePool = pool) {
   const [rows] = await databasePool.execute(
     `SELECT u.id, u.email, u.password_hash, u.full_name, u.is_active,
+            u.must_change_password AS mustChangePassword,
             r.code AS role
        FROM users u
        JOIN roles r ON r.id = u.role_id
@@ -30,6 +31,7 @@ async function findActiveDepartments(databasePool, userId) {
 export async function findUserForUpdate(connection, userId) {
   const [rows] = await connection.execute(
     `SELECT u.id, u.email, u.password_hash, u.full_name, u.is_active,
+            u.must_change_password AS mustChangePassword,
             r.code AS role
        FROM users u
        JOIN roles r ON r.id = u.role_id
@@ -48,7 +50,8 @@ export async function findUserForUpdate(connection, userId) {
 
 export async function findSessionUserById(userId, databasePool = pool) {
   const [userRows] = await databasePool.execute(
-    `SELECT u.id, u.email, u.full_name, u.is_active, r.code AS role
+    `SELECT u.id, u.email, u.full_name, u.is_active,
+            u.must_change_password AS mustChangePassword, r.code AS role
        FROM users u
        JOIN roles r ON r.id = u.role_id
       WHERE u.id = ?
@@ -63,6 +66,7 @@ export async function findSessionUserById(userId, databasePool = pool) {
     email: user.email,
     fullName: user.full_name,
     role: user.role,
+    mustChangePassword: Boolean(user.mustChangePassword),
     departments: await findActiveDepartments(databasePool, userId),
   }
 }
@@ -70,7 +74,8 @@ export async function findSessionUserById(userId, databasePool = pool) {
 export async function updatePassword(connection, userId, passwordHash) {
   await connection.execute(
     `UPDATE users
-        SET password_hash = ?, password_changed_at = CURRENT_TIMESTAMP(3)
+        SET password_hash = ?, password_changed_at = CURRENT_TIMESTAMP(3),
+            must_change_password = FALSE
       WHERE id = ?`,
     [passwordHash, userId],
   )
@@ -249,7 +254,7 @@ export async function findUserById(databasePool, userId) {
 /**
  * Insert a new user. Looks up role_id by code.
  * @param {object} connection
- * @param {{ id: string, email: string, fullName: string, passwordHash: string, role: string }} userData
+ * @param {{ id: string, email: string, fullName: string, passwordHash: string, role: string, mustChangePassword?: boolean }} userData
  */
 export async function createUser(connection, userData) {
   const [roleRows] = await connection.execute(
@@ -259,9 +264,11 @@ export async function createUser(connection, userData) {
   if (!roleRows[0]) throw new Error(`Role not found: ${userData.role}`)
 
   await connection.execute(
-    `INSERT INTO users (id, role_id, email, password_hash, full_name)
-     VALUES (?, ?, ?, ?, ?)`,
-    [userData.id, roleRows[0].id, userData.email, userData.passwordHash, userData.fullName],
+    `INSERT INTO users
+       (id, role_id, email, password_hash, full_name, must_change_password)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [userData.id, roleRows[0].id, userData.email, userData.passwordHash,
+      userData.fullName, Boolean(userData.mustChangePassword)],
   )
 }
 

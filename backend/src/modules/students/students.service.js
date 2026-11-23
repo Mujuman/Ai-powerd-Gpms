@@ -395,6 +395,7 @@ export async function registerStudent(data, actor) {
         fullName: data.fullName,
         passwordHash,
         role: 'student',
+        mustChangePassword: true,
       })
       await connection.execute(
         `INSERT INTO student_profiles
@@ -592,6 +593,7 @@ export async function confirmStudentImport(batchId, actor) {
 
     let imported = 0
     let created = 0
+    const initialCredentials = []
     for (const row of batch.importRows) {
       let user = await repository.findStudentAccountForImport(connection, row)
       if (user && (user.role !== 'student' || !user.is_active)) {
@@ -599,16 +601,23 @@ export async function confirmStudentImport(batchId, actor) {
       }
       if (!user) {
         const userId = randomUUID()
-        const passwordHash = await bcrypt.hash(randomBytes(32).toString('hex'), PASSWORD_HASH_ROUNDS)
+        const temporaryPassword = randomBytes(12).toString('base64url')
+        const passwordHash = await bcrypt.hash(temporaryPassword, PASSWORD_HASH_ROUNDS)
         await insertUser(connection, {
           id: userId,
           email: row.email,
           fullName: row.fullName,
           passwordHash,
           role: 'student',
+          mustChangePassword: true,
         })
         await setUserDepartments(connection, userId, [departmentId], actor.id)
         user = { id: userId, role: 'student', is_active: true }
+        initialCredentials.push({
+          email: row.email,
+          fullName: row.fullName,
+          temporaryPassword,
+        })
         created += 1
       }
       if (user.studentId && user.studentId !== row.studentId) {
@@ -642,7 +651,7 @@ export async function confirmStudentImport(batchId, actor) {
       remoteAddress: actor.remoteAddress,
       metadata: { imported, created },
     })
-    return { batchId, imported, created }
+    return { batchId, imported, created, initialCredentials }
   })
 }
 
