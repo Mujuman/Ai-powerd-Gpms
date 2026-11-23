@@ -97,7 +97,6 @@ export default function GroupsPage() {
   const groupMembersMutation = useMutation({
     mutationFn: async () => (await api.put(`/students/groups/${editingGroup.id}/members`, {
       studentUserIds: editingGroup.memberIds,
-      leaderUserId: editingGroup.leaderUserId || null,
     })).data.data,
     onSuccess: () => {
       setEditingGroup(null)
@@ -337,7 +336,6 @@ export default function GroupsPage() {
                             setEditingGroup({
                               id: group.id,
                               memberIds: group.members.map((member) => member.userId),
-                              leaderUserId: group.leaderUserId ?? '',
                             })
                           }}>Edit members</button>
                           <button className="btn-secondary" disabled={deleteGroupMutation.isPending}
@@ -373,22 +371,7 @@ export default function GroupsPage() {
                 <p className="muted-copy">
                   {editingGroup.memberIds.length} student{editingGroup.memberIds.length === 1 ? '' : 's'} selected.
                 </p>
-                <label className="form-field">
-                  <span className="form-label">Group leader</span>
-                  <select className="form-input" value={editingGroup.leaderUserId}
-                    onChange={(event) => setEditingGroup((current) => ({
-                      ...current,
-                      leaderUserId: event.target.value,
-                    }))}>
-                    <option value="">Select a leader</option>
-                    {students.filter((student) => editingGroup.memberIds.includes(student.userId))
-                      .map((student) => (
-                        <option key={student.userId} value={student.userId}>
-                          {student.fullName} ({student.studentId})
-                        </option>
-                      ))}
-                  </select>
-                </label>
+                <p className="muted-copy">The member with the highest GPA is automatically assigned as group leader.</p>
                 <div className="group-members-list" role="group" aria-label="Available students">
                   {editableStudents.map((student) => (
                     <label className="group-member-option" key={student.userId}>
@@ -404,9 +387,6 @@ export default function GroupsPage() {
                             return {
                               ...current,
                               memberIds,
-                              leaderUserId: memberIds.includes(current.leaderUserId)
-                                ? current.leaderUserId
-                                : '',
                             }
                           })
                         }} />

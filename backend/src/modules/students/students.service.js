@@ -683,6 +683,7 @@ export async function confirmStudentImport(batchId, actor) {
       imported += 1
     }
 
+    await repository.refreshGroupLeadersForDepartment(connection, departmentId)
     await repository.markImportBatchConfirmed(connection, batchId)
     await recordAudit(connection, {
       userId: actor.id,
@@ -756,6 +757,7 @@ export async function createGroup(data, actor) {
     for (const studentUserId of data.studentUserIds) {
       await repository.addGroupMember(connection, id, studentUserId, actor.id)
     }
+    await repository.refreshGroupLeaderByGpa(connection, id)
     await recordAudit(connection, {
       userId: actor.id,
       action: 'student_groups.create',
@@ -845,6 +847,7 @@ export async function generateGroups(data, actor) {
       for (const student of members) {
         await repository.addGroupMember(connection, id, student.userId, actor.id)
       }
+      await repository.refreshGroupLeaderByGpa(connection, id)
       createdGroups.push({
         id,
         name,
@@ -866,7 +869,7 @@ export async function generateGroups(data, actor) {
   })
 }
 
-export async function replaceGroupMembers(groupId, studentUserIds, requestedLeaderUserId, actor) {
+export async function replaceGroupMembers(groupId, studentUserIds, actor) {
   await withTransaction(pool, async (connection) => {
     const group = await repository.findGroup(connection, groupId, true)
     if (!group) throw new HttpError(404, 'Student group not found')
@@ -887,17 +890,11 @@ export async function replaceGroupMembers(groupId, studentUserIds, requestedLead
       groupId,
       group.projectType,
     )
-    const leaderUserId = requestedLeaderUserId === undefined
-      ? (studentUserIds.includes(group.leaderUserId) ? group.leaderUserId : null)
-      : requestedLeaderUserId
-    if (leaderUserId !== null && !studentUserIds.includes(leaderUserId)) {
-      throw new HttpError(400, 'The group leader must be an active member of this group')
-    }
     await repository.deactivateGroupMembers(connection, groupId)
     for (const studentUserId of studentUserIds) {
       await repository.addGroupMember(connection, groupId, studentUserId, actor.id)
     }
-    await repository.setGroupLeader(connection, groupId, leaderUserId)
+    const leaderUserId = await repository.refreshGroupLeaderByGpa(connection, groupId)
     await recordAudit(connection, {
       userId: actor.id,
       action: 'student_groups.members_replaced',

@@ -48,18 +48,13 @@ test('group validation rejects duplicate members and oversized policy values', (
   assert.equal(oversizedRule.success, false)
 })
 
-test('group leader must be one of the selected group members', () => {
+test('group membership updates cannot manually choose a leader', () => {
+  assert.equal(addGroupMembersSchema.safeParse({
+    studentUserIds: [studentId],
+  }).success, true)
   assert.equal(addGroupMembersSchema.safeParse({
     studentUserIds: [studentId],
     leaderUserId: studentId,
-  }).success, true)
-  assert.equal(addGroupMembersSchema.safeParse({
-    studentUserIds: [studentId],
-    leaderUserId: null,
-  }).success, true)
-  assert.equal(addGroupMembersSchema.safeParse({
-    studentUserIds: [studentId],
-    leaderUserId: departmentId,
   }).success, false)
 })
 

@@ -90,6 +90,49 @@ export async function updateStudent(connection, userId, student, departmentId) {
                              enrollment_status = VALUES(enrollment_status)`,
     [userId, student.semesterId, student.gpa, student.yearLevel, student.enrollmentStatus],
   )
+  await refreshGroupLeadersForStudent(connection, userId)
+}
+
+export async function refreshGroupLeaderByGpa(connection, groupId) {
+  const [rows] = await connection.execute(
+    `SELECT gm.student_user_id AS leaderUserId
+       FROM student_group_members gm
+       JOIN student_profiles sp ON sp.user_id = gm.student_user_id
+       JOIN users u ON u.id = gm.student_user_id
+      WHERE gm.group_id = ? AND gm.is_active = TRUE
+      ORDER BY sp.gpa IS NULL, sp.gpa DESC, u.full_name, gm.student_user_id
+      LIMIT 1`,
+    [groupId],
+  )
+  const leaderUserId = rows[0]?.leaderUserId ?? null
+  await connection.execute(
+    'UPDATE student_groups SET leader_user_id = ? WHERE id = ?',
+    [leaderUserId, groupId],
+  )
+  return leaderUserId
+}
+
+export async function refreshGroupLeadersForStudent(connection, studentUserId) {
+  const [groups] = await connection.execute(
+    `SELECT DISTINCT gm.group_id AS groupId
+       FROM student_group_members gm
+       JOIN student_groups g ON g.id = gm.group_id
+      WHERE gm.student_user_id = ? AND gm.is_active = TRUE AND g.is_active = TRUE`,
+    [studentUserId],
+  )
+  for (const group of groups) {
+    await refreshGroupLeaderByGpa(connection, group.groupId)
+  }
+}
+
+export async function refreshGroupLeadersForDepartment(connection, departmentId) {
+  const [groups] = await connection.execute(
+    'SELECT id AS groupId FROM student_groups WHERE department_id = ? AND is_active = TRUE',
+    [departmentId],
+  )
+  for (const group of groups) {
+    await refreshGroupLeaderByGpa(connection, group.groupId)
+  }
 }
 
 export async function snapshotStudentGraduation(connection, userId) {
@@ -637,13 +680,6 @@ export async function findGroup(connection, groupId, lock = false) {
   return rows[0] ?? null
 }
 
-export async function setGroupLeader(connection, groupId, leaderUserId) {
-  await connection.execute(
-    'UPDATE student_groups SET leader_user_id = ? WHERE id = ?',
-    [leaderUserId, groupId],
-  )
-}
-
 export async function insertGroup(connection, group) {
   await connection.execute(
     `INSERT INTO student_groups
@@ -741,6 +777,7 @@ export async function removeGroupMember(connection, groupId, studentUserId) {
       WHERE group_id = ? AND student_user_id = ? AND is_active = TRUE`,
     [groupId, studentUserId],
   )
+  await refreshGroupLeaderByGpa(connection, groupId)
   return result.affectedRows > 0
 }
 

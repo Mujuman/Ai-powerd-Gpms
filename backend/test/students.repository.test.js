@@ -14,6 +14,7 @@ import {
   permanentlyDeleteStudent,
   reinstateGroupStudents,
   reinstateStudent,
+  refreshGroupLeaderByGpa,
   snapshotGroupGraduation,
   snapshotStudentGraduation,
 } from '../src/modules/students/students.repository.js'
@@ -155,6 +156,24 @@ test('department group members include GPA and sort highest first', async () => 
   assert.match(queries[1], /sp\.gpa/)
   assert.match(queries[1], /ORDER BY sp\.gpa IS NULL, sp\.gpa DESC/)
   assert.equal(groups[0].members[0].gpa, 4.0)
+})
+
+test('group leaders are selected by highest GPA with deterministic tie breaking', async () => {
+  const statements = []
+  const connection = {
+    async execute(query, parameters) {
+      statements.push({ query, parameters })
+      if (statements.length === 1) return [[{ leaderUserId: 'highest-gpa-student' }]]
+      return [{ affectedRows: 1 }]
+    },
+  }
+
+  const leaderUserId = await refreshGroupLeaderByGpa(connection, 'group-id')
+
+  assert.equal(leaderUserId, 'highest-gpa-student')
+  assert.match(statements[0].query, /ORDER BY sp\.gpa IS NULL, sp\.gpa DESC, u\.full_name, gm\.student_user_id/)
+  assert.match(statements[1].query, /UPDATE student_groups SET leader_user_id = \?/)
+  assert.deepEqual(statements[1].parameters, ['highest-gpa-student', 'group-id'])
 })
 
 test('graduating a student disables the account, records graduated status, and revokes refresh tokens', async () => {

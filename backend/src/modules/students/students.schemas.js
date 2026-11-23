@@ -54,13 +54,9 @@ export const createGroupSchema = z.object({
 
 export const addGroupMembersSchema = z.object({
   studentUserIds: z.array(uuid).max(100),
-  leaderUserId: uuid.nullable().optional(),
 }).strict().refine((value) => new Set(value.studentUserIds).size === value.studentUserIds.length, {
   path: ['studentUserIds'],
   message: 'Student IDs must be unique',
-}).refine((value) => value.leaderUserId == null || value.studentUserIds.includes(value.leaderUserId), {
-  path: ['leaderUserId'],
-  message: 'The group leader must be an active member of this group',
 })
 
 export const updateStudentSchema = z.object({
