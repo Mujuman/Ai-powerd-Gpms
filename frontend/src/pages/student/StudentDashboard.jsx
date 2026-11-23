@@ -32,12 +32,12 @@ const WORK_AREAS = [
     tasks: ['Review your student profile', 'Check your latest eligibility'],
   },
   {
-    title: 'Project proposal and group',
+    title: 'Project proposal',
     description: 'Get project title ideas, submit a detailed proposal, and see its similarity analysis and review status.',
-    icon: UsersRound,
+    icon: FileText,
     status: 'Available',
-    to: '/student/project',
-    tasks: ['View group information', 'Contact your advisor'],
+    to: '/student/project/proposal',
+    tasks: ['Get project title ideas', 'Submit or resubmit your proposal'],
   },
   {
     title: 'Project documents',
@@ -48,19 +48,19 @@ const WORK_AREAS = [
     tasks: ['Upload project documents', 'Track review feedback'],
   },
   {
-    title: 'Feedback & revisions',
-    description: 'Chat with your advisor and submit defense corrections for examiner review.',
+    title: 'Advisor chat',
+    description: 'Send messages and follow up with your assigned project advisor.',
     icon: MessageSquareText,
     status: 'Available',
-    to: '/student/project',
-    tasks: ['Read reviewer comments', 'Upload corrected documents'],
+    to: '/student/project/advisor-chat',
+    tasks: ['Read advisor messages', 'Ask a project question'],
   },
   {
     title: 'Defense schedule',
     description: 'Review your defense time, venue, and authorized results.',
     icon: CalendarDays,
     status: 'Available',
-    to: '/student/project',
+    to: '/student/project/defense',
     tasks: ['View upcoming defense details', 'Track final decisions'],
   },
 ]
@@ -115,7 +115,7 @@ export default function StudentDashboard() {
           detail={groups.length > 1
             ? `${groups.length} active groups`
             : group?.departmentCode ?? 'Your group will appear here when assigned.'}
-          to="/student/project"
+          to="/student/project/proposal"
           loading={projectsQuery.isLoading}
           error={projectsQuery.isError}
         />
@@ -124,7 +124,7 @@ export default function StudentDashboard() {
           title="Project proposal"
           value={project?.title ?? (group ? 'No proposal yet' : 'No group assigned')}
           detail={submissionStatus}
-          to="/student/project"
+          to="/student/project/defense"
           loading={projectsQuery.isLoading}
           error={projectsQuery.isError}
         />
