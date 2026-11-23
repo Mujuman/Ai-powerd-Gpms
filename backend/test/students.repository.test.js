@@ -3,7 +3,10 @@ import assert from 'node:assert/strict'
 import {
   findUngroupedStudents,
   findImportBatch,
+  findActiveGroupStudents,
   deactivateGroup,
+  graduateGroupStudents,
+  graduateStudent,
   insertGroup,
   listStudents,
   listGroups,
@@ -147,6 +150,57 @@ test('group members include GPA and sort highest first for leader selection', as
   assert.match(queries[1], /sp\.gpa/)
   assert.match(queries[1], /ORDER BY sp\.gpa IS NULL, sp\.gpa DESC/)
   assert.equal(groups[0].members[0].gpa, 4.0)
+})
+
+test('graduating a student disables the account, records graduated status, and revokes refresh tokens', async () => {
+  const statements = []
+  const connection = {
+    async execute(query, parameters) {
+      statements.push({ query, parameters })
+      return [{ affectedRows: 1 }]
+    },
+  }
+
+  await graduateStudent(connection, 'student-id')
+  assert.equal(statements.length, 4)
+  assert.match(statements[0].query, /enrollment_status = 'graduated'/)
+  assert.deepEqual(statements[0].parameters, ['student-id'])
+  assert.match(statements[1].query, /UPDATE student_academic_records/)
+  assert.match(statements[2].query, /UPDATE users SET is_active = FALSE/)
+  assert.match(statements[3].query, /UPDATE refresh_tokens/)
+  assert.deepEqual(statements[3].parameters, ['student-id'])
+})
+
+test('group graduation loads current members and blocks their accounts while preserving memberships', async () => {
+  const queries = []
+  const connection = {
+    async execute(query, parameters) {
+      queries.push({ query, parameters })
+      if (queries.length === 1) {
+        return [[{ userId: 'student-id', enrollmentStatus: 'active' }]]
+      }
+      return [{ affectedRows: 1 }]
+    },
+  }
+
+  const members = await findActiveGroupStudents(connection, 'group-id')
+  assert.deepEqual(members, [{ userId: 'student-id', enrollmentStatus: 'active' }])
+  assert.match(queries[0].query, /gm\.is_active = TRUE/)
+  assert.match(queries[0].query, /FOR UPDATE/)
+
+  await graduateGroupStudents(connection, 'group-id')
+  assert.match(queries[1].query, /enrollment_status = 'graduated'/)
+  assert.match(queries[2].query, /UPDATE student_academic_records sar/)
+  assert.match(queries[3].query, /UPDATE users u/)
+  assert.match(queries[3].query, /is_active = FALSE/)
+  assert.match(queries[4].query, /UPDATE refresh_tokens rt/)
+  assert.equal(queries.length, 5)
+  assert.deepEqual(queries.slice(1).map(({ parameters }) => parameters), [
+    ['group-id'],
+    ['group-id'],
+    ['group-id'],
+    ['group-id'],
+  ])
 })
 
 test('group deletion releases members and cancels attached active work', async () => {

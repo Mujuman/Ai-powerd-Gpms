@@ -92,6 +92,76 @@ export async function updateStudent(connection, userId, student, departmentId) {
   )
 }
 
+export async function graduateStudent(connection, userId) {
+  await connection.execute(
+    `UPDATE student_profiles
+        SET enrollment_status = 'graduated'
+      WHERE user_id = ?`,
+    [userId],
+  )
+  await connection.execute(
+    `UPDATE student_academic_records
+        SET enrollment_status = 'graduated'
+      WHERE student_user_id = ?`,
+    [userId],
+  )
+  await connection.execute(
+    'UPDATE users SET is_active = FALSE WHERE id = ?',
+    [userId],
+  )
+  await connection.execute(
+    `UPDATE refresh_tokens
+        SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP(3))
+      WHERE user_id = ?`,
+    [userId],
+  )
+}
+
+export async function findActiveGroupStudents(connection, groupId) {
+  const [rows] = await connection.execute(
+    `SELECT gm.student_user_id AS userId,
+            sp.enrollment_status AS enrollmentStatus
+       FROM student_group_members gm
+       JOIN student_profiles sp ON sp.user_id = gm.student_user_id
+      WHERE gm.group_id = ? AND gm.is_active = TRUE
+      ORDER BY gm.student_user_id
+      FOR UPDATE`,
+    [groupId],
+  )
+  return rows
+}
+
+export async function graduateGroupStudents(connection, groupId) {
+  await connection.execute(
+    `UPDATE student_profiles sp
+       JOIN student_group_members gm ON gm.student_user_id = sp.user_id
+        SET sp.enrollment_status = 'graduated'
+      WHERE gm.group_id = ? AND gm.is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `UPDATE student_academic_records sar
+        JOIN student_group_members gm ON gm.student_user_id = sar.student_user_id
+         SET sar.enrollment_status = 'graduated'
+       WHERE gm.group_id = ? AND gm.is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `UPDATE users u
+       JOIN student_group_members gm ON gm.student_user_id = u.id
+        SET u.is_active = FALSE
+      WHERE gm.group_id = ? AND gm.is_active = TRUE`,
+    [groupId],
+  )
+  await connection.execute(
+    `UPDATE refresh_tokens rt
+       JOIN student_group_members gm ON gm.student_user_id = rt.user_id
+        SET rt.revoked_at = COALESCE(rt.revoked_at, CURRENT_TIMESTAMP(3))
+      WHERE gm.group_id = ? AND gm.is_active = TRUE`,
+    [groupId],
+  )
+}
+
 export async function permanentlyDeleteStudent(connection, userId) {
   const [documents] = await connection.execute(
     'SELECT storage_key AS storageKey FROM project_documents WHERE uploaded_by = ? FOR UPDATE',
@@ -386,7 +456,8 @@ export async function listGroups(databasePool, { departmentId }) {
   const placeholders = rows.map(() => '?').join(', ')
   const [members] = await databasePool.execute(
     `SELECT gm.group_id AS groupId, u.id AS userId, sp.student_id AS studentId,
-           u.full_name AS fullName, u.email, sp.gpa
+           u.full_name AS fullName, u.email, sp.gpa,
+           u.is_active AS isActive, sp.enrollment_status AS enrollmentStatus
        FROM student_group_members gm
        JOIN users u ON u.id = gm.student_user_id
        LEFT JOIN student_profiles sp ON sp.user_id = u.id

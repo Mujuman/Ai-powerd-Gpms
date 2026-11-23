@@ -175,6 +175,17 @@ export default function StudentsPage() {
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
     },
   })
+  const graduateStudentMutation = useMutation({
+    mutationFn: async (userId) => (await api.post(`/students/${userId}/graduate`, null, {
+      params: { departmentId },
+    })).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-batch-options', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
+    },
+  })
 
   function numberOrNull(value) {
     return value === '' ? null : Number(value)
@@ -206,8 +217,18 @@ export default function StudentsPage() {
     }
   }
 
+  function graduateStudent(student) {
+    if (window.confirm(
+      `Graduate ${student.fullName}? Their login access will be disabled, and they will remain in the student and project records.`,
+    )) {
+      graduateStudentMutation.mutate(student.userId)
+    }
+  }
+
   const students = studentsQuery.data?.data ?? []
-  const formError = registerStudentMutation.error ?? deleteStudentMutation.error
+  const formError = registerStudentMutation.error
+    ?? deleteStudentMutation.error
+    ?? graduateStudentMutation.error
 
   return (
     <div className="page-content">
@@ -403,7 +424,10 @@ export default function StudentsPage() {
                         <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
                         <td>{selectedDepartmentLabel || student.departmentCode || '—'}</td>
                         <td>{student.yearLevel ?? '—'}</td><td>{student.cohort || '—'}</td>
-                        <td>{student.gpa ?? '—'}</td><td>{student.isActive ? student.enrollmentStatus : 'inactive'}</td>
+                        <td>{student.gpa ?? '—'}</td>
+                        <td>{student.enrollmentStatus === 'graduated'
+                          ? 'graduated'
+                          : student.isActive ? student.enrollmentStatus : 'inactive'}</td>
                         <td><div className="action-row">
                           <button className="btn-secondary" disabled={!student.isActive}
                             onClick={() => setEditingStudent({
@@ -419,6 +443,11 @@ export default function StudentsPage() {
                             })}>Edit</button>
                           <button className="btn-secondary" disabled={deleteStudentMutation.isPending}
                             onClick={() => deleteStudent(student)}>Delete</button>
+                          <button className="btn-danger"
+                            disabled={student.enrollmentStatus === 'graduated' || graduateStudentMutation.isPending}
+                            onClick={() => graduateStudent(student)}>
+                            {student.enrollmentStatus === 'graduated' ? 'Graduated' : 'Graduate'}
+                          </button>
                         </div></td>
                       </tr>
                     ))}

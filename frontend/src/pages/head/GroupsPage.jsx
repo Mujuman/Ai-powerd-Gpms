@@ -129,6 +129,21 @@ export default function GroupsPage() {
       void queryClient.invalidateQueries({ queryKey: ['student-defenses'] })
     },
   })
+  const graduateGroupMutation = useMutation({
+    mutationFn: async (groupId) => (await api.post(
+      `/students/groups/${groupId}/graduate`,
+      null,
+      { params: { departmentId } },
+    )).data.data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['student-groups', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['students', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['head-project-groups'] })
+      void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
+      void queryClient.invalidateQueries({ queryKey: ['advisor-projects'] })
+      void queryClient.invalidateQueries({ queryKey: ['student-defenses'] })
+    },
+  })
 
   function createGroup(event) {
     event.preventDefault()
@@ -144,6 +159,15 @@ export default function GroupsPage() {
       `Delete "${group.name}"? Its students will be available for grouping again. Project history will be kept, and any scheduled defenses will be cancelled.`,
     )
     if (confirmed) deleteGroupMutation.mutate(group.id)
+  }
+
+  function graduateGroup(group) {
+    const activeMembers = group.members.filter((member) => member.enrollmentStatus !== 'graduated')
+    if (activeMembers.length === 0) return
+    const confirmed = window.confirm(
+      `Graduate all ${activeMembers.length} remaining student${activeMembers.length === 1 ? '' : 's'} in "${group.name}"? Their login access will be disabled, but group and project history will be kept.`,
+    )
+    if (confirmed) graduateGroupMutation.mutate(group.id)
   }
 
   return (
@@ -272,6 +296,7 @@ export default function GroupsPage() {
             {groupsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading groups…</div>}
             {groupsQuery.isError && <ErrorMessage error={groupsQuery.error} fallback="Could not load groups" />}
             <ErrorMessage error={deleteGroupMutation.error} fallback="Could not delete group" />
+            <ErrorMessage error={graduateGroupMutation.error} fallback="Could not graduate group members" />
             {groupsQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
@@ -287,6 +312,9 @@ export default function GroupsPage() {
                               {group.members.map((member) => (
                                 <span className="group-member-name" key={member.userId}>
                                   {member.fullName}
+                                  {member.enrollmentStatus === 'graduated' && (
+                                    <span className="group-leader-badge">Graduated</span>
+                                  )}
                                   {member.userId === groupLeaders.get(group.id)?.userId && (
                                     <span className="group-leader-badge">Leader</span>
                                   )}
@@ -296,6 +324,17 @@ export default function GroupsPage() {
                           ) : '—'}
                         </td>
                         <td><div className="action-row group-row-actions">
+                          <button className="btn-danger"
+                            disabled={graduateGroupMutation.isPending
+                              || group.members.every((member) => member.enrollmentStatus === 'graduated')}
+                            onClick={() => graduateGroup(group)}>
+                            {graduateGroupMutation.isPending && graduateGroupMutation.variables === group.id
+                              ? 'Graduating…'
+                              : group.members.length > 0
+                                && group.members.every((member) => member.enrollmentStatus === 'graduated')
+                                ? 'Graduated'
+                                : 'Graduate group'}
+                          </button>
                           <button className="btn-secondary" onClick={() => {
                             setMemberSearch('')
                             setEditingGroup({
