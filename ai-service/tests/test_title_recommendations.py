@@ -88,6 +88,9 @@ class TitleRecommendationTests(unittest.TestCase):
             "3. Tiny\n"
             "4. Smart Irrigation Planning"
         ), ["Crop Disease Detection", "Smart Irrigation Planning"])
+        self.assertEqual(parse_generated_titles(
+            "1. Crop Disease Detection 2. Smart Irrigation Planning"
+        ), ["Crop Disease Detection", "Smart Irrigation Planning"])
 
     def test_rejects_too_short_preferences(self):
         with self.assertRaises(ValidationError):

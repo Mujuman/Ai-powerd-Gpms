@@ -48,6 +48,18 @@ export function evaluateSubmissionApproval(comparisons) {
   }
 }
 
+export function selectAiAdvisorCandidate(candidates, scores) {
+  const scoredCandidates = candidates
+    .filter((advisor) => scores.has(advisor.userId))
+    .sort((left, right) => (
+      scores.get(right.userId) - scores.get(left.userId)
+      || Number(left.activeWorkload) - Number(right.activeWorkload)
+      || left.fullName.localeCompare(right.fullName)
+      || left.userId.localeCompare(right.userId)
+    ))
+  return scoredCandidates[0] ?? null
+}
+
 async function analyzeProjectSimilarity({ groupId, departmentId, title, description }) {
   const approvedTitles = await collaborationRepository.listApprovedTitles(pool, departmentId, groupId)
   if (!approvedTitles.length) {
@@ -110,7 +122,10 @@ async function rankAdvisorCandidates(departmentId, title, description) {
   )
   return {
     modelName: analysis.modelName,
-    scores: new Map(analysis.scores.map((entry) => [entry.rightId, entry.score])),
+    scores: new Map(analysis.scores.map((entry) => [
+      entry.rightId.slice('advisor:'.length),
+      entry.score,
+    ])),
   }
 }
 
@@ -123,16 +138,7 @@ async function assignAutomaticallyApprovedProjectAdvisor(
   if (current) return { status: 'already_assigned', advisorUserId: current.advisorUserId }
 
   const candidates = await repository.listAdvisorCandidates(connection, departmentId)
-  const scoredCandidates = candidates
-    .filter((advisor) => ranking.scores.has(`advisor:${advisor.userId}`))
-    .sort((left, right) => (
-      ranking.scores.get(`advisor:${right.userId}`)
-      - ranking.scores.get(`advisor:${left.userId}`)
-      || Number(left.activeWorkload) - Number(right.activeWorkload)
-      || left.fullName.localeCompare(right.fullName)
-      || left.userId.localeCompare(right.userId)
-    ))
-  const selected = scoredCandidates[0]
+  const selected = selectAiAdvisorCandidate(candidates, ranking.scores)
   if (!selected) {
     return {
       status: 'unassigned',
@@ -150,7 +156,7 @@ async function assignAutomaticallyApprovedProjectAdvisor(
     method: 'ai',
     assignedBy: actor.id,
   })
-  const similarity = ranking.scores.get(`advisor:${selected.userId}`)
+  const similarity = ranking.scores.get(selected.userId)
   await recordAudit(connection, {
     userId: actor.id,
     action: 'project_advisors.ai_assign',

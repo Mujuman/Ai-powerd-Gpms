@@ -90,7 +90,13 @@ def load_title_generation_model():
 
 
 def parse_generated_titles(text: str) -> list[str]:
-    candidates = re.split(r"[\r\n]+|(?<=\.)\s+(?=\d+[.)]\s)", text)
+    candidates = re.findall(
+        r"(?:^|\s)(?:\d+[.)]|[-*])\s+(.+?)(?=(?:\s+\d+[.)]\s+)|$)",
+        text.strip(),
+        flags=re.DOTALL,
+    )
+    if not candidates:
+        candidates = re.split(r"[\r\n]+", text)
     titles = []
     seen = set()
     for candidate in candidates:
