@@ -395,14 +395,20 @@ export default function GroupsPage() {
                       <input type="checkbox" checked={editingGroup.memberIds.includes(student.userId)}
                         onChange={(event) => {
                           const checked = event.target.checked
-                          setEditingGroup((current) => ({
-                            ...current,
-                            memberIds: editingGroupRecord.projectType === 'individual'
+                          setEditingGroup((current) => {
+                            const memberIds = editingGroupRecord.projectType === 'individual'
                               ? (checked ? [student.userId] : [])
                               : checked
                                 ? [...current.memberIds, student.userId]
-                                : current.memberIds.filter((userId) => userId !== student.userId),
-                          }))
+                                : current.memberIds.filter((userId) => userId !== student.userId)
+                            return {
+                              ...current,
+                              memberIds,
+                              leaderUserId: memberIds.includes(current.leaderUserId)
+                                ? current.leaderUserId
+                                : '',
+                            }
+                          })
                         }} />
                       <span>{student.studentId} — {student.fullName}</span>
                     </label>

@@ -134,7 +134,7 @@ test('groups are listed and created without academic-year dependencies', async (
   assert.deepEqual(insertParameters, ['group-id', 'department-id', 'Group A', 'group', 'head-id'])
 })
 
-test('group members include GPA and sort highest first for leader selection', async () => {
+test('department group members include GPA and sort highest first', async () => {
   const queries = []
   const databasePool = {
     async execute(query) {
