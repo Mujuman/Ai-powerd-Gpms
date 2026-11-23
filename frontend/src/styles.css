@@ -2336,15 +2336,3 @@ textarea.form-input {
   }
 }
 
-.auth-page {
-  background:
-    linear-gradient(110deg, rgb(9 26 45 / 68%), rgb(9 26 45 / 38%)),
-    url('/campus-background.png') center / cover no-repeat;
-}
-
-.auth-card {
-  background: rgb(255 255 255 / 95%);
-  border: 1px solid rgb(255 255 255 / 72%);
-  box-shadow: 0 24px 70px rgb(3 14 29 / 30%);
-  backdrop-filter: blur(14px);
-}
