@@ -680,6 +680,40 @@ textarea.form-input {
   width: 100%;
 }
 
+.student-page-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.3rem;
+  background: #e9eef5;
+  border-radius: 12px;
+  width: fit-content;
+}
+
+.student-page-tab {
+  min-height: 40px;
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 9px;
+  color: #52627a;
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.student-page-tab:hover {
+  color: var(--brand-navy);
+  background: rgb(255 255 255 / 55%);
+}
+
+.student-page-tab.active {
+  color: var(--brand-navy);
+  background: white;
+  box-shadow: 0 2px 6px rgb(25 42 75 / 10%);
+}
+
 .student-edit-modal {
   max-width: 680px;
   padding: clamp(1.25rem, 4vw, 2rem);

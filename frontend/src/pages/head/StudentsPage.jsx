@@ -45,6 +45,7 @@ export default function StudentsPage() {
   const [nameSearch, setNameSearch] = useState('')
   const [yearLevelSearch, setYearLevelSearch] = useState('')
   const [batchSearch, setBatchSearch] = useState('')
+  const [activeTab, setActiveTab] = useState('list')
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [importResult, setImportResult] = useState(null)
@@ -259,7 +260,17 @@ export default function StudentsPage() {
 
       {departmentId && (
         <>
-          <section className="academic-card">
+          <div className="student-page-tabs" role="tablist" aria-label="Student management sections">
+            <button type="button" role="tab" id="students-list-tab" aria-controls="students-list-panel"
+              aria-selected={activeTab === 'list'} className={`student-page-tab${activeTab === 'list' ? ' active' : ''}`}
+              onClick={() => setActiveTab('list')}>Student list</button>
+            <button type="button" role="tab" id="students-manage-tab" aria-controls="students-manage-panel"
+              aria-selected={activeTab === 'manage'} className={`student-page-tab${activeTab === 'manage' ? ' active' : ''}`}
+              onClick={() => setActiveTab('manage')}>Register & import</button>
+          </div>
+
+          {activeTab === 'manage' && (
+          <section className="academic-card" role="tabpanel" id="students-manage-panel" aria-labelledby="students-manage-tab">
             <div className="page-header">
               <div>
                 <h2 className="section-title">Students</h2>
@@ -393,6 +404,17 @@ export default function StudentsPage() {
                 </div>
               </div>
             )}
+          </section>
+          )}
+
+          {activeTab === 'list' && (
+          <section className="academic-card" role="tabpanel" id="students-list-panel" aria-labelledby="students-list-tab">
+            <div className="page-header">
+              <div>
+                <h2 className="section-title">Student list</h2>
+                <p className="page-subtitle">Search, edit, graduate, reinstate, or remove student records.</p>
+              </div>
+            </div>
             <div className="student-search-grid" role="search" aria-label="Search students">
               <label className="form-field">
                 <span className="form-label">Student name</span>
@@ -460,6 +482,7 @@ export default function StudentsPage() {
               </div>
             )}
           </section>
+          )}
 
           {editingStudent && (
             <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-student-title">
