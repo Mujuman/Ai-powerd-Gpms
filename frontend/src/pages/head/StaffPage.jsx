@@ -252,7 +252,7 @@ export default function StaffPage() {
           <section className="academic-card">
             <h2 className="section-title">Import staff from Excel</h2>
             <p className="muted-copy">
-              No row-count limit. Uploads are limited to 5 MB. Supported formats: .xls, .xlsx, .xlsm, or .xlsb.
+              Uploads are limited to 5 MB. Supported formats: .xls, .xlsx, .xlsm, or .xlsb.
               Required columns: <strong>fullName, email, password, role, interests</strong>.
               Optional column: <strong>specialization</strong>.
               Role values: <strong>advisor</strong>, <strong>academic_advisor</strong>, or <strong>examiner</strong>.

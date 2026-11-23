@@ -16,13 +16,24 @@ const authenticationLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
 })
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many unsuccessful sign-in attempts. Please wait 15 minutes before trying again.',
+  },
+})
 
 export const authRoutes = Router()
 const controller = createAuthController()
 
 authRoutes.post(
   '/login',
-  authenticationLimiter,
+  loginLimiter,
   validateBody(loginSchema),
   controller.login,
 )

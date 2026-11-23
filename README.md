@@ -208,7 +208,7 @@ python -m unittest discover -s tests -v
 - `POST /api/v1/similarity` on the internal AI service for authenticated sentence-embedding comparisons
 - `GET /health`, `GET /ready`
 
-Student imports accept Excel workbooks up to 5 MB with no row-count limit. The first worksheet must have `Student ID`, `Full Name`, and `Email` columns; `Program`, `Cohort`/`Batch`, `Year Level`, `GPA`, `Phone`, `Credits`, and `Department` are optional. A matching active student account must already exist for each email. Invalid rows are reported in the preview and the batch cannot be confirmed until a corrected file is uploaded.
+Student imports accept Excel workbooks up to 5 MB . The first worksheet must have `Student ID`, `Full Name`, and `Email` columns; `Program`, `Cohort`/`Batch`, `Year Level`, `GPA`, `Phone`, `Credits`, and `Department` are optional. A matching active student account must already exist for each email. Invalid rows are reported in the preview and the batch cannot be confirmed until a corrected file is uploaded.
 
 Graduating a student marks their enrollment status as graduated, disables the account, and revokes refresh tokens. The matching reinstate action restores the pre-graduation account and academic statuses; students whose accounts were active can log in again and must sign in to create a new session. Group and project records are retained.
 
