@@ -269,6 +269,38 @@ export async function findStaffInDepartment(connection, departmentId, userId, ro
   return rows[0] ?? null
 }
 
+export async function countStaffHistoryReferences(connection, userId) {
+  const [rows] = await connection.execute(
+    `SELECT
+       (SELECT COUNT(*) FROM project_advisor_assignments WHERE advisor_user_id = ?) +
+       (SELECT COUNT(*) FROM defense_schedule_examiners WHERE examiner_user_id = ?) +
+       (SELECT COUNT(*) FROM defense_assessments WHERE examiner_user_id = ?) +
+       (SELECT COUNT(*) FROM project_messages WHERE sender_user_id = ?) +
+       (SELECT COUNT(*) FROM project_documents WHERE uploaded_by = ?) AS referenceCount`,
+    [userId, userId, userId, userId, userId],
+  )
+  return Number(rows[0]?.referenceCount ?? 0)
+}
+
+export async function hasOtherActiveDepartmentAssignments(connection, userId, departmentId) {
+  const [rows] = await connection.execute(
+    `SELECT COUNT(*) AS assignmentCount
+       FROM user_department_assignments
+      WHERE user_id = ? AND department_id <> ? AND is_active = TRUE`,
+    [userId, departmentId],
+  )
+  return Number(rows[0]?.assignmentCount ?? 0) > 0
+}
+
+export async function permanentlyDeleteStaff(connection, userId) {
+  await connection.execute(
+    'DELETE FROM user_department_assignments WHERE user_id = ?',
+    [userId],
+  )
+  const [result] = await connection.execute('DELETE FROM users WHERE id = ?', [userId])
+  return result.affectedRows === 1
+}
+
 export async function listAdvisorCandidates(connection, departmentId) {
   const [rows] = await connection.execute(
     `SELECT u.id AS userId, u.full_name AS fullName,

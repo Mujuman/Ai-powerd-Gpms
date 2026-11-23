@@ -67,13 +67,13 @@ export default function StaffPage() {
           maxGroups: Number(values.maxGroups),
         })).data.data
       }
-      if (action === 'update') {
+      if (action === 'update' || action === 'active') {
         const { id, role, changes } = values
         return (await api.patch(`/projects/staff/${id}`, changes, {
           params: { departmentId, role },
         })).data.data
       }
-      if (action === 'deactivate') {
+      if (action === 'delete') {
         return (await api.delete(`/projects/staff/${values.id}`, {
           params: { departmentId, role: values.role },
         })).data.data
@@ -131,9 +131,25 @@ export default function StaffPage() {
     })
   }
 
-  function deactivateStaff(member) {
-    if (window.confirm(`Deactivate ${member.fullName}? Active assignments will end.`)) {
-      staffMutation.mutate({ action: 'deactivate', id: member.id, role: member.role })
+  function setStaffActive(member, isActive) {
+    const confirmation = isActive
+      ? `Activate ${member.fullName}?`
+      : `Deactivate ${member.fullName}? Active assignments will end.`
+    if (window.confirm(confirmation)) {
+      staffMutation.mutate({
+        action: 'active',
+        id: member.id,
+        role: member.role,
+        changes: { isActive },
+      })
+    }
+  }
+
+  function deleteStaff(member) {
+    if (window.confirm(
+      `Permanently delete ${member.fullName}? Accounts with project or defense history cannot be deleted; deactivate those accounts instead.`,
+    )) {
+      staffMutation.mutate({ action: 'delete', id: member.id, role: member.role })
     }
   }
 
@@ -170,9 +186,11 @@ export default function StaffPage() {
           <ErrorNotice error={staffMutation.error}
             fallback={staffMutation.variables?.action === 'update'
               ? 'Could not update staff account'
-              : staffMutation.variables?.action === 'deactivate'
-                ? 'Could not deactivate staff account'
-                : 'Could not create staff account'} />
+              : staffMutation.variables?.action === 'active'
+                ? 'Could not change staff account status'
+                : staffMutation.variables?.action === 'delete'
+                  ? 'Could not delete staff account'
+                  : 'Could not create staff account'} />
           <section className="academic-card">
             <h2 className="section-title">Import staff from Excel</h2>
             <p className="muted-copy">
@@ -313,10 +331,13 @@ export default function StaffPage() {
                             ) : (
                               <>
                                 <button className="btn-secondary" onClick={() => setEditingStaff({ ...member })}>Edit</button>
-                                {member.isActive && (
-                                  <button className="btn-danger" disabled={staffMutation.isPending}
-                                    onClick={() => deactivateStaff(member)}>Deactivate</button>
-                                )}
+                                <button className={member.isActive ? 'btn-danger' : 'btn-secondary'}
+                                  disabled={staffMutation.isPending}
+                                  onClick={() => setStaffActive(member, !member.isActive)}>
+                                  {member.isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                                <button className="btn-danger" disabled={staffMutation.isPending}
+                                  onClick={() => deleteStaff(member)}>Delete</button>
                               </>
                             )}
                           </div>

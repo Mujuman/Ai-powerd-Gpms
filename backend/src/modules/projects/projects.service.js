@@ -416,7 +416,11 @@ export async function updateStaff(userId, changes, actor) {
     }
     await recordAudit(connection, {
       userId: actor.id,
-      action: changes.isActive === false ? 'department_staff.deactivate' : 'department_staff.update',
+      action: changes.isActive === false
+        ? 'department_staff.deactivate'
+        : changes.isActive === true
+          ? 'department_staff.activate'
+          : 'department_staff.update',
       targetType: 'user',
       targetId: userId,
       remoteAddress: actor.remoteAddress,
@@ -431,8 +435,29 @@ export async function updateStaff(userId, changes, actor) {
 
 export async function deleteStaff(userId, role, filters, actor) {
   const departmentId = assertDepartmentAccess(actor, filters.departmentId)
-  await updateStaff(userId, { role, isActive: false, departmentId }, actor)
-  return { id: userId, isActive: false }
+  await withTransaction(pool, async (connection) => {
+    const staff = await repository.findStaffInDepartment(
+      connection, departmentId, userId, role, true,
+    )
+    if (!staff) throw new HttpError(404, 'Department staff member not found')
+    if (await repository.hasOtherActiveDepartmentAssignments(connection, userId, departmentId)) {
+      throw new HttpError(409, 'Remove this staff member from their other departments before deleting the account')
+    }
+    if (await repository.countStaffHistoryReferences(connection, userId) > 0) {
+      throw new HttpError(409, 'This staff account has project or defense history and cannot be permanently deleted. Deactivate it instead.')
+    }
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'department_staff.delete',
+      targetType: 'user',
+      targetId: userId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { role },
+    })
+    const deleted = await repository.permanentlyDeleteStaff(connection, userId)
+    if (!deleted) throw new HttpError(404, 'Department staff member not found')
+  })
+  return { id: userId, deleted: true }
 }
 
 export async function assignAdvisor(groupId, advisorUserId, filters, actor, method = 'manual') {
