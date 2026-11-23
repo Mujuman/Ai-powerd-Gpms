@@ -54,6 +54,7 @@ export default function ProjectsPage() {
   })
   const [scheduleEdit, setScheduleEdit] = useState(null)
   const [examinerSelections, setExaminerSelections] = useState({})
+  const [chairpersonSelections, setChairpersonSelections] = useState({})
   const [advisorSelections, setAdvisorSelections] = useState({})
 
   useEffect(() => {
@@ -138,6 +139,12 @@ export default function ProjectsPage() {
         return (await api.put(`/projects/defenses/${variables.id}/examiners`, {
           departmentId,
           examinerUserIds: examinerSelections[variables.id] ?? [],
+        })).data
+      }
+      if (action === 'assign-chairperson') {
+        return (await api.put(`/projects/defenses/${variables.id}/chairperson`, {
+          departmentId,
+          examinerUserId: variables.examinerUserId,
         })).data
       }
       if (action === 'assign-examiner-ai') {
@@ -332,7 +339,7 @@ export default function ProjectsPage() {
                     ) : <>{formatDate(schedule.scheduledAt)}<br />{schedule.venue}</>}</td>
                     <td>
                       <div>{schedule.examiners.map((examiner) =>
-                        `${examiner.fullName} (${examiner.assignmentMethod === 'ai' ? 'AI' : 'manual'})`).join(', ') || 'Unassigned'}</div>
+                        `${examiner.fullName} (${examiner.assignmentMethod === 'ai' ? 'AI' : 'manual'}${examiner.isChairperson ? ', chairperson' : ''})`).join(', ') || 'Unassigned'}</div>
                       {schedule.status === 'scheduled' && (
                         <div className="head-review-actions">
                           <select className="form-input" multiple aria-label={`Examiners for ${schedule.groupName}`}
@@ -347,6 +354,33 @@ export default function ProjectsPage() {
                             <button className="btn-secondary" disabled={mutation.isPending || !examiners.length}
                               onClick={() => mutation.mutate({ action: 'assign-examiner-ai', id: schedule.id })}>AI assign</button>
                           </div>
+                          {schedule.examiners.length > 0 && (
+                            <div className="action-row">
+                              <select className="form-input" aria-label={`Chairperson for ${schedule.groupName}`}
+                                value={chairpersonSelections[schedule.id]
+                                  ?? schedule.examiners.find((examiner) => examiner.isChairperson)?.id
+                                  ?? ''} onChange={(event) => setChairpersonSelections({
+                                  ...chairpersonSelections,
+                                  [schedule.id]: event.target.value,
+                                })}>
+                                <option value="">Select chairperson</option>
+                                {schedule.examiners.map((examiner) => (
+                                  <option key={examiner.id} value={examiner.id}>{examiner.fullName}</option>
+                                ))}
+                              </select>
+                              <button className="btn-secondary"
+                                disabled={mutation.isPending || !(chairpersonSelections[schedule.id]
+                                  ?? schedule.examiners.find((examiner) => examiner.isChairperson)?.id)}
+                                onClick={() => mutation.mutate({
+                                  action: 'assign-chairperson',
+                                  id: schedule.id,
+                                  examinerUserId: chairpersonSelections[schedule.id]
+                                    ?? schedule.examiners.find((examiner) => examiner.isChairperson)?.id,
+                                })}>
+                                Assign chairperson
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </td>

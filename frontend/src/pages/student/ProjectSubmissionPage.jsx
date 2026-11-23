@@ -214,12 +214,18 @@ export default function ProjectSubmissionPage() {
                 <td>{new Date(schedule.scheduledAt).toLocaleString()}</td><td>{schedule.venue}</td><td>{schedule.status}</td>
                 <td>
                   {schedule.examiners?.map((examiner) => (
-                    <p key={examiner.userId}>{examiner.fullName} · {examiner.assignmentMethod === 'ai' ? 'AI assigned' : 'assigned'}</p>
+                    <p key={examiner.userId}>
+                      {examiner.fullName} · {examiner.assignmentMethod === 'ai' ? 'AI assigned' : 'assigned'}
+                      {examiner.isChairperson ? ' · Chairperson' : ''}
+                    </p>
                   ))}
                   {schedule.results?.map((result) => (
                     <div key={result.id}>
                       <strong>{result.examinerName}: {result.outcome.replaceAll('_', ' ')}</strong>
                       <p>{result.comments}</p>
+                      {result.studentGrades?.map((grade) => (
+                        <p key={grade.studentUserId}>Your grade: {grade.grade} / 100</p>
+                      ))}
                       {result.rubric && <pre>{JSON.stringify(result.rubric, null, 2)}</pre>}
                     </div>
                   ))}
