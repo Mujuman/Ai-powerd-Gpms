@@ -56,3 +56,14 @@ test('staff Excel import requires the account columns and rejects invalid workbo
     message: /supported Excel workbook/,
   })
 })
+
+test('staff Excel import requires an interests column', async () => {
+  const buffer = await createStaffWorkbook([
+    ['Full Name', 'Email', 'Temporary Password', 'Staff Role'],
+    ['Advisor One', 'advisor@example.edu', 'temporary-password', 'Advisor'],
+  ])
+  await assert.rejects(parseStaffWorkbook(buffer), {
+    status: 400,
+    message: /Missing required Excel columns: interests/,
+  })
+})

@@ -43,23 +43,24 @@ test('department-created staff accounts are limited to the supported roles and p
     email: 'advisor@example.edu',
     password: 'a-secure-local-password',
     role: 'academic_advisor',
-    title: 'Lecturer',
     specialization: 'Data systems',
+    interests: 'Distributed systems',
   }
   assert.equal(createStaffSchema.safeParse(valid).success, true)
   assert.equal(createStaffSchema.safeParse({ ...valid, role: 'system_administrator' }).success, false)
   assert.equal(createStaffSchema.safeParse({ ...valid, password: 'short' }).success, false)
   assert.equal(createStaffSchema.safeParse({ ...valid, maxGroups: 5 }).success, false)
+  assert.equal(createStaffSchema.safeParse({ ...valid, interests: '' }).success, false)
+  assert.equal(createStaffSchema.safeParse({ ...valid, interests: undefined }).success, false)
+  assert.equal(createStaffSchema.safeParse({ ...valid, title: 'Lecturer' }).success, false)
 
   const optionalProfile = createStaffSchema.parse({
     ...valid,
-    title: undefined,
     specialization: undefined,
     email: '  Advisor@Example.edu ',
     interests: 'Distributed systems, accessibility',
   })
   assert.equal(optionalProfile.email, 'advisor@example.edu')
-  assert.equal(optionalProfile.title, '')
   assert.equal(optionalProfile.specialization, '')
   assert.equal(optionalProfile.interests, 'Distributed systems, accessibility')
 })
