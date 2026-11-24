@@ -346,7 +346,11 @@ export async function listSubmissions(filters, actor) {
 
 export async function listMyProjects(actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
-  return repository.listStudentGroups(pool, actor.id)
+  const projects = await repository.listStudentGroups(pool, actor.id)
+  return projects.map((project) => ({
+    ...project,
+    isGroupLeader: project.leaderUserId === actor.id,
+  }))
 }
 
 export async function autoReviewMySubmissions(actor) {
@@ -424,6 +428,7 @@ export async function autoReviewMySubmissions(actor) {
             departmentId: project.departmentId,
             ranking,
             actor,
+            replaceExisting: needsReview,
           }),
         })
       }
@@ -432,12 +437,24 @@ export async function autoReviewMySubmissions(actor) {
   return { reviewed, advisorAssignments }
 }
 
-export async function submitProject(data, actor) {
-  if (actor.role !== 'student') throw new HttpError(403, 'Only students may submit project titles')
-  const groupId = data.groupId
+async function createProjectVersion(groupId, data, actor, { approvedEdit = false } = {}) {
   const submissionId = randomUUID()
   const group = await repository.findStudentGroup(pool, groupId, actor.id)
   if (!group) throw new HttpError(404, 'Active project group not found')
+  if (approvedEdit && group.leaderUserId !== actor.id) {
+    throw new HttpError(403, 'Only the project group leader may edit an approved proposal')
+  }
+  const previous = await repository.getLatestSubmission(pool, groupId)
+  if (approvedEdit && previous?.status !== 'approved') {
+    throw new HttpError(409, 'Only an approved project proposal can be edited')
+  }
+  if (!approvedEdit && previous?.status === 'submitted') {
+    throw new HttpError(409, 'Your group already has a title awaiting review')
+  }
+  if (!approvedEdit && previous?.status === 'approved') {
+    throw new HttpError(409, 'Edit the approved proposal as the group leader')
+  }
+
   const similarityCheck = await analyzeProjectSimilarity({
     groupId,
     departmentId: group.departmentId,
@@ -458,12 +475,21 @@ export async function submitProject(data, actor) {
   return withTransaction(pool, async (connection) => {
     const group = await repository.findStudentGroup(connection, groupId, actor.id, true)
     if (!group) throw new HttpError(404, 'Active project group not found')
-    const latest = await repository.getLatestSubmission(connection, groupId, true)
-    if (latest?.status === 'submitted') {
-      throw new HttpError(409, 'Your group already has a title awaiting review')
+    if (approvedEdit && group.leaderUserId !== actor.id) {
+      throw new HttpError(403, 'Only the project group leader may edit an approved proposal')
     }
-    if (latest?.status === 'approved') {
-      throw new HttpError(409, 'The approved project title cannot be replaced')
+    const latest = await repository.getLatestSubmission(connection, groupId, true)
+    if (approvedEdit) {
+      if (latest?.id !== previous.id || latest.status !== 'approved') {
+        throw new HttpError(409, 'The approved proposal changed; reload and try again')
+      }
+    } else {
+      if (latest?.status === 'submitted') {
+        throw new HttpError(409, 'Your group already has a title awaiting review')
+      }
+      if (latest?.status === 'approved') {
+        throw new HttpError(409, 'Edit the approved proposal as the group leader')
+      }
     }
     const version = (latest?.version ?? 0) + 1
     await repository.insertSubmission(connection, {
@@ -491,11 +517,14 @@ export async function submitProject(data, actor) {
         departmentId: group.departmentId,
         ranking: advisorRanking,
         actor,
+        replaceExisting: approvedEdit,
       })
       : null
     await recordAudit(connection, {
       userId: actor.id,
-      action: approval.automaticallyApproved
+      action: approvedEdit
+        ? 'project_submissions.update'
+        : approval.automaticallyApproved
         ? 'project_submissions.auto_approved'
         : 'project_submissions.submit',
       targetType: 'project_submission',
@@ -503,6 +532,7 @@ export async function submitProject(data, actor) {
       metadata: {
         groupId,
         version,
+        previousSubmissionId: approvedEdit ? latest.id : null,
         highestSimilarity: approval.highestSimilarity,
         autoApprovalThreshold: approval.threshold,
       },
@@ -516,6 +546,46 @@ export async function submitProject(data, actor) {
       similarityCheck,
       advisorAssignment,
     }
+  })
+}
+
+export async function submitProject(data, actor) {
+  if (actor.role !== 'student') throw new HttpError(403, 'Only students may submit project titles')
+  return createProjectVersion(data.groupId, data, actor)
+}
+
+export async function updateApprovedProject(groupId, data, actor) {
+  if (actor.role !== 'student') throw new HttpError(403, 'Only students may edit project proposals')
+  return createProjectVersion(groupId, data, actor, { approvedEdit: true })
+}
+
+export async function withdrawApprovedProject(groupId, actor) {
+  if (actor.role !== 'student') throw new HttpError(403, 'Only students may withdraw project proposals')
+
+  return withTransaction(pool, async (connection) => {
+    const group = await repository.findStudentGroup(connection, groupId, actor.id, true)
+    if (!group) throw new HttpError(404, 'Active project group not found')
+    if (group.leaderUserId !== actor.id) {
+      throw new HttpError(403, 'Only the project group leader may withdraw an approved proposal')
+    }
+
+    const latest = await repository.getLatestSubmission(connection, groupId, true)
+    if (latest?.status !== 'approved') {
+      throw new HttpError(409, 'Only an approved project proposal can be withdrawn')
+    }
+
+    await repository.withdrawSubmission(connection, latest.id, actor.id)
+    const assignment = await repository.currentAdvisorAssignment(connection, groupId, true)
+    if (assignment) await repository.endAdvisorAssignment(connection, assignment.id)
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'project_submissions.withdraw',
+      targetType: 'project_submission',
+      targetId: latest.id,
+      remoteAddress: actor.remoteAddress,
+      metadata: { groupId, version: latest.version },
+    })
+    return { id: latest.id, groupId, status: 'withdrawn' }
   })
 }
 
@@ -550,6 +620,7 @@ export async function reviewSubmission(submissionId, decision, actor) {
         departmentId,
         ranking: advisorRanking,
         actor,
+        replaceExisting: true,
       })
     }
     await recordAudit(connection, {
