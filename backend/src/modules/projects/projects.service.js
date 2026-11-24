@@ -43,6 +43,7 @@ export function evaluateSubmissionApproval(comparisons) {
   )
   return {
     automaticallyApproved: highestSimilarity <= PROJECT_AUTO_APPROVAL_THRESHOLD,
+    automaticallyRejected: highestSimilarity > PROJECT_AUTO_APPROVAL_THRESHOLD,
     highestSimilarity,
     threshold: PROJECT_AUTO_APPROVAL_THRESHOLD,
   }
@@ -51,7 +52,7 @@ export function evaluateSubmissionApproval(comparisons) {
 export function isAwaitingAutomaticReview(project) {
   return project.submissionStatus === 'submitted'
     && Boolean(project.submissionId)
-    && !project.reviewNote
+    && (!project.reviewNote || project.reviewNote.startsWith('Automatic similarity check:'))
 }
 
 export function selectAiAdvisorCandidate(candidates, scores) {
@@ -97,14 +98,20 @@ async function analyzeProjectSimilarity({ groupId, departmentId, title, descript
   }
 }
 
-function automaticReviewNote(similarityCheck, approval) {
+export function automaticReviewNote(similarityCheck, approval) {
   if (approval.automaticallyApproved && !similarityCheck.comparisons.length) {
     return 'Automatically approved: no approved projects were available for comparison.'
   }
-  const highest = `${Math.round(approval.highestSimilarity * 100)}%`
-  return approval.automaticallyApproved
-    ? `Automatically approved: highest similarity was ${highest}, at or below the ${approval.threshold * 100}% threshold.`
-    : `Automatic similarity check: highest similarity was ${highest}, above the ${approval.threshold * 100}% threshold; sent to the Department Head for review.`
+  const formatPercent = (score) => `${Number((score * 100).toFixed(2))}%`
+  const highest = formatPercent(approval.highestSimilarity)
+  if (approval.automaticallyRejected) {
+    const closestMatch = similarityCheck.comparisons[0]
+    const matchMessage = closestMatch
+      ? ` Closest approved project: "${closestMatch.title}" (${formatPercent(closestMatch.score)} similarity).`
+      : ''
+    return `Automatically rejected: the proposal's highest similarity was ${highest}, above the ${approval.threshold * 100}% limit.${matchMessage} Revise the title and project scope to make it clearly distinct before resubmitting.`
+  }
+  return `Automatically approved: highest similarity was ${highest}, at or below the ${approval.threshold * 100}% threshold.`
 }
 
 async function rankAdvisorCandidates(departmentId, title, description) {
@@ -386,23 +393,16 @@ export async function autoReviewMySubmissions(actor) {
       const current = await repository.getLatestSubmission(connection, project.groupId, true)
       if (!current) return
       if (needsReview) {
-        if (current.id !== project.submissionId || current.status !== 'submitted' || current.reviewNote) return
-        if (approval.automaticallyApproved) {
-          await repository.updateSubmissionReview(
-            connection,
-            current.id,
-            null,
-            'approved',
-            reviewNote,
-          )
-        } else {
-          await repository.updateAutomaticReviewNote(connection, current.id, reviewNote)
-        }
+        const hasLegacyAutomaticReviewNote = current.reviewNote?.startsWith('Automatic similarity check:')
+        if (current.id !== project.submissionId || current.status !== 'submitted'
+          || (current.reviewNote && !hasLegacyAutomaticReviewNote)) return
+        const decision = approval.automaticallyApproved ? 'approved' : 'rejected'
+        await repository.updateSubmissionReview(connection, current.id, null, decision, reviewNote)
         await recordAudit(connection, {
           userId: actor.id,
           action: approval.automaticallyApproved
             ? 'project_submissions.auto_approved'
-            : 'project_submissions.auto_review_required',
+            : 'project_submissions.auto_rejected',
           targetType: 'project_submission',
           targetId: current.id,
           remoteAddress: actor.remoteAddress,
@@ -414,7 +414,7 @@ export async function autoReviewMySubmissions(actor) {
         })
         reviewed.push({
           submissionId: current.id,
-          status: approval.automaticallyApproved ? 'approved' : 'submitted',
+          status: decision,
         })
       } else if (current.id !== project.submissionId || current.status !== 'approved') {
         return
@@ -500,17 +500,14 @@ async function createProjectVersion(groupId, data, actor, { approvedEdit = false
       description: data.description,
       submittedBy: actor.id,
     })
-    if (approval.automaticallyApproved) {
-      await repository.updateSubmissionReview(
-        connection,
-        submissionId,
-        null,
-        'approved',
-        reviewNote,
-      )
-    } else {
-      await repository.updateAutomaticReviewNote(connection, submissionId, reviewNote)
-    }
+    const decision = approval.automaticallyApproved ? 'approved' : 'rejected'
+    await repository.updateSubmissionReview(
+      connection,
+      submissionId,
+      null,
+      decision,
+      reviewNote,
+    )
     const advisorAssignment = approval.automaticallyApproved
       ? await assignApprovedProjectAdvisor(connection, {
         groupId,
@@ -522,11 +519,11 @@ async function createProjectVersion(groupId, data, actor, { approvedEdit = false
       : null
     await recordAudit(connection, {
       userId: actor.id,
-      action: approvedEdit
-        ? 'project_submissions.update'
-        : approval.automaticallyApproved
-        ? 'project_submissions.auto_approved'
-        : 'project_submissions.submit',
+      action: approval.automaticallyRejected
+        ? 'project_submissions.auto_rejected'
+        : approvedEdit
+          ? 'project_submissions.update'
+          : 'project_submissions.auto_approved',
       targetType: 'project_submission',
       targetId: submissionId,
       metadata: {
@@ -541,7 +538,7 @@ async function createProjectVersion(groupId, data, actor, { approvedEdit = false
       id: submissionId,
       groupId,
       version,
-      status: approval.automaticallyApproved ? 'approved' : 'submitted',
+      status: decision,
       reviewNote,
       similarityCheck,
       advisorAssignment,

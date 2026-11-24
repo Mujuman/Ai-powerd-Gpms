@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import {
   listAdvisorProjects,
   listStudentGroups,
-  updateAutomaticReviewNote,
   withdrawSubmission,
 } from '../src/modules/projects/projects.repository.js'
 
@@ -52,21 +51,6 @@ test('advisor project groups include the full active roster and selected leader'
   assert.match(queries[1], /gm\.is_active = TRUE/)
   assert.equal(groups[0].leaderUserId, leaderUserId)
   assert.deepEqual(groups[0].members.map(({ fullName }) => fullName), ['Group Leader', 'Group Member'])
-})
-
-test('automatic similarity notes only update unreviewed submitted proposals', async () => {
-  let statement
-  const connection = {
-    async execute(query, parameters) {
-      statement = { query, parameters }
-      return [{ affectedRows: 1 }]
-    },
-  }
-
-  await updateAutomaticReviewNote(connection, 'submission-id', 'Automatic similarity check: 73%.')
-
-  assert.match(statement.query, /status = 'submitted' AND review_note IS NULL/)
-  assert.deepEqual(statement.parameters, ['Automatic similarity check: 73%.', 'submission-id'])
 })
 
 test('withdrawing a proposal preserves its record and only changes an approved submission', async () => {

@@ -155,15 +155,6 @@ export async function withdrawSubmission(connection, submissionId, withdrawnBy) 
   )
 }
 
-export async function updateAutomaticReviewNote(connection, submissionId, note) {
-  await connection.execute(
-    `UPDATE project_submissions
-        SET review_note = ?
-      WHERE id = ? AND status = 'submitted' AND review_note IS NULL`,
-    [note, submissionId],
-  )
-}
-
 export async function listSubmissions(connection, departmentId, status) {
   const params = [departmentId]
   const statusFilter = status ? 'AND ps.status = ?' : ''

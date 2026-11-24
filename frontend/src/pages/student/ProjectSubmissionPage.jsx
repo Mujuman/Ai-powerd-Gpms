@@ -139,6 +139,8 @@ export default function ProjectSubmissionPage() {
               {project.reviewNote && <p className="project-review-note">
                 <strong>{project.reviewNote.startsWith('Automatically approved:')
                   ? 'Automatic approval'
+                  : project.reviewNote.startsWith('Automatically rejected:')
+                    ? 'Automatic rejection'
                   : project.reviewNote.startsWith('Automatic similarity check:')
                     ? 'Similarity check'
                     : project.reviewNote === 'Withdrawn by group leader'
@@ -182,11 +184,13 @@ export default function ProjectSubmissionPage() {
                   <p className="muted-copy">
                     {similarityCheck.autoApproval.automaticallyApproved
                       ? 'Automatically approved'
-                      : 'Sent to the Department Head for review'}
+                      : similarityCheck.autoApproval.automaticallyRejected
+                        ? 'Automatically rejected'
+                        : 'Similarity decision pending'}
                     {similarityCheck.comparisons.length
                       ? ` · highest similarity ${Math.round(similarityCheck.autoApproval.highestSimilarity * 100)}%`
                       : ' · no approved projects were available to compare'}
-                    {` · automatic approval cutoff ${similarityCheck.autoApproval.thresholdPercent}%`}
+                    {` · similarity threshold ${similarityCheck.autoApproval.thresholdPercent}%`}
                   </p>
                 )}
                 {similarityCheck.autoApproval?.automaticallyApproved && (

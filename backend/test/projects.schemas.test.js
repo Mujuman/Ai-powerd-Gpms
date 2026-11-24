@@ -8,7 +8,10 @@ import {
   studentSubmissionSchema,
   submitAssessmentSchema,
 } from '../src/modules/projects/projects.schemas.js'
-import { evaluateSubmissionApproval } from '../src/modules/projects/projects.service.js'
+import {
+  automaticReviewNote,
+  evaluateSubmissionApproval,
+} from '../src/modules/projects/projects.service.js'
 import {
   correctionReviewSchema,
   projectDocumentSchema,
@@ -39,16 +42,31 @@ test('a rejected project title must include a reason', () => {
   }).success, true)
 })
 
-test('proposals at or below 50 percent similarity are automatically approved', () => {
+test('proposals above 50 percent similarity are automatically rejected with a descriptive reason', () => {
   const atThreshold = evaluateSubmissionApproval([{ score: 0.5 }, { score: 0.12 }])
   assert.equal(atThreshold.automaticallyApproved, true)
+  assert.equal(atThreshold.automaticallyRejected, false)
   assert.equal(atThreshold.highestSimilarity, 0.5)
 
-  const aboveThreshold = evaluateSubmissionApproval([{ score: 0.5001 }])
+  const comparisons = [
+    { title: 'Existing campus monitoring system', score: 0.5001 },
+    { title: 'Unrelated library system', score: 0.2 },
+  ]
+  const aboveThreshold = evaluateSubmissionApproval(comparisons)
   assert.equal(aboveThreshold.automaticallyApproved, false)
+  assert.equal(aboveThreshold.automaticallyRejected, true)
+  assert.equal(aboveThreshold.highestSimilarity, 0.5001)
+
+  const reason = automaticReviewNote({ comparisons }, aboveThreshold)
+  assert.match(reason, /Automatically rejected/)
+  assert.match(reason, /50\.01%/)
+  assert.match(reason, /50% limit/)
+  assert.match(reason, /Existing campus monitoring system/)
+  assert.match(reason, /Revise the title and project scope/)
 
   const noComparisons = evaluateSubmissionApproval([])
   assert.equal(noComparisons.automaticallyApproved, true)
+  assert.equal(noComparisons.automaticallyRejected, false)
   assert.equal(noComparisons.highestSimilarity, 0)
 })
 

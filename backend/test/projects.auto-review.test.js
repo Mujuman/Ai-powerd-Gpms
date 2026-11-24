@@ -5,7 +5,7 @@ import {
   selectAiAdvisorCandidate,
 } from '../src/modules/projects/projects.service.js'
 
-test('only unreviewed submitted proposals are eligible for automatic similarity review', () => {
+test('unreviewed and previously flagged submitted proposals are eligible for automatic similarity review', () => {
   assert.equal(isAwaitingAutomaticReview({
     submissionStatus: 'submitted',
     submissionId: 'submission-id',
@@ -22,6 +22,11 @@ test('only unreviewed submitted proposals are eligible for automatic similarity 
     submissionStatus: 'submitted',
     submissionId: 'submission-id',
     reviewNote: 'Automatic similarity check: above threshold.',
+  }), true)
+  assert.equal(isAwaitingAutomaticReview({
+    submissionStatus: 'submitted',
+    submissionId: 'submission-id',
+    reviewNote: 'Department Head review note.',
   }), false)
   assert.equal(isAwaitingAutomaticReview({
     submissionStatus: 'submitted',
