@@ -106,17 +106,10 @@ The additional demo proposals are “Campus Clinic Appointment and Patient Follo
 The setup script creates `ai-service\.venv`. Install its dependencies if you did not use `-InstallAiDependencies`, then start FastAPI in a separate terminal:
 
 ```powershell
-Set-Location ai-service
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-& .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+.\scripts\start-ai-service.ps1
 ```
 
-Check `http://127.0.0.1:8000/health`. Generate a random token with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`, put it in `backend\.env` as `AI_SERVICE_TOKEN`, and set the same value in the AI service terminal before starting FastAPI:
-
-```powershell
-$env:AI_SERVICE_TOKEN = "<same private value as backend\.env>"
-& .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
+The launcher reads only `AI_SERVICE_TOKEN` from `backend\.env` into the AI service process and does not print the token. If you have not configured one yet, generate a random token with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` and set it as `AI_SERVICE_TOKEN` in `backend\.env`. Restart the backend and AI service after changing it. Check `http://127.0.0.1:8000/health` to verify the service started.
 
 This enables local FLAN-T5 title generation and Sentence Transformer similarity. On first use, the AI service loads `AI_TITLE_GENERATION_MODEL` (defaults to `google/flan-t5-base`) and `AI_EMBEDDING_MODEL` (defaults to `sentence-transformers/all-MiniLM-L6-v2`). If model weights are not cached, Transformers downloads them once; inference then runs locally without an external inference API. Keep the token configured in both processes. When it is missing, title generation reports an explicit configuration error, while similarity uses the clearly labeled local TF-IDF baseline.
 
