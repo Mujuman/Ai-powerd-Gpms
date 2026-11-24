@@ -11,7 +11,7 @@ export const staffQuerySchema = departmentQuerySchema.extend({
 }).strict()
 
 export const submissionQuerySchema = departmentQuerySchema.extend({
-  status: z.enum(['submitted', 'approved', 'rejected']).optional(),
+  status: z.enum(['submitted', 'approved', 'rejected', 'withdrawn']).optional(),
 }).strict()
 
 export const studentSubmissionSchema = z.object({

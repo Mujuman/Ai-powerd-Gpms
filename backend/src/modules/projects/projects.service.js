@@ -136,7 +136,7 @@ async function rankAdvisorCandidates(departmentId, title, description) {
 
 async function assignApprovedProjectAdvisor(
   connection,
-  { groupId, departmentId, ranking, actor },
+  { groupId, departmentId, ranking, actor, replaceExisting = false },
 ) {
   const group = await repository.findGroupForDepartment(
     connection, groupId, departmentId, true,
@@ -144,11 +144,14 @@ async function assignApprovedProjectAdvisor(
   if (!group || !group.isActive) return { status: 'unassigned', reason: 'Project group is no longer active' }
 
   const current = await repository.currentAdvisorAssignment(connection, groupId, true)
-  if (current) return { status: 'already_assigned', advisorUserId: current.advisorUserId }
+  if (current && !replaceExisting) {
+    return { status: 'already_assigned', advisorUserId: current.advisorUserId }
+  }
 
   const candidates = await repository.listAdvisorCandidates(connection, departmentId)
   const selected = selectAiAdvisorCandidate(candidates, ranking.scores)
   if (!selected) {
+    if (current) return { status: 'already_assigned', advisorUserId: current.advisorUserId }
     return {
       status: 'unassigned',
       reason: candidates.length
@@ -157,6 +160,11 @@ async function assignApprovedProjectAdvisor(
     }
   }
 
+  if (current?.advisorUserId === selected.userId) {
+    return { status: 'already_assigned', advisorUserId: current.advisorUserId }
+  }
+
+  if (current) await repository.endAdvisorAssignment(connection, current.id)
   const assignmentId = randomUUID()
   await repository.createAdvisorAssignment(connection, {
     id: assignmentId,
@@ -167,12 +175,13 @@ async function assignApprovedProjectAdvisor(
   })
   await recordAudit(connection, {
     userId: actor.id,
-    action: 'project_advisors.ai_assign',
+    action: current ? 'project_advisors.ai_reassign' : 'project_advisors.ai_assign',
     targetType: 'student_group',
     targetId: groupId,
     remoteAddress: actor.remoteAddress,
     metadata: {
       advisorUserId: selected.userId,
+      previousAdvisorUserId: current?.advisorUserId ?? null,
       modelName: ranking.modelName,
       similarity: ranking.scores.get(selected.userId),
     },

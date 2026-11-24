@@ -66,6 +66,25 @@ export const projectsController = {
       response.status(201).json({ success: true, data: await service.submitProject(data, actor(request)) })
     } catch (error) { next(error) }
   },
+  updateApprovedProject: async (request, response, next) => {
+    try {
+      const groupId = parse(uuid, request.params.groupId)
+      const data = parse(studentSubmissionSchema, request.body)
+      response.json({
+        success: true,
+        data: await service.updateApprovedProject(groupId, data, actor(request)),
+      })
+    } catch (error) { next(error) }
+  },
+  withdrawApprovedProject: async (request, response, next) => {
+    try {
+      const groupId = parse(uuid, request.params.groupId)
+      response.json({
+        success: true,
+        data: await service.withdrawApprovedProject(groupId, actor(request)),
+      })
+    } catch (error) { next(error) }
+  },
   reviewSubmission: async (request, response, next) => {
     try {
       const submissionId = parse(uuid, request.params.submissionId)

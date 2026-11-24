@@ -49,6 +49,8 @@ projectsRoutes.get('/reports', departmentHead, projectsController.getDepartmentR
 projectsRoutes.post('/mine/auto-review', requireRoles('student'), projectsController.autoReviewMySubmissions)
 projectsRoutes.get('/mine', requireRoles('student'), projectsController.listMyProjects)
 projectsRoutes.post('/mine', requireRoles('student'), projectsController.submitProject)
+projectsRoutes.patch('/mine/:groupId', requireRoles('student'), projectsController.updateApprovedProject)
+projectsRoutes.delete('/mine/:groupId', requireRoles('student'), projectsController.withdrawApprovedProject)
 projectsRoutes.get('/mine/defenses', requireRoles('student'), projectsController.listStudentDefenses)
 
 // Examiner and advisor routes

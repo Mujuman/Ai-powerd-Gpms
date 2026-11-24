@@ -10,6 +10,7 @@ function parseJson(value, fallback) {
 export async function findStudentGroup(connection, groupId, studentUserId, lock = false) {
   const [rows] = await connection.execute(
     `SELECT g.id, g.department_id AS departmentId,
+            g.leader_user_id AS leaderUserId,
             g.is_active AS isActive, g.project_type AS projectType
        FROM student_groups g
        JOIN student_group_members gm ON gm.group_id = g.id AND gm.is_active = TRUE
@@ -141,6 +142,16 @@ export async function updateSubmissionReview(connection, submissionId, reviewerI
         SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP(3), review_note = ?
       WHERE id = ?`,
     [decision, reviewerId, note || null, submissionId],
+  )
+}
+
+export async function withdrawSubmission(connection, submissionId, withdrawnBy) {
+  await connection.execute(
+    `UPDATE project_submissions
+        SET status = 'withdrawn', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP(3),
+            review_note = 'Withdrawn by group leader'
+      WHERE id = ? AND status = 'approved'`,
+    [withdrawnBy, submissionId],
   )
 }
 
