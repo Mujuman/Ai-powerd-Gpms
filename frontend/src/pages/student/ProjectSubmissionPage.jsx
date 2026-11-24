@@ -141,6 +141,8 @@ export default function ProjectSubmissionPage() {
                   ? 'Automatic approval'
                   : project.reviewNote.startsWith('Automatic similarity check:')
                     ? 'Similarity check'
+                    : project.reviewNote === 'Withdrawn by group leader'
+                      ? 'Withdrawn'
                     : 'Department review'}:</strong> {project.reviewNote}
               </p>}
             </div>}

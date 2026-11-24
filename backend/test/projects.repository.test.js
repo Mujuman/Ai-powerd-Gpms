@@ -4,6 +4,7 @@ import {
   listAdvisorProjects,
   listStudentGroups,
   updateAutomaticReviewNote,
+  withdrawSubmission,
 } from '../src/modules/projects/projects.repository.js'
 
 const groupId = 'group-id'
@@ -66,4 +67,21 @@ test('automatic similarity notes only update unreviewed submitted proposals', as
 
   assert.match(statement.query, /status = 'submitted' AND review_note IS NULL/)
   assert.deepEqual(statement.parameters, ['Automatic similarity check: 73%.', 'submission-id'])
+})
+
+test('withdrawing a proposal preserves its record and only changes an approved submission', async () => {
+  let statement
+  const connection = {
+    async execute(query, parameters) {
+      statement = { query, parameters }
+      return [{ affectedRows: 1 }]
+    },
+  }
+
+  await withdrawSubmission(connection, 'submission-id', 'leader-id')
+
+  assert.match(statement.query, /SET status = 'withdrawn'/)
+  assert.match(statement.query, /review_note = 'Withdrawn by group leader'/)
+  assert.match(statement.query, /WHERE id = \? AND status = 'approved'/)
+  assert.deepEqual(statement.parameters, ['leader-id', 'submission-id'])
 })

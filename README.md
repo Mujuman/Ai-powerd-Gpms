@@ -205,7 +205,7 @@ python -m unittest discover -s tests -v
 - `POST /api/students/register` for Department Head student account and record creation
 - `/api/students/groups` and `/api/students/groups/:groupId/members`
 - `POST /api/students/:userId/graduate` and `POST /api/students/groups/:groupId/graduate` to graduate individual students or all current members of a group and revoke their login access; corresponding `/reinstate` routes restore active status and login access
-- `/api/projects/mine` for student proposal submission and review status
+- `/api/projects/mine` for student proposal submission, review status, and group-leader-only editing or withdrawal of approved proposals; edits create a new version subject to similarity review, while withdrawal retains proposal history
 - `/api/projects/submissions` and `/api/projects/submissions/:submissionId/review` for Head review
 - `/api/projects/staff` for Department Head advisor/examiner account management; staff profiles require areas of interest, allow optional specialization, and advisor assignments have no active-group cap
 - `/api/projects/groups/:groupId/advisor` for Department Head manual advisor assignment and reassignment; approved projects are automatically matched to active advisors using project relevance and advisor workload
@@ -224,6 +224,6 @@ New student accounts must change their temporary password before using the syste
 
 Students can message their assigned advisor and upload PDF/DOCX project documents. After an examiner requests revisions, students can upload defense corrections; an assigned examiner reviews the correction before submitting an outcome and an individual 0–100 grade for each group member. The Department Head assigns a chairperson from the active examiner panel. Students can view the defense date, venue, chairperson, and their own grade.
 
-The student project workspace separates group details, project title recommendations, proposal submission, advisor chat, document uploads, and defense schedule into separate pages. A suggested title can be carried into the proposal form. The system automatically selects the current group member with the highest GPA as leader and refreshes the selection when membership or student GPA changes. Students and assigned advisors can view the leader and all group members.
+The student project workspace separates group details, project title recommendations, proposal submission, advisor chat, document uploads, and defense schedule into separate pages. A suggested title can be carried into the proposal form. The system automatically selects the current group member with the highest GPA as leader and refreshes the selection when membership or student GPA changes. Only the group leader can edit an approved proposal or withdraw it. An edit creates a new proposal version and repeats similarity review; a withdrawal preserves prior versions and ends the current advisor assignment. Students and assigned advisors can view the leader and all group members.
 
 Only the five specified login roles exist: System Administrator, Department Head, Academic Advisor, Examiner, and Student. Academic policy values remain department-configurable. The transformer model's semantic-analysis quality depends on the configured model being available; the local baseline compares lexical overlap and must not be interpreted as a plagiarism decision.
