@@ -11,6 +11,7 @@ export default function ProjectSubmissionPage() {
   const location = useLocation()
   const queryClient = useQueryClient()
   const [forms, setForms] = useState({})
+  const [editingGroups, setEditingGroups] = useState({})
   const [submissionResults, setSubmissionResults] = useState({})
   const autoReviewQuery = useQuery({
     queryKey: ['student-project-auto-review'],
@@ -35,6 +36,28 @@ export default function ProjectSubmissionPage() {
       void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
     },
   })
+  const updateMutation = useMutation({
+    mutationFn: async ({ groupId, title, description }) =>
+      (await api.patch(`/projects/mine/${groupId}`, { title, description })).data.data,
+    onSuccess: (data, variables) => {
+      setEditingGroups((current) => ({ ...current, [variables.groupId]: false }))
+      setSubmissionResults((current) => ({
+        ...current,
+        [variables.groupId]: {
+          ...data.similarityCheck,
+          advisorAssignment: data.advisorAssignment,
+        },
+      }))
+      void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
+    },
+  })
+  const withdrawMutation = useMutation({
+    mutationFn: async (groupId) => (await api.delete(`/projects/mine/${groupId}`)).data.data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
+      void queryClient.invalidateQueries({ queryKey: ['student-project-auto-review'] })
+    },
+  })
   const projects = projectsQuery.data ?? []
   const isLoading = autoReviewQuery.isLoading || projectsQuery.isLoading
 
@@ -57,7 +80,9 @@ export default function ProjectSubmissionPage() {
   function submit(event, groupId) {
     event.preventDefault()
     const form = forms[groupId] ?? {}
-    submitMutation.mutate({ groupId, title: form.title ?? '', description: form.description ?? '' })
+    const values = { groupId, title: form.title ?? '', description: form.description ?? '' }
+    if (editingGroups[groupId]) updateMutation.mutate(values)
+    else submitMutation.mutate(values)
   }
 
   return (
@@ -76,10 +101,13 @@ export default function ProjectSubmissionPage() {
         {message(autoReviewQuery.error, 'Could not complete the automatic proposal review')}
       </div>}
       {submitMutation.error && <div className="table-error" role="alert">{message(submitMutation.error, 'Could not submit the project')}</div>}
+      {updateMutation.error && <div className="table-error" role="alert">{message(updateMutation.error, 'Could not update the approved proposal')}</div>}
+      {withdrawMutation.error && <div className="table-error" role="alert">{message(withdrawMutation.error, 'Could not withdraw the approved proposal')}</div>}
       {isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
       {projects.map((project) => {
         const status = project.submissionStatus
-        const canSubmit = !status || status === 'rejected'
+        const canSubmit = !status || status === 'rejected' || status === 'withdrawn'
+        const isEditing = Boolean(editingGroups[project.groupId])
         const values = forms[project.groupId] ?? {}
         const similarityCheck = submissionResults[project.groupId]
         const advisorAssignment = similarityCheck?.advisorAssignment
@@ -94,7 +122,8 @@ export default function ProjectSubmissionPage() {
                 <p className="page-subtitle">{project.departmentCode} · {project.departmentName}</p>
                 <p className="muted-copy">Advisor: {project.advisorName ?? 'Not assigned yet'}</p>
               </div>
-              <span className={status === 'approved' ? 'status-active' : status === 'rejected' ? 'status-inactive' : 'dept-chip'}>
+              <span className={status === 'approved' ? 'status-active'
+                : status === 'rejected' || status === 'withdrawn' ? 'status-inactive' : 'dept-chip'}>
                 {status ?? 'Not submitted'}
               </span>
             </div>
@@ -115,6 +144,33 @@ export default function ProjectSubmissionPage() {
                     : 'Department review'}:</strong> {project.reviewNote}
               </p>}
             </div>}
+            {status === 'approved' && project.isGroupLeader && !isEditing && (
+              <div className="action-row">
+                <button className="btn-secondary" onClick={() => {
+                  setForms((current) => ({
+                    ...current,
+                    [project.groupId]: {
+                      title: project.title ?? '',
+                      description: project.description ?? '',
+                    },
+                  }))
+                  setEditingGroups((current) => ({ ...current, [project.groupId]: true }))
+                }}>
+                  Edit approved proposal
+                </button>
+                <button className="btn-danger" disabled={withdrawMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm('Withdraw this approved proposal? Its history will be kept, but its advisor assignment will end.')) {
+                      withdrawMutation.mutate(project.groupId)
+                    }
+                  }}>
+                  Withdraw proposal
+                </button>
+              </div>
+            )}
+            {status === 'approved' && !project.isGroupLeader && (
+              <p className="muted-copy">Only the group leader can edit or withdraw the approved proposal.</p>
+            )}
             {similarityCheck && (
               <div className="import-preview" role="status" aria-live="polite">
                 <strong>AI similarity check</strong>
@@ -143,7 +199,7 @@ export default function ProjectSubmissionPage() {
                 ) : <p className="muted-copy">Nothing to compare yet.</p>}
               </div>
             )}
-            {canSubmit && (
+            {(canSubmit || isEditing) && (
               <form className="rules-form" onSubmit={(event) => submit(event, project.groupId)}>
                 <label className="form-field"><span className="form-label">Project title</span>
                   <input className="form-input" required minLength={8} maxLength={240} value={values.title ?? ''}
@@ -154,9 +210,22 @@ export default function ProjectSubmissionPage() {
                     value={values.description ?? ''}
                     onChange={(event) => updateForm(project.groupId, 'description', event.target.value)} />
                 </label>
-                <button className="btn-primary" disabled={submitMutation.isPending}>
-                  {submitMutation.isPending ? 'Submitting…' : status === 'rejected' ? 'Resubmit proposal' : 'Submit proposal'}
-                </button>
+                <div className="action-row">
+                  <button className="btn-primary" disabled={submitMutation.isPending || updateMutation.isPending}>
+                    {updateMutation.isPending
+                      ? 'Updating…'
+                      : isEditing ? 'Save and review changes'
+                        : submitMutation.isPending ? 'Submitting…'
+                          : status === 'rejected' ? 'Resubmit proposal'
+                            : status === 'withdrawn' ? 'Submit new proposal' : 'Submit proposal'}
+                  </button>
+                  {isEditing && (
+                    <button type="button" className="btn-secondary"
+                      onClick={() => setEditingGroups((current) => ({ ...current, [project.groupId]: false }))}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             )}
             {status === 'submitted' && <p className="muted-copy">
@@ -169,6 +238,9 @@ export default function ProjectSubmissionPage() {
                 ? 'Your proposal was automatically approved because it is not sufficiently similar to approved projects.'
                 : 'Your title is approved.'}
               {' '}Contact your assigned advisor for next steps.
+            </p>}
+            {status === 'withdrawn' && <p className="muted-copy">
+              This proposal was withdrawn. Its history remains available, and the group leader can submit another proposal.
             </p>}
           </section>
         )
