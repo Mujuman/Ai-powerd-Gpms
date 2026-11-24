@@ -293,6 +293,10 @@ textarea.form-input {
   resize: vertical;
 }
 
+.project-description-field {
+  width: 100%;
+}
+
 .form-field-error {
   font-size: 0.8rem;
   color: #e53e3e;

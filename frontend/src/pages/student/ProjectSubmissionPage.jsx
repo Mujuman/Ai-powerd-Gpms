@@ -207,7 +207,7 @@ export default function ProjectSubmissionPage() {
                   <input className="form-input" required minLength={8} maxLength={240} value={values.title ?? ''}
                     onChange={(event) => updateForm(project.groupId, 'title', event.target.value)} />
                 </label>
-                <label className="form-field"><span className="form-label">Project description</span>
+                <label className="form-field project-description-field"><span className="form-label">Project description</span>
                   <textarea className="form-input" required minLength={30} maxLength={10000} rows={5}
                     value={values.description ?? ''}
                     onChange={(event) => updateForm(project.groupId, 'description', event.target.value)} />
