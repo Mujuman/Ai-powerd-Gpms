@@ -88,7 +88,7 @@ All services run as local processes. Frontend and API development servers bind t
 
 ### Seed local demo users
 
-For role-by-role UI testing only, seed the five role accounts, three named demo advisors, three additional demo students with project groups and proposals, a demo department, and (when the database has no academic year yet) a demo calendar. One sample proposal is already approved and assigned to an advisor; two await review. This command is opt-in, refuses to run in production, and only resets the documented `*.example.test` demo accounts:
+For role-by-role UI testing only, seed the five role accounts, three named demo advisors, three additional demo students with project groups and proposals, a demo department, and (when the database has no academic year yet) a demo calendar. Among the three added proposals, one is already approved and assigned to an advisor while two await review. This command is opt-in, refuses to run in production, and only resets the documented `*.example.test` demo accounts:
 
 ```powershell
 $env:DEMO_SEED_ENABLED = "true"
