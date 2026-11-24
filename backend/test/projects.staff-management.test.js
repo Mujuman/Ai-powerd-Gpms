@@ -37,4 +37,3 @@ test('staff deletion is blocked when the account belongs to another active depar
   assert.equal(await hasOtherActiveDepartmentAssignments(connection, 'staff-id', 'department-id'), true)
   assert.deepEqual(capturedParams, ['staff-id', 'department-id'])
 })
-
