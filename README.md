@@ -88,7 +88,7 @@ All services run as local processes. Frontend and API development servers bind t
 
 ### Seed local demo users
 
-For role-by-role UI testing only, seed one sample account for each of the five roles plus a demo department, student profile, sample group, pending proposal, and (when the database has no academic year yet) a demo calendar. This command is opt-in, refuses to run in production, and resets only the documented `*.example.test` demo accounts:
+For role-by-role UI testing only, seed the five role accounts, three named demo advisors, three additional demo students with project groups and proposals, a demo department, and (when the database has no academic year yet) a demo calendar. One sample proposal is already approved and assigned to an advisor; two await review. This command is opt-in, refuses to run in production, and only resets the documented `*.example.test` demo accounts:
 
 ```powershell
 $env:DEMO_SEED_ENABLED = "true"
@@ -97,7 +97,9 @@ npm --prefix backend run db:seed:demo
 Remove-Item Env:DEMO_SEED_ENABLED, Env:DEMO_SEED_PASSWORD
 ```
 
-All five sample users use the password supplied in `DEMO_SEED_PASSWORD` (8–72 UTF-8 bytes; development-only). The sample accounts are `admin.demo@example.test`, `head.demo@example.test`, `advisor.demo@example.test`, `examiner.demo@example.test`, and `student.demo@example.test`.
+All sample accounts use the password supplied in `DEMO_SEED_PASSWORD` (8–72 UTF-8 bytes; development-only). The role accounts are `admin.demo@example.test`, `head.demo@example.test`, `advisor.demo@example.test`, `examiner.demo@example.test`, and `student.demo@example.test`. The named demo advisors are Dr. Hana Tesfaye, Mr. Dawit Bekele, and Dr. Mekdes Alemu; the additional student accounts are `student.abel.demo@example.test`, `student.sara.demo@example.test`, and `student.yonas.demo@example.test`. These advisor names are fictional demo identities.
+
+The additional demo proposals are “Campus Clinic Appointment and Patient Follow-up Portal,” “Smart Irrigation Advisory for Smallholder Farms,” and “Student Services Request and Tracking Platform.” Their descriptions are seeded with the proposals. The original “Smart Campus Resource Monitoring” proposal is also seeded when the current academic year and semester are active.
 
 ## Start the AI service
 
