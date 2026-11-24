@@ -121,12 +121,6 @@ export const projectsController = {
       })
     } catch (error) { next(error) }
   },
-  assignAdvisorsWithAi: async (request, response, next) => {
-    try {
-      const filters = parse(departmentQuerySchema, request.body)
-      response.json({ success: true, data: await service.assignAdvisorsWithAi(filters, actor(request)) })
-    } catch (error) { next(error) }
-  },
   assignAdvisor: async (request, response, next) => {
     try {
       const groupId = parse(uuid, request.params.groupId)

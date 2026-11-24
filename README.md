@@ -208,9 +208,9 @@ python -m unittest discover -s tests -v
 - `/api/projects/mine` for student proposal submission and review status
 - `/api/projects/submissions` and `/api/projects/submissions/:submissionId/review` for Head review
 - `/api/projects/staff` for Department Head advisor/examiner account management; staff profiles require areas of interest, allow optional specialization, and advisor assignments have no active-group cap
-- `/api/projects/advisors/assign-ai` and `/api/projects/groups/:groupId/advisor` for advisor recommendations and reassignment
+- `/api/projects/groups/:groupId/advisor` for Department Head-selected advisor assignment and reassignment
 - `/api/projects/similarity` for department-scoped project title/description comparisons
-- `/api/projects/defenses` and `/api/projects/defenses/:scheduleId/examiners` for defense scheduling and examiner assignment
+- `/api/projects/defenses` and `/api/projects/defenses/:scheduleId/examiners/assign-ai` for defense scheduling and AI-based examiner assignment
 - `/api/projects/assessments` and `/api/projects/examiner/defenses/:scheduleId/assessment` for submitted examiner evaluations
 - `/api/projects/reports` for department statistics and project progress
 - `POST /api/v1/similarity` on the internal AI service for authenticated sentence-embedding comparisons

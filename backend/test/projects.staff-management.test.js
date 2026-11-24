@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import {
   countStaffHistoryReferences,
   hasOtherActiveDepartmentAssignments,
-  listAdvisorCandidates,
 } from '../src/modules/projects/projects.repository.js'
 
 test('staff deletion checks all history protected by restrictive user foreign keys', async () => {
@@ -39,21 +38,3 @@ test('staff deletion is blocked when the account belongs to another active depar
   assert.deepEqual(capturedParams, ['staff-id', 'department-id'])
 })
 
-test('advisor candidate records include instructor interests for matching', async () => {
-  let capturedSql = ''
-  const connection = {
-    async execute(sql) {
-      capturedSql = sql
-      return [[{
-        userId: 'advisor-id',
-        fullName: 'Advisor One',
-        interests: 'Distributed systems',
-      }]]
-    },
-  }
-
-  const [advisor] = await listAdvisorCandidates(connection, 'department-id')
-  assert.equal(advisor.interests, 'Distributed systems')
-  assert.match(capturedSql, /ap\.interests/)
-  assert.doesNotMatch(capturedSql, /max_groups/)
-})

@@ -331,26 +331,6 @@ export async function permanentlyDeleteStaff(connection, userId) {
   return result.affectedRows === 1
 }
 
-export async function listAdvisorCandidates(connection, departmentId) {
-  const [rows] = await connection.execute(
-    `SELECT u.id AS userId, u.full_name AS fullName,
-            COALESCE(ap.specialization, '') AS specialization,
-            COALESCE(ap.title, '') AS title,
-            COALESCE(ap.interests, '') AS interests,
-            (SELECT COUNT(*) FROM project_advisor_assignments aa
-              WHERE aa.advisor_user_id = u.id AND aa.is_active = TRUE) AS activeWorkload
-       FROM user_department_assignments uda
-       JOIN users u ON u.id = uda.user_id
-       JOIN roles r ON r.id = u.role_id
-       JOIN advisor_profiles ap ON ap.user_id = u.id
-      WHERE uda.department_id = ? AND uda.is_active = TRUE
-        AND u.is_active = TRUE AND r.code = 'academic_advisor'
-      ORDER BY u.full_name`,
-    [departmentId],
-  )
-  return rows
-}
-
 export async function findGroupForDepartment(connection, groupId, departmentId, lock = false) {
   const [rows] = await connection.execute(
     `SELECT g.id, g.department_id AS departmentId, g.is_active AS isActive
@@ -396,22 +376,6 @@ export async function listLatestProposals(connection, departmentId) {
         AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest
                            WHERE latest.group_id = ps.group_id)
       ORDER BY ps.submitted_at DESC LIMIT 220`,
-    [departmentId],
-  )
-  return rows
-}
-
-export async function listUnassignedApprovedProjects(connection, departmentId) {
-  const [rows] = await connection.execute(
-    `SELECT ps.id AS submissionId, ps.group_id AS groupId, ps.title, ps.description
-       FROM project_submissions ps
-       JOIN student_groups g ON g.id = ps.group_id
-      WHERE g.department_id = ? AND ps.status = 'approved'
-        AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest
-                           WHERE latest.group_id = ps.group_id)
-        AND NOT EXISTS (SELECT 1 FROM project_advisor_assignments aa
-                         WHERE aa.group_id = g.id AND aa.is_active = TRUE)
-      ORDER BY ps.submitted_at`,
     [departmentId],
   )
   return rows

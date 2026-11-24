@@ -27,10 +27,7 @@ export default function ProjectSubmissionPage() {
     onSuccess: (data, variables) => {
       setSubmissionResults((current) => ({
         ...current,
-        [variables.groupId]: {
-          ...data.similarityCheck,
-          advisorAssignment: data.advisorAssignment,
-        },
+        [variables.groupId]: data.similarityCheck,
       }))
       void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
     },
@@ -73,7 +70,7 @@ export default function ProjectSubmissionPage() {
         {message(projectsQuery.error, 'Could not load your project groups')}
       </div>}
       {autoReviewQuery.isError && <div className="table-error" role="alert">
-        {message(autoReviewQuery.error, 'Could not complete the automatic proposal review or advisor assignment')}
+        {message(autoReviewQuery.error, 'Could not complete the automatic proposal review')}
       </div>}
       {submitMutation.error && <div className="table-error" role="alert">{message(submitMutation.error, 'Could not submit the project')}</div>}
       {isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
@@ -82,9 +79,6 @@ export default function ProjectSubmissionPage() {
         const canSubmit = !status || status === 'rejected'
         const values = forms[project.groupId] ?? {}
         const similarityCheck = submissionResults[project.groupId]
-        const advisorAssignmentIssue = autoReviewQuery.data?.advisorAssignments?.find(
-          (assignment) => assignment.groupId === project.groupId && assignment.status === 'unassigned',
-        )
         return (
           <section className="academic-card" key={project.groupId}>
             <div className="page-header">
@@ -124,6 +118,9 @@ export default function ProjectSubmissionPage() {
                     {` · automatic approval cutoff ${similarityCheck.autoApproval.thresholdPercent}%`}
                   </p>
                 )}
+                {similarityCheck.autoApproval?.automaticallyApproved && (
+                  <p className="muted-copy">A Department Head will assign your advisor.</p>
+                )}
                 {similarityCheck.comparisons.length > 0 ? (
                   <ul>{similarityCheck.comparisons.slice(0, 5).map((comparison) => (
                     <li key={comparison.title}>
@@ -131,19 +128,7 @@ export default function ProjectSubmissionPage() {
                     </li>
                   ))}</ul>
                 ) : <p className="muted-copy">Nothing to compare yet.</p>}
-                {similarityCheck.advisorAssignment?.status === 'assigned' && (
-                  <p className="muted-copy">AI assigned advisor: {similarityCheck.advisorAssignment.advisorName}</p>
-                )}
-                {similarityCheck.advisorAssignment?.status === 'unassigned' && (
-                  <p className="table-error" role="alert">{similarityCheck.advisorAssignment.reason}</p>
-                )}
               </div>
-            )}
-            {advisorAssignmentIssue && (
-              <p className="table-error" role="alert">
-                AI advisor assignment needs attention: {advisorAssignmentIssue.reason}
-                {' '}The system will retry when you revisit this page.
-              </p>
             )}
             {canSubmit && (
               <form className="rules-form" onSubmit={(event) => submit(event, project.groupId)}>

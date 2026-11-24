@@ -53,7 +53,6 @@ export default function ProjectsPage() {
     groupId: '', defenseType: 'proposal', scheduledAt: '', venue: '', notes: '',
   })
   const [scheduleEdit, setScheduleEdit] = useState(null)
-  const [examinerSelections, setExaminerSelections] = useState({})
   const [chairpersonSelections, setChairpersonSelections] = useState({})
   const [advisorSelections, setAdvisorSelections] = useState({})
 
@@ -112,9 +111,6 @@ export default function ProjectsPage() {
           departmentId,
         })).data.data
       }
-      if (action === 'assign-advisors-ai') {
-        return (await api.post('/projects/advisors/assign-ai', { departmentId })).data.data
-      }
       if (action === 'analyze-similarity') {
         return (await api.post('/projects/similarity', { departmentId })).data.data
       }
@@ -135,12 +131,6 @@ export default function ProjectsPage() {
       if (action === 'cancel-defense') {
         return (await api.post(`/projects/defenses/${variables.id}/cancel`, { departmentId })).data.data
       }
-      if (action === 'assign-examiners') {
-        return (await api.put(`/projects/defenses/${variables.id}/examiners`, {
-          departmentId,
-          examinerUserIds: examinerSelections[variables.id] ?? [],
-        })).data
-      }
       if (action === 'assign-chairperson') {
         return (await api.put(`/projects/defenses/${variables.id}/chairperson`, {
           departmentId,
@@ -159,13 +149,6 @@ export default function ProjectsPage() {
         setScheduleForm({ groupId: '', defenseType: 'proposal', scheduledAt: '', venue: '', notes: '' })
       }
       if (variables.action === 'update-defense') setScheduleEdit(null)
-      if (variables.action === 'assign-examiner-ai') {
-        setExaminerSelections((current) => {
-          const next = { ...current }
-          delete next[variables.id]
-          return next
-        })
-      }
       invalidateWorkspaces()
     },
   })
@@ -241,14 +224,10 @@ export default function ProjectsPage() {
             </div>
           </Section>
 
-          <Section id="advisor-assignments" title="Advisor assignments" description="Assign approved projects to advisors or let the system match by their interests and specialization.">
-            <div className="action-row">
-              <button className="btn-primary" disabled={mutation.isPending || advisors.length === 0}
-                onClick={() => mutation.mutate({ action: 'assign-advisors-ai' })}>AI assign unassigned projects</button>
-            </div>
+          <Section id="advisor-assignments" title="Advisor assignments" description="The Department Head selects and assigns an active advisor to each approved project.">
             <div className="table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Project group</th><th>Approved title</th><th>Current advisor</th><th>Reassign advisor</th></tr></thead>
+                <thead><tr><th>Project group</th><th>Approved title</th><th>Current advisor</th><th>Assign advisor</th></tr></thead>
                 <tbody>{approvedGroups.map((group) => (
                   <tr key={group.id}>
                     <td>{group.name}</td><td>{group.title}</td>
@@ -265,7 +244,7 @@ export default function ProjectsPage() {
                         </option>)}
                       </select>
                       <button className="btn-secondary" disabled={!advisorSelections[group.id] || mutation.isPending}
-                        onClick={() => mutation.mutate({ action: 'assign-advisor', groupId: group.id })}>Assign</button>
+                        onClick={() => mutation.mutate({ action: 'assign-advisor', groupId: group.id })}>Assign advisor</button>
                     </div></td>
                   </tr>
                 ))}
@@ -298,7 +277,7 @@ export default function ProjectsPage() {
             )}
           </Section>
 
-          <Section id="defense-schedules" title="Proposal defense schedules" description="Create, update, and cancel defenses for approved projects; assign examiners manually or with AI.">
+          <Section id="defense-schedules" title="Proposal defense schedules" description="Create and manage defense schedules. Use AI to select an active examiner based on project relevance and examiner workload.">
             <form className="import-form" onSubmit={submitDefense}>
               <label className="form-field"><span className="form-label">Approved project</span>
                 <select className="form-input" required value={scheduleForm.groupId}
@@ -325,7 +304,7 @@ export default function ProjectsPage() {
             </form>
             <div className="table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Group / project</th><th>Schedule</th><th>Examiners (AI/manual)</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Group / project</th><th>Schedule</th><th>Examiner (AI assignment)</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>{(defensesQuery.data ?? []).map((schedule) => (
                   <tr key={schedule.id}>
                     <td>{schedule.groupName}<br /><span className="muted-copy">{schedule.title} · {schedule.defenseType}</span></td>
@@ -342,18 +321,10 @@ export default function ProjectsPage() {
                         `${examiner.fullName} (${examiner.assignmentMethod === 'ai' ? 'AI' : 'manual'}${examiner.isChairperson ? ', chairperson' : ''})`).join(', ') || 'Unassigned'}</div>
                       {schedule.status === 'scheduled' && (
                         <div className="head-review-actions">
-                          <select className="form-input" multiple aria-label={`Examiners for ${schedule.groupName}`}
-                            value={examinerSelections[schedule.id] ?? schedule.examiners.map((examiner) => examiner.id)}
-                            onChange={(event) => setExaminerSelections({ ...examinerSelections,
-                              [schedule.id]: Array.from(event.target.selectedOptions, (option) => option.value) })}>
-                            {examiners.map((examiner) => <option key={examiner.id} value={examiner.id}>{examiner.fullName}</option>)}
-                          </select>
-                          <div className="action-row">
-                            <button className="btn-secondary" disabled={mutation.isPending || !examiners.length}
-                              onClick={() => mutation.mutate({ action: 'assign-examiners', id: schedule.id })}>Assign selected</button>
-                            <button className="btn-secondary" disabled={mutation.isPending || !examiners.length}
-                              onClick={() => mutation.mutate({ action: 'assign-examiner-ai', id: schedule.id })}>AI assign</button>
-                          </div>
+                          <button className="btn-secondary" disabled={mutation.isPending || !examiners.length}
+                            onClick={() => mutation.mutate({ action: 'assign-examiner-ai', id: schedule.id })}>
+                            Assign examiner with AI
+                          </button>
                           {schedule.examiners.length > 0 && (
                             <div className="action-row">
                               <select className="form-input" aria-label={`Chairperson for ${schedule.groupName}`}
