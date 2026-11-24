@@ -258,7 +258,7 @@ export default function ProjectsPage() {
             <div className="action-row">
               <button className="btn-primary" disabled={mutation.isPending}
                 onClick={() => mutation.mutate({ action: 'analyze-similarity' })}>Run AI similarity analysis</button>
-              {similarity && <span className="muted-copy">Model: {similarity.modelName} · {similarity.results.projectCount} projects · {formatDate(similarity.createdAt)}</span>}
+              {similarity && <span className="muted-copy">{similarity.results.projectCount} projects · {formatDate(similarity.createdAt)}</span>}
             </div>
             {similarity && (
               <div className="table-wrapper">
@@ -427,7 +427,7 @@ export default function ProjectsPage() {
               </div>
             )}
             {report?.latestSimilarityAnalysis && <p className="muted-copy">
-              Latest AI analysis: {report.latestSimilarityAnalysis.modelName}, {report.latestSimilarityAnalysis.results.projectCount} projects, {report.latestSimilarityAnalysis.results.comparisons.length} comparisons, {formatDate(report.latestSimilarityAnalysis.createdAt)}.
+              Latest similarity analysis: {report.latestSimilarityAnalysis.results.projectCount} projects, {report.latestSimilarityAnalysis.results.comparisons.length} comparisons, {formatDate(report.latestSimilarityAnalysis.createdAt)}.
             </p>}
             <div className="table-wrapper">
               <table className="data-table">

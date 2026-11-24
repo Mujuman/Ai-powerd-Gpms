@@ -183,7 +183,6 @@ export default function ProjectSubmissionPage() {
               <div className="import-preview" role="status" aria-live="polite">
                 <strong>AI similarity check</strong>
                 <p className="muted-copy">{similarityCheck.notice}</p>
-                {similarityCheck.modelName && <p className="muted-copy">Analysis: {similarityCheck.modelName}</p>}
                 {similarityCheck.autoApproval && (
                   <p className="muted-copy">
                     {similarityCheck.autoApproval.automaticallyApproved
