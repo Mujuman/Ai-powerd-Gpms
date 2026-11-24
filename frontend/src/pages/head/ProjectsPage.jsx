@@ -224,7 +224,7 @@ export default function ProjectsPage() {
             </div>
           </Section>
 
-          <Section id="advisor-assignments" title="Advisor assignments" description="The Department Head selects and assigns an active advisor to each approved project.">
+          <Section id="advisor-assignments" title="Advisor assignments" description="AI assigns an active advisor automatically when a project is approved. The Department Head can select another advisor or reassign at any time.">
             <div className="table-wrapper">
               <table className="data-table">
                 <thead><tr><th>Project group</th><th>Approved title</th><th>Current advisor</th><th>Assign advisor</th></tr></thead>

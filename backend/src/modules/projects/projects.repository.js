@@ -331,6 +331,26 @@ export async function permanentlyDeleteStaff(connection, userId) {
   return result.affectedRows === 1
 }
 
+export async function listAdvisorCandidates(connection, departmentId) {
+  const [rows] = await connection.execute(
+    `SELECT u.id AS userId, u.full_name AS fullName,
+            COALESCE(ap.specialization, '') AS specialization,
+            COALESCE(ap.title, '') AS title,
+            COALESCE(ap.interests, '') AS interests,
+            (SELECT COUNT(*) FROM project_advisor_assignments aa
+              WHERE aa.advisor_user_id = u.id AND aa.is_active = TRUE) AS activeWorkload
+       FROM user_department_assignments uda
+       JOIN users u ON u.id = uda.user_id
+       JOIN roles r ON r.id = u.role_id
+       JOIN advisor_profiles ap ON ap.user_id = u.id
+      WHERE uda.department_id = ? AND uda.is_active = TRUE
+        AND u.is_active = TRUE AND r.code = 'academic_advisor'
+      ORDER BY u.full_name`,
+    [departmentId],
+  )
+  return rows
+}
+
 export async function findGroupForDepartment(connection, groupId, departmentId, lock = false) {
   const [rows] = await connection.execute(
     `SELECT g.id, g.department_id AS departmentId, g.is_active AS isActive

@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { isAwaitingAutomaticReview } from '../src/modules/projects/projects.service.js'
+import {
+  isAwaitingAutomaticReview,
+  selectAiAdvisorCandidate,
+} from '../src/modules/projects/projects.service.js'
 
 test('only unreviewed submitted proposals are eligible for automatic similarity review', () => {
   assert.equal(isAwaitingAutomaticReview({
@@ -25,4 +28,21 @@ test('only unreviewed submitted proposals are eligible for automatic similarity 
     submissionId: null,
     reviewNote: null,
   }), false)
+})
+
+test('AI advisor selection favors project relevance, then lower workload', () => {
+  const candidates = [
+    { userId: 'busy', fullName: 'A. Advisor', activeWorkload: 8 },
+    { userId: 'lighter', fullName: 'Z. Advisor', activeWorkload: 1 },
+    { userId: 'tie', fullName: 'B. Advisor', activeWorkload: 1 },
+  ]
+  const scores = new Map([
+    ['busy', 0.9],
+    ['lighter', 0.8],
+    ['tie', 0.8],
+  ])
+
+  assert.equal(selectAiAdvisorCandidate(candidates, scores).userId, 'busy')
+  assert.equal(selectAiAdvisorCandidate(candidates.slice(1), scores).userId, 'tie')
+  assert.equal(selectAiAdvisorCandidate(candidates, new Map()), null)
 })

@@ -27,7 +27,10 @@ export default function ProjectSubmissionPage() {
     onSuccess: (data, variables) => {
       setSubmissionResults((current) => ({
         ...current,
-        [variables.groupId]: data.similarityCheck,
+        [variables.groupId]: {
+          ...data.similarityCheck,
+          advisorAssignment: data.advisorAssignment,
+        },
       }))
       void queryClient.invalidateQueries({ queryKey: ['student-projects'] })
     },
@@ -79,6 +82,10 @@ export default function ProjectSubmissionPage() {
         const canSubmit = !status || status === 'rejected'
         const values = forms[project.groupId] ?? {}
         const similarityCheck = submissionResults[project.groupId]
+        const advisorAssignment = similarityCheck?.advisorAssignment
+          ?? autoReviewQuery.data?.advisorAssignments?.find(
+            (assignment) => assignment.groupId === project.groupId,
+          )
         return (
           <section className="academic-card" key={project.groupId}>
             <div className="page-header">
@@ -91,6 +98,12 @@ export default function ProjectSubmissionPage() {
                 {status ?? 'Not submitted'}
               </span>
             </div>
+            {advisorAssignment?.status === 'assigned' && (
+              <p className="muted-copy">AI automatically assigned advisor: {advisorAssignment.advisorName}</p>
+            )}
+            {advisorAssignment?.status === 'unassigned' && (
+              <p className="table-error" role="alert">{advisorAssignment.reason}</p>
+            )}
             {project.title && <div>
               <h3 className="section-title">{project.title}</h3>
               <p className="muted-copy">{project.description}</p>
@@ -119,7 +132,7 @@ export default function ProjectSubmissionPage() {
                   </p>
                 )}
                 {similarityCheck.autoApproval?.automaticallyApproved && (
-                  <p className="muted-copy">A Department Head will assign your advisor.</p>
+                  !advisorAssignment && <p className="muted-copy">AI is selecting an advisor for your approved project.</p>
                 )}
                 {similarityCheck.comparisons.length > 0 ? (
                   <ul>{similarityCheck.comparisons.slice(0, 5).map((comparison) => (

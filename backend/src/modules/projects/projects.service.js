@@ -54,6 +54,17 @@ export function isAwaitingAutomaticReview(project) {
     && !project.reviewNote
 }
 
+export function selectAiAdvisorCandidate(candidates, scores) {
+  return candidates
+    .filter((advisor) => scores.has(advisor.userId))
+    .sort((left, right) => (
+      scores.get(right.userId) - scores.get(left.userId)
+      || Number(left.activeWorkload) - Number(right.activeWorkload)
+      || left.fullName.localeCompare(right.fullName)
+      || left.userId.localeCompare(right.userId)
+    ))[0] ?? null
+}
+
 async function analyzeProjectSimilarity({ groupId, departmentId, title, description }) {
   const approvedTitles = await collaborationRepository.listApprovedTitles(pool, departmentId, groupId)
   if (!approvedTitles.length) {
@@ -94,6 +105,86 @@ function automaticReviewNote(similarityCheck, approval) {
   return approval.automaticallyApproved
     ? `Automatically approved: highest similarity was ${highest}, at or below the ${approval.threshold * 100}% threshold.`
     : `Automatic similarity check: highest similarity was ${highest}, above the ${approval.threshold * 100}% threshold; sent to the Department Head for review.`
+}
+
+async function rankAdvisorCandidates(departmentId, title, description) {
+  const candidates = await repository.listAdvisorCandidates(pool, departmentId)
+  if (!candidates.length) return { modelName: null, scores: new Map() }
+
+  const analysis = await analyzeSimilarity(
+    [
+      { id: 'approved-project', text: `${title}\n${description}` },
+      ...candidates.map((advisor) => ({
+        id: `advisor:${advisor.userId}`,
+        text: `${advisor.title} ${advisor.specialization} ${advisor.interests}`.trim()
+          || 'Academic project supervision',
+      })),
+    ],
+    candidates.map((advisor) => ({
+      leftId: 'approved-project',
+      rightId: `advisor:${advisor.userId}`,
+    })),
+  )
+  return {
+    modelName: analysis.modelName,
+    scores: new Map(analysis.scores.map((entry) => [
+      entry.rightId.slice('advisor:'.length),
+      entry.score,
+    ])),
+  }
+}
+
+async function assignApprovedProjectAdvisor(
+  connection,
+  { groupId, departmentId, ranking, actor },
+) {
+  const group = await repository.findGroupForDepartment(
+    connection, groupId, departmentId, true,
+  )
+  if (!group || !group.isActive) return { status: 'unassigned', reason: 'Project group is no longer active' }
+
+  const current = await repository.currentAdvisorAssignment(connection, groupId, true)
+  if (current) return { status: 'already_assigned', advisorUserId: current.advisorUserId }
+
+  const candidates = await repository.listAdvisorCandidates(connection, departmentId)
+  const selected = selectAiAdvisorCandidate(candidates, ranking.scores)
+  if (!selected) {
+    return {
+      status: 'unassigned',
+      reason: candidates.length
+        ? 'No active advisor from the analyzed candidates is available.'
+        : 'No active advisor is available in this department.',
+    }
+  }
+
+  const assignmentId = randomUUID()
+  await repository.createAdvisorAssignment(connection, {
+    id: assignmentId,
+    groupId,
+    advisorUserId: selected.userId,
+    method: 'ai',
+    assignedBy: actor.id,
+  })
+  await recordAudit(connection, {
+    userId: actor.id,
+    action: 'project_advisors.ai_assign',
+    targetType: 'student_group',
+    targetId: groupId,
+    remoteAddress: actor.remoteAddress,
+    metadata: {
+      advisorUserId: selected.userId,
+      modelName: ranking.modelName,
+      similarity: ranking.scores.get(selected.userId),
+    },
+  })
+  return {
+    status: 'assigned',
+    advisorUserId: selected.userId,
+    advisorName: selected.fullName,
+    assignmentMethod: 'ai',
+    modelName: ranking.modelName,
+    similarity: ranking.scores.get(selected.userId),
+  }
 }
 
 function cellText(value) {
@@ -253,55 +344,83 @@ export async function autoReviewMySubmissions(actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
   const projects = await repository.listStudentGroups(pool, actor.id)
   const reviewed = []
+  const advisorAssignments = []
   for (const project of projects) {
-    if (!isAwaitingAutomaticReview(project)) continue
-    const similarityCheck = await analyzeProjectSimilarity({
-      groupId: project.groupId,
-      departmentId: project.departmentId,
-      title: project.title,
-      description: project.description,
-    })
-    const approval = evaluateSubmissionApproval(similarityCheck.comparisons)
-    const reviewNote = automaticReviewNote(similarityCheck, approval)
+    const needsReview = isAwaitingAutomaticReview(project)
+    const needsAdvisor = project.submissionStatus === 'approved' && !project.advisorName
+    if (!needsReview && !needsAdvisor) continue
+
+    let approval
+    let reviewNote
+    if (needsReview) {
+      const similarityCheck = await analyzeProjectSimilarity({
+        groupId: project.groupId,
+        departmentId: project.departmentId,
+        title: project.title,
+        description: project.description,
+      })
+      approval = evaluateSubmissionApproval(similarityCheck.comparisons)
+      reviewNote = automaticReviewNote(similarityCheck, approval)
+    }
+    const shouldAssignAdvisor = needsAdvisor || approval?.automaticallyApproved
+    const ranking = shouldAssignAdvisor
+      ? await rankAdvisorCandidates(project.departmentId, project.title, project.description)
+      : null
 
     await withTransaction(pool, async (connection) => {
       const group = await repository.findStudentGroup(connection, project.groupId, actor.id, true)
       if (!group) return
       const current = await repository.getLatestSubmission(connection, project.groupId, true)
       if (!current) return
-      if (current.id !== project.submissionId || current.status !== 'submitted' || current.reviewNote) return
-      if (approval.automaticallyApproved) {
-        await repository.updateSubmissionReview(
-          connection,
-          current.id,
-          null,
-          'approved',
-          reviewNote,
-        )
-      } else {
-        await repository.updateAutomaticReviewNote(connection, current.id, reviewNote)
+      if (needsReview) {
+        if (current.id !== project.submissionId || current.status !== 'submitted' || current.reviewNote) return
+        if (approval.automaticallyApproved) {
+          await repository.updateSubmissionReview(
+            connection,
+            current.id,
+            null,
+            'approved',
+            reviewNote,
+          )
+        } else {
+          await repository.updateAutomaticReviewNote(connection, current.id, reviewNote)
+        }
+        await recordAudit(connection, {
+          userId: actor.id,
+          action: approval.automaticallyApproved
+            ? 'project_submissions.auto_approved'
+            : 'project_submissions.auto_review_required',
+          targetType: 'project_submission',
+          targetId: current.id,
+          remoteAddress: actor.remoteAddress,
+          metadata: {
+            groupId: project.groupId,
+            highestSimilarity: approval.highestSimilarity,
+            autoApprovalThreshold: approval.threshold,
+          },
+        })
+        reviewed.push({
+          submissionId: current.id,
+          status: approval.automaticallyApproved ? 'approved' : 'submitted',
+        })
+      } else if (current.id !== project.submissionId || current.status !== 'approved') {
+        return
       }
-      await recordAudit(connection, {
-        userId: actor.id,
-        action: approval.automaticallyApproved
-          ? 'project_submissions.auto_approved'
-          : 'project_submissions.auto_review_required',
-        targetType: 'project_submission',
-        targetId: current.id,
-        remoteAddress: actor.remoteAddress,
-        metadata: {
+      if (shouldAssignAdvisor) {
+        advisorAssignments.push({
           groupId: project.groupId,
-          highestSimilarity: approval.highestSimilarity,
-          autoApprovalThreshold: approval.threshold,
-        },
-      })
-      reviewed.push({
-        submissionId: current.id,
-        status: approval.automaticallyApproved ? 'approved' : 'submitted',
-      })
+          title: project.title,
+          ...await assignApprovedProjectAdvisor(connection, {
+            groupId: project.groupId,
+            departmentId: project.departmentId,
+            ranking,
+            actor,
+          }),
+        })
+      }
     })
   }
-  return { reviewed }
+  return { reviewed, advisorAssignments }
 }
 
 export async function submitProject(data, actor) {
@@ -318,6 +437,9 @@ export async function submitProject(data, actor) {
   })
   const approval = evaluateSubmissionApproval(similarityCheck.comparisons)
   const reviewNote = automaticReviewNote(similarityCheck, approval)
+  const advisorRanking = approval.automaticallyApproved
+    ? await rankAdvisorCandidates(group.departmentId, data.title, data.description)
+    : null
   similarityCheck.autoApproval = {
     automaticallyApproved: approval.automaticallyApproved,
     highestSimilarity: approval.highestSimilarity,
@@ -354,6 +476,14 @@ export async function submitProject(data, actor) {
     } else {
       await repository.updateAutomaticReviewNote(connection, submissionId, reviewNote)
     }
+    const advisorAssignment = approval.automaticallyApproved
+      ? await assignApprovedProjectAdvisor(connection, {
+        groupId,
+        departmentId: group.departmentId,
+        ranking: advisorRanking,
+        actor,
+      })
+      : null
     await recordAudit(connection, {
       userId: actor.id,
       action: approval.automaticallyApproved
@@ -375,6 +505,7 @@ export async function submitProject(data, actor) {
       status: approval.automaticallyApproved ? 'approved' : 'submitted',
       reviewNote,
       similarityCheck,
+      advisorAssignment,
     }
   })
 }
@@ -383,7 +514,15 @@ export async function reviewSubmission(submissionId, decision, actor) {
   const submission = await repository.findSubmission(pool, submissionId)
   if (!submission) throw new HttpError(404, 'Project submission not found')
   const departmentId = assertDepartmentAccess(actor, submission.departmentId)
+  const advisorRanking = decision.decision === 'approved'
+    ? await rankAdvisorCandidates(departmentId, submission.title, submission.description)
+    : null
+  let advisorAssignment = null
   await withTransaction(pool, async (connection) => {
+    const group = await repository.findGroupForDepartment(
+      connection, submission.groupId, departmentId, true,
+    )
+    if (!group || !group.isActive) throw new HttpError(404, 'Active project group not found')
     const current = await repository.findSubmission(connection, submissionId, true)
     if (!current) throw new HttpError(404, 'Project submission not found')
     if (current.status !== 'submitted') throw new HttpError(409, 'This project submission has already been reviewed')
@@ -396,6 +535,14 @@ export async function reviewSubmission(submissionId, decision, actor) {
       decision.decision,
       decision.note,
     )
+    if (decision.decision === 'approved') {
+      advisorAssignment = await assignApprovedProjectAdvisor(connection, {
+        groupId: current.groupId,
+        departmentId,
+        ranking: advisorRanking,
+        actor,
+      })
+    }
     await recordAudit(connection, {
       userId: actor.id,
       action: `project_submissions.${decision.decision}`,
@@ -405,7 +552,7 @@ export async function reviewSubmission(submissionId, decision, actor) {
       metadata: { departmentId, note: decision.note },
     })
   })
-  return { id: submissionId, status: decision.decision }
+  return { id: submissionId, status: decision.decision, advisorAssignment }
 }
 
 export async function listStaff(filters, actor) {
