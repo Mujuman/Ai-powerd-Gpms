@@ -7,6 +7,7 @@ import {
 import {
   createUser,
   updateUser,
+  deleteDepartmentHead,
   listUsers,
   getUserById,
   setDepartments,
@@ -127,15 +128,7 @@ export const usersController = {
   deleteDepartmentHead: async (request, response, next) => {
     try {
       const { id } = request.params
-      
-      const user = await getUserById(id)
-      if (user.role !== 'department_head') {
-        throw new HttpError(404, 'Department head not found')
-      }
-      
-      // Soft delete by setting isActive to false
-      await updateUser(id, { isActive: false }, requestInfo(request))
-      
+      await deleteDepartmentHead(id, requestInfo(request))
       response.status(204).end()
     } catch (error) {
       next(error)

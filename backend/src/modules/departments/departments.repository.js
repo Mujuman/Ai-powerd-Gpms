@@ -44,12 +44,12 @@ export async function listDepartments(databasePool, filters = {}) {
 /**
  * Find a single department by ID.
  */
-export async function findDepartmentById(databasePool, departmentId) {
+export async function findDepartmentById(databasePool, departmentId, lock = false) {
   const [rows] = await databasePool.execute(
     `SELECT id, code, name, is_active, created_at, updated_at
        FROM departments
       WHERE id = ?
-      LIMIT 1`,
+      LIMIT 1${lock ? ' FOR UPDATE' : ''}`,
     [departmentId],
   )
   return rows[0] ?? null
@@ -93,4 +93,12 @@ export async function updateDepartment(connection, departmentId, updates) {
     `UPDATE departments SET ${setClauses.join(', ')} WHERE id = ?`,
     params,
   )
+}
+
+export async function deleteDepartment(connection, departmentId) {
+  const [result] = await connection.execute(
+    'DELETE FROM departments WHERE id = ?',
+    [departmentId],
+  )
+  return Number(result.affectedRows) === 1
 }

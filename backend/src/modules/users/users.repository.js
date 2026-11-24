@@ -300,6 +300,22 @@ export async function updateUser(connection, userId, updates) {
   )
 }
 
+export async function lockUserForDelete(connection, userId) {
+  const [rows] = await connection.execute(
+    'SELECT id FROM users WHERE id = ? FOR UPDATE',
+    [userId],
+  )
+  return rows[0] ?? null
+}
+
+export async function deleteUser(connection, userId) {
+  const [result] = await connection.execute(
+    'DELETE FROM users WHERE id = ?',
+    [userId],
+  )
+  return Number(result.affectedRows) === 1
+}
+
 /**
  * Upsert student profile.
  */

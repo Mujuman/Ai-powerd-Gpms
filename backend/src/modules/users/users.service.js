@@ -2,11 +2,14 @@ import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { pool } from '../../database/pool.js'
 import { withTransaction } from '../../database/transaction.js'
+import { countForeignKeyReferences } from '../../database/foreign-key-references.js'
 import { recordAudit } from '../audit/audit.repository.js'
 import {
   listUsers as repoListUsers,
   findUserById as repoFindUserById,
+  lockUserForDelete as repoLockUserForDelete,
   createUser as repoCreateUser,
+  deleteUser as repoDeleteUser,
   updateUser as repoUpdateUser,
   upsertStudentProfile,
   upsertAdvisorProfile,
@@ -97,6 +100,45 @@ export async function updateUser(userId, data, requestInfo = {}) {
   })
 
   return repoFindUserById(pool, userId)
+}
+
+export async function deleteDepartmentHead(userId, requestInfo = {}) {
+  try {
+    await withTransaction(pool, async (connection) => {
+      const lockedUser = await repoLockUserForDelete(connection, userId)
+      if (!lockedUser) throw new HttpError(404, 'Department head not found')
+      const user = await repoFindUserById(connection, userId)
+      if (user?.role !== 'department_head') {
+        throw new HttpError(404, 'Department head not found')
+      }
+
+      const referenceCount = await countForeignKeyReferences(connection, 'users', userId, {
+        excludedTables: ['refresh_tokens', 'password_reset_tokens'],
+      })
+      if (referenceCount > 0) {
+        throw new HttpError(
+          409,
+          'Cannot permanently delete this department head while linked records exist. Remove department assignments or deactivate the account instead.',
+        )
+      }
+
+      if (!await repoDeleteUser(connection, userId)) {
+        throw new HttpError(404, 'Department head not found')
+      }
+      await recordAudit(connection, {
+        userId: requestInfo.actorId ?? null,
+        action: 'users.delete',
+        targetType: 'user',
+        targetId: userId,
+        remoteAddress: requestInfo.remoteAddress ?? null,
+      })
+    })
+  } catch (error) {
+    if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED') {
+      throw new HttpError(409, 'Cannot permanently delete this department head while linked records exist.')
+    }
+    throw error
+  }
 }
 
 /**
