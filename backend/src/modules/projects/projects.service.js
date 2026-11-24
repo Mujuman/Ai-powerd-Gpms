@@ -42,8 +42,8 @@ export function evaluateSubmissionApproval(comparisons) {
     0,
   )
   return {
-    automaticallyApproved: highestSimilarity <= PROJECT_AUTO_APPROVAL_THRESHOLD,
-    automaticallyRejected: highestSimilarity > PROJECT_AUTO_APPROVAL_THRESHOLD,
+    automaticallyApproved: highestSimilarity < PROJECT_AUTO_APPROVAL_THRESHOLD,
+    automaticallyRejected: highestSimilarity >= PROJECT_AUTO_APPROVAL_THRESHOLD,
     highestSimilarity,
     threshold: PROJECT_AUTO_APPROVAL_THRESHOLD,
   }
@@ -102,16 +102,16 @@ export function automaticReviewNote(similarityCheck, approval) {
   if (approval.automaticallyApproved && !similarityCheck.comparisons.length) {
     return 'Automatically approved: no approved projects were available for comparison.'
   }
-  const formatPercent = (score) => `${Number((score * 100).toFixed(2))}%`
+  const formatPercent = (score) => `${(Math.floor(score * 10000) / 100).toFixed(2)}%`
   const highest = formatPercent(approval.highestSimilarity)
   if (approval.automaticallyRejected) {
     const closestMatch = similarityCheck.comparisons[0]
     const matchMessage = closestMatch
       ? ` Closest approved project: "${closestMatch.title}" (${formatPercent(closestMatch.score)} similarity).`
       : ''
-    return `Automatically rejected: the proposal's highest similarity was ${highest}, above the ${approval.threshold * 100}% limit.${matchMessage} Revise the title and project scope to make it clearly distinct before resubmitting.`
+    return `Automatically rejected: the proposal's highest similarity was ${highest}, at or above the ${approval.threshold * 100}% limit.${matchMessage} Revise the title and project scope to make it clearly distinct before resubmitting.`
   }
-  return `Automatically approved: highest similarity was ${highest}, at or below the ${approval.threshold * 100}% threshold.`
+  return `Automatically approved: highest similarity was ${highest}, below the ${approval.threshold * 100}% threshold.`
 }
 
 async function rankAdvisorCandidates(departmentId, title, description) {

@@ -42,27 +42,34 @@ test('a rejected project title must include a reason', () => {
   }).success, true)
 })
 
-test('proposals above 50 percent similarity are automatically rejected with a descriptive reason', () => {
+test('only proposals below 50 percent similarity are automatically approved', () => {
+  const belowThreshold = evaluateSubmissionApproval([{ score: 0.4999 }])
+  assert.equal(belowThreshold.automaticallyApproved, true)
+  assert.equal(belowThreshold.automaticallyRejected, false)
+
   const atThreshold = evaluateSubmissionApproval([{ score: 0.5 }, { score: 0.12 }])
-  assert.equal(atThreshold.automaticallyApproved, true)
-  assert.equal(atThreshold.automaticallyRejected, false)
+  assert.equal(atThreshold.automaticallyApproved, false)
+  assert.equal(atThreshold.automaticallyRejected, true)
   assert.equal(atThreshold.highestSimilarity, 0.5)
 
   const comparisons = [
-    { title: 'Existing campus monitoring system', score: 0.5001 },
+    { title: 'Existing campus monitoring system', score: 0.5 },
     { title: 'Unrelated library system', score: 0.2 },
   ]
-  const aboveThreshold = evaluateSubmissionApproval(comparisons)
-  assert.equal(aboveThreshold.automaticallyApproved, false)
-  assert.equal(aboveThreshold.automaticallyRejected, true)
-  assert.equal(aboveThreshold.highestSimilarity, 0.5001)
+  const atThresholdDecision = evaluateSubmissionApproval(comparisons)
+  assert.equal(atThresholdDecision.automaticallyApproved, false)
+  assert.equal(atThresholdDecision.automaticallyRejected, true)
+  assert.equal(atThresholdDecision.highestSimilarity, 0.5)
 
-  const reason = automaticReviewNote({ comparisons }, aboveThreshold)
+  const reason = automaticReviewNote({ comparisons }, atThresholdDecision)
   assert.match(reason, /Automatically rejected/)
-  assert.match(reason, /50\.01%/)
-  assert.match(reason, /50% limit/)
+  assert.match(reason, /50\.00%/)
+  assert.match(reason, /at or above the 50% limit/)
   assert.match(reason, /Existing campus monitoring system/)
   assert.match(reason, /Revise the title and project scope/)
+
+  const aboveThresholdScore = evaluateSubmissionApproval([{ score: 0.5001 }])
+  assert.equal(aboveThresholdScore.automaticallyRejected, true)
 
   const noComparisons = evaluateSubmissionApproval([])
   assert.equal(noComparisons.automaticallyApproved, true)

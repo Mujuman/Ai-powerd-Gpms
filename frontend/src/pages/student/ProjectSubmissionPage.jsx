@@ -7,6 +7,10 @@ function message(error, fallback) {
   return error?.response?.data?.message ?? fallback
 }
 
+function similarityPercent(score) {
+  return `${(Math.floor(score * 10000) / 100).toFixed(2)}%`
+}
+
 export default function ProjectSubmissionPage() {
   const location = useLocation()
   const queryClient = useQueryClient()
@@ -188,7 +192,7 @@ export default function ProjectSubmissionPage() {
                         ? 'Automatically rejected'
                         : 'Similarity decision pending'}
                     {similarityCheck.comparisons.length
-                      ? ` · highest similarity ${Math.round(similarityCheck.autoApproval.highestSimilarity * 100)}%`
+                      ? ` · highest similarity ${similarityPercent(similarityCheck.autoApproval.highestSimilarity)}`
                       : ' · no approved projects were available to compare'}
                     {` · similarity threshold ${similarityCheck.autoApproval.thresholdPercent}%`}
                   </p>
@@ -199,7 +203,7 @@ export default function ProjectSubmissionPage() {
                 {similarityCheck.comparisons.length > 0 ? (
                   <ul>{similarityCheck.comparisons.slice(0, 5).map((comparison) => (
                     <li key={comparison.title}>
-                      {comparison.title} · {Math.round(comparison.score * 100)}% similarity
+                      {comparison.title} · {similarityPercent(comparison.score)} similarity
                     </li>
                   ))}</ul>
                 ) : <p className="muted-copy">Nothing to compare yet.</p>}
