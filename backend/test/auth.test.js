@@ -9,7 +9,7 @@ import {
   passwordResetConfirmSchema,
 } from '../src/modules/auth/auth.schemas.js'
 import { supportedRoles, requireRoles } from '../src/middleware/require-roles.js'
-import { validateEnvironment } from '../src/config/env.js'
+import { isAllowedFrontendOrigin, validateEnvironment } from '../src/config/env.js'
 
 const settings = {
   jwtAccessSecret: 'test-secret-with-more-than-thirty-two-bytes-long',
@@ -203,6 +203,15 @@ test('only the five configured login roles are accepted by authorization middlew
     (nextError) => { error = nextError },
   )
   assert.equal(error.status, 403)
+})
+
+test('development CORS accepts localhost and loopback aliases on the configured port only', () => {
+  const configuredOrigins = ['http://localhost:5173']
+  assert.equal(isAllowedFrontendOrigin('http://127.0.0.1:5173', configuredOrigins, 'development'), true)
+  assert.equal(isAllowedFrontendOrigin('http://localhost:5173', configuredOrigins, 'development'), true)
+  assert.equal(isAllowedFrontendOrigin('http://127.0.0.1:5174', configuredOrigins, 'development'), false)
+  assert.equal(isAllowedFrontendOrigin('http://example.test:5173', configuredOrigins, 'development'), false)
+  assert.equal(isAllowedFrontendOrigin('http://127.0.0.1:5173', configuredOrigins, 'production'), false)
 })
 
 test('XAMPP development may omit the empty database password; production may not', () => {

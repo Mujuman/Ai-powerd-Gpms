@@ -3,7 +3,7 @@ import express from 'express'
 import { rateLimit } from 'express-rate-limit'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
-import { config } from './config/env.js'
+import { config, isAllowedFrontendOrigin } from './config/env.js'
 import { pool } from './database/pool.js'
 import { apiErrorHandler } from './utils/api-error-handler.js'
 import { authRoutes } from './modules/auth/auth.routes.js'
@@ -20,7 +20,7 @@ app.disable('x-powered-by')
 app.use(helmet())
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || config.frontendOrigins.includes(origin)) {
+    if (isAllowedFrontendOrigin(origin, config.frontendOrigins, config.nodeEnv)) {
       callback(null, true)
       return
     }

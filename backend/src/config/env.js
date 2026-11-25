@@ -1,5 +1,30 @@
 const required = ['DB_HOST', 'DB_NAME', 'DB_USER', 'JWT_ACCESS_SECRET']
 
+export function isAllowedFrontendOrigin(origin, configuredOrigins, nodeEnv) {
+  if (!origin || configuredOrigins.includes(origin)) return true
+  if (nodeEnv !== 'development') return false
+
+  let requestUrl
+  try {
+    requestUrl = new URL(origin)
+  } catch {
+    return false
+  }
+  if (!['localhost', '127.0.0.1'].includes(requestUrl.hostname)) return false
+
+  return configuredOrigins.some((configuredOrigin) => {
+    let configuredUrl
+    try {
+      configuredUrl = new URL(configuredOrigin)
+    } catch {
+      return false
+    }
+    return configuredUrl.protocol === requestUrl.protocol
+      && configuredUrl.port === requestUrl.port
+      && ['localhost', '127.0.0.1'].includes(configuredUrl.hostname)
+  })
+}
+
 export function validateEnvironment(env = process.env) {
   const missing = required.filter((name) => !env[name])
   if (missing.length > 0) {
