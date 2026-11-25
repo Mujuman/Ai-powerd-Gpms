@@ -381,6 +381,16 @@ export default function UsersPage() {
           {usersQuery.error?.response?.data?.message ?? 'Failed to load users'}
         </div>
       )}
+      {toggleMutation.error && (
+        <div className="table-error" role="alert">
+          {toggleMutation.error?.response?.data?.message ?? 'Could not change department head status'}
+        </div>
+      )}
+      {deleteMutation.error && (
+        <div className="table-error" role="alert">
+          {deleteMutation.error?.response?.data?.message ?? 'Could not delete department head'}
+        </div>
+      )}
       {usersResponseInvalid && (
         <div className="table-error" role="alert">The server returned an unexpected user list.</div>
       )}
@@ -425,7 +435,7 @@ export default function UsersPage() {
                           <Pencil size={14} />
                         </button>
                         <button
-                          className="btn-icon-sm"
+                          className="btn-secondary"
                           aria-label={u.isActive ? `Deactivate ${u.fullName}` : `Activate ${u.fullName}`}
                           onClick={() => toggleMutation.mutate({ id: u.id, isActive: u.isActive })}
                           disabled={toggleMutation.isPending}
@@ -433,19 +443,19 @@ export default function UsersPage() {
                           {u.isActive
                             ? <ToggleRight size={16} style={{ color: '#059669' }} />
                             : <ToggleLeft size={16} style={{ color: '#8290a6' }} />}
+                          {u.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                         <button
-                          className="btn-icon-sm"
+                          className="btn-danger"
                           aria-label={`Delete ${u.fullName}`}
                           onClick={() => {
-                            if (window.confirm(`Are you sure you want to delete ${u.fullName}? This action cannot be undone.`)) {
+                            if (window.confirm(`Permanently delete ${u.fullName}? This is allowed only when the account has no linked records.`)) {
                               deleteMutation.mutate(u.id)
                             }
                           }}
                           disabled={deleteMutation.isPending}
-                          style={{ color: '#dc2626' }}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={14} /> Delete
                         </button>
                       </div>
                     </td>

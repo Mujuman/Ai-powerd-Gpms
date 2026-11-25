@@ -239,6 +239,16 @@ export default function DepartmentsPage() {
           {deptsQuery.error?.response?.data?.message ?? 'Failed to load departments'}
         </div>
       )}
+      {toggleMutation.error && (
+        <div className="table-error" role="alert">
+          {toggleMutation.error?.response?.data?.message ?? 'Could not change department status'}
+        </div>
+      )}
+      {deleteMutation.error && (
+        <div className="table-error" role="alert">
+          {deleteMutation.error?.response?.data?.message ?? 'Could not delete department'}
+        </div>
+      )}
       {departmentsResponseInvalid && (
         <div className="table-error" role="alert">The server returned an unexpected department list.</div>
       )}
@@ -271,7 +281,7 @@ export default function DepartmentsPage() {
                         <Pencil size={14} />
                       </button>
                       <button
-                        className="btn-icon-sm"
+                        className="btn-secondary"
                         aria-label={d.isActive ? `Deactivate ${d.name}` : `Activate ${d.name}`}
                         onClick={() => toggleMutation.mutate({ id: d.id, isActive: d.isActive })}
                         disabled={toggleMutation.isPending}
@@ -279,19 +289,19 @@ export default function DepartmentsPage() {
                         {d.isActive
                           ? <ToggleRight size={16} style={{ color: '#059669' }} />
                           : <ToggleLeft size={16} style={{ color: '#8290a6' }} />}
+                        {d.isActive ? 'Deactivate' : 'Activate'}
                       </button>
                       <button
-                        className="btn-icon-sm"
+                        className="btn-danger"
                         aria-label={`Delete ${d.name}`}
                         onClick={() => {
-                          if (window.confirm(`Are you sure you want to delete ${d.name}? This action cannot be undone.`)) {
+                          if (window.confirm(`Permanently delete ${d.name}? This is allowed only when the department has no linked records.`)) {
                             deleteMutation.mutate(d.id)
                           }
                         }}
                         disabled={deleteMutation.isPending}
-                        style={{ color: '#dc2626' }}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={14} /> Delete
                       </button>
                     </div>
                   </td>
