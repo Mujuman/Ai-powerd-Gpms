@@ -92,10 +92,17 @@ export default function StudentDashboard() {
   const groups = projectsQuery.data ?? []
   const group = groups[0]
   const project = groups.find((item) => item.submissionId) ?? group
-  const upcomingDefense = (defensesQuery.data ?? [])
+  const upcomingDefenses = (defensesQuery.data ?? [])
     .filter((schedule) => schedule.status === 'scheduled'
       && new Date(schedule.scheduledAt).getTime() >= Date.now())
-    .sort((left, right) => new Date(left.scheduledAt) - new Date(right.scheduledAt))[0]
+    .sort((left, right) => new Date(left.scheduledAt) - new Date(right.scheduledAt))
+  const upcomingDefense = upcomingDefenses[0]
+  const groupMembershipCount = groups.reduce(
+    (total, currentGroup) => total + (currentGroup.members?.length ?? 0),
+    0,
+  )
+  const pendingProposalCount = groups.filter((currentGroup) =>
+    currentGroup.submissionStatus === 'submitted').length
   const gpaValue = studentQuery.data?.gpa
   const gpa = gpaValue == null || gpaValue === ''
     ? 'Not recorded'
@@ -115,51 +122,57 @@ export default function StudentDashboard() {
       workAreas={WORK_AREAS}
       footer="Your academic record, project proposal submission, review status, and defense schedule are available now."
     >
-      <section className="student-overview-grid" aria-label="Student overview">
-        <StudentOverviewCard
-          icon={UsersRound}
-          title="Project group"
-          value={group?.groupName ?? 'Not assigned'}
-          detail={groups.length > 1
-            ? `${groups.length} active groups`
-            : group?.departmentName
-              ? group.departmentName
-              : 'Your group will appear here when assigned.'}
-          to="/student/project/proposal"
-          loading={projectsQuery.isLoading}
-          error={projectsQuery.isError}
-        />
-        <StudentOverviewCard
-          icon={FileText}
-          title="Project proposal"
-          value={project?.title ?? (group ? 'No proposal yet' : 'No group assigned')}
-          detail={submissionStatus}
-          to="/student/project/defense"
-          loading={projectsQuery.isLoading}
-          error={projectsQuery.isError}
-        />
-        <StudentOverviewCard
-          icon={GraduationCap}
-          title="Current GPA"
-          value={gpa}
-          detail="Latest GPA on your academic record"
-          to="/student/academic-record"
-          loading={studentQuery.isLoading}
-          error={studentQuery.isError}
-        />
-        <StudentOverviewCard
-          icon={CalendarDays}
-          title="Upcoming defense"
-          value={upcomingDefense
-            ? `${upcomingDefense.defenseType} defense`
-            : defensesQuery.isLoading ? 'Loading…' : 'None scheduled'}
-          detail={upcomingDefense
-            ? `${upcomingDefense.groupName} · ${defenseDate} · ${upcomingDefense.venue}`
-            : defensesQuery.isError ? 'Could not load defense schedule.' : 'Scheduled defenses will appear here.'}
-          to="/student/project"
-          loading={false}
-          error={defensesQuery.isError}
-        />
+      <section className="student-statistics-section" aria-labelledby="student-statistics-title">
+        <h2 id="student-statistics-title" className="section-title">Your statistics</h2>
+        <div className="student-overview-grid">
+          <StudentOverviewCard
+            icon={UsersRound}
+            title="Active project groups"
+            value={groups.length}
+            detail={group?.groupName ?? 'No project group assigned'}
+            to="/student/project"
+            loading={projectsQuery.isLoading}
+            error={projectsQuery.isError}
+          />
+          <StudentOverviewCard
+            icon={UsersRound}
+            title="Group memberships"
+            value={groupMembershipCount}
+            detail="Active student memberships across your groups"
+            to="/student/project"
+            loading={projectsQuery.isLoading}
+            error={projectsQuery.isError}
+          />
+          <StudentOverviewCard
+            icon={FileText}
+            title="Proposals awaiting review"
+            value={pendingProposalCount}
+            detail={project?.title ? `${project.title} · ${submissionStatus}` : submissionStatus}
+            to="/student/project/proposal"
+            loading={projectsQuery.isLoading}
+            error={projectsQuery.isError}
+          />
+          <StudentOverviewCard
+            icon={GraduationCap}
+            title="Current GPA"
+            value={gpa}
+            detail="Latest GPA on your academic record"
+            to="/student/academic-record"
+            loading={studentQuery.isLoading}
+            error={studentQuery.isError}
+          />
+          <StudentOverviewCard
+            icon={CalendarDays}
+            title="Upcoming defenses"
+            value={upcomingDefenses.length}
+            detail={upcomingDefense
+              ? `Next: ${upcomingDefense.defenseType} · ${upcomingDefense.groupName} · ${defenseDate} · ${upcomingDefense.venue}`
+              : defensesQuery.isError ? 'Could not load defense schedule.' : 'Scheduled defenses will appear here.'}
+            to="/student/project"
+            loading={defensesQuery.isLoading}
+            error={defensesQuery.isError}
+          />
+        </div>
       </section>
     </RoleDashboard>
   )
