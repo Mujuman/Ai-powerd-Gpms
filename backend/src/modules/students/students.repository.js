@@ -69,7 +69,9 @@ export async function updateStudent(connection, userId, student, departmentId) {
   await connection.execute(
     `UPDATE student_profiles
         SET student_id = ?, department_id = ?, program = ?, cohort = ?,
-            year_level = ?, gpa = ?, academic_year = ?, semester = ?
+            year_level = ?, gpa = ?,
+            academic_year = COALESCE(?, academic_year),
+            semester = COALESCE(?, semester)
       WHERE user_id = ?`,
     [
       student.studentId,
@@ -83,14 +85,16 @@ export async function updateStudent(connection, userId, student, departmentId) {
       userId,
     ],
   )
-  await connection.execute(
-    `INSERT INTO student_academic_records
-       (student_user_id, semester_id, gpa, year_level, enrollment_status)
-     VALUES (?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE gpa = VALUES(gpa), year_level = VALUES(year_level),
-                             enrollment_status = VALUES(enrollment_status)`,
-    [userId, student.semesterId, student.gpa, student.yearLevel, student.enrollmentStatus],
-  )
+  if (student.semesterId) {
+    await connection.execute(
+      `INSERT INTO student_academic_records
+         (student_user_id, semester_id, gpa, year_level, enrollment_status)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE gpa = VALUES(gpa), year_level = VALUES(year_level),
+                               enrollment_status = VALUES(enrollment_status)`,
+      [userId, student.semesterId, student.gpa, student.yearLevel, student.enrollmentStatus],
+    )
+  }
   await refreshGroupLeadersForStudent(connection, userId)
 }
 
@@ -363,15 +367,19 @@ export async function findImportContext(databasePool, departmentId, academicYear
     'SELECT id, code FROM departments WHERE id = ? AND is_active = TRUE LIMIT 1',
     [departmentId],
   )
-  const [years] = await databasePool.execute(
-    'SELECT id, label, is_active AS isActive FROM academic_years WHERE id = ? LIMIT 1',
-    [academicYearId],
-  )
-  const [semesters] = await databasePool.execute(
-    `SELECT id, academic_year_id AS academicYearId, name, status
-       FROM semesters WHERE id = ? LIMIT 1`,
-    [semesterId],
-  )
+  const [years] = academicYearId
+    ? await databasePool.execute(
+      'SELECT id, label, is_active AS isActive FROM academic_years WHERE id = ? LIMIT 1',
+      [academicYearId],
+    )
+    : [[]]
+  const [semesters] = semesterId
+    ? await databasePool.execute(
+      `SELECT id, academic_year_id AS academicYearId, name, status
+         FROM semesters WHERE id = ? LIMIT 1`,
+      [semesterId],
+    )
+    : [[]]
   return { department: departments[0] ?? null, year: years[0] ?? null, semester: semesters[0] ?? null }
 }
 
@@ -518,7 +526,9 @@ export async function upsertImportedStudent(connection, student) {
       `UPDATE student_profiles
           SET student_id = ?, department_id = ?, program = COALESCE(?, program),
               cohort = COALESCE(?, cohort), year_level = COALESCE(?, year_level),
-              phone = COALESCE(?, phone), academic_year = ?, semester = ?,
+              phone = COALESCE(?, phone),
+              academic_year = COALESCE(?, academic_year),
+              semester = COALESCE(?, semester),
               enrollment_status = ?, gpa = ?
         WHERE user_id = ?`,
       [...profileValues, student.userId],
@@ -532,22 +542,24 @@ export async function upsertImportedStudent(connection, student) {
       [...profileValues, student.userId],
     )
   }
-  await connection.execute(
-    `INSERT INTO student_academic_records
-       (student_user_id, semester_id, gpa, completed_credits, year_level, enrollment_status)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE gpa = VALUES(gpa),
-       completed_credits = VALUES(completed_credits),
-       year_level = VALUES(year_level), enrollment_status = VALUES(enrollment_status)`,
-    [
-      student.userId,
-      student.semesterId,
-      student.gpa,
-      student.completedCredits,
-      student.yearLevel,
-      student.enrollmentStatus,
-    ],
-  )
+  if (student.semesterId) {
+    await connection.execute(
+      `INSERT INTO student_academic_records
+         (student_user_id, semester_id, gpa, completed_credits, year_level, enrollment_status)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE gpa = VALUES(gpa),
+         completed_credits = VALUES(completed_credits),
+         year_level = VALUES(year_level), enrollment_status = VALUES(enrollment_status)`,
+      [
+        student.userId,
+        student.semesterId,
+        student.gpa,
+        student.completedCredits,
+        student.yearLevel,
+        student.enrollmentStatus,
+      ],
+    )
+  }
   await connection.execute(
     `INSERT INTO user_department_assignments (user_id, department_id, assigned_by, is_active)
      VALUES (?, ?, ?, TRUE)

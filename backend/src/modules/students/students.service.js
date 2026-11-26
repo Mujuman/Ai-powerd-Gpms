@@ -189,6 +189,11 @@ export async function listStudents(filters, actor) {
 
 export async function updateStudent(userId, data, actor) {
   const departmentId = await resolveDepartment(actor, data.departmentId)
+  const hasAcademicPeriod = Boolean(data.academicYearId && data.semesterId)
+  if (Boolean(data.academicYearId) !== Boolean(data.semesterId)) {
+    throw new HttpError(400, 'Provide both academic year and semester, or omit both')
+  }
+
   await withTransaction(pool, async (connection) => {
     const student = await repository.findStudentForUpdate(connection, userId)
     if (!student || student.role !== 'student') throw new HttpError(404, 'Student not found')
@@ -197,15 +202,18 @@ export async function updateStudent(userId, data, actor) {
     }
     if (!student.isActive) throw new HttpError(409, 'Inactive students cannot be updated')
 
-    const context = await repository.findImportContext(
-      connection,
-      departmentId,
-      data.academicYearId,
-      data.semesterId,
-    )
-    if (!context.year?.isActive || context.semester?.status !== 'active'
-      || context.semester.academicYearId !== data.academicYearId) {
-      throw new HttpError(409, 'Select an active academic year and semester')
+    let context = { year: null, semester: null }
+    if (hasAcademicPeriod) {
+      context = await repository.findImportContext(
+        connection,
+        departmentId,
+        data.academicYearId,
+        data.semesterId,
+      )
+      if (!context.year?.isActive || context.semester?.status !== 'active'
+        || context.semester.academicYearId !== data.academicYearId) {
+        throw new HttpError(409, 'Select an active academic year and semester')
+      }
     }
     const [emailRows] = await connection.execute(
       'SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1 FOR UPDATE',
@@ -220,8 +228,9 @@ export async function updateStudent(userId, data, actor) {
 
     await repository.updateStudent(connection, userId, {
       ...data,
-      academicYear: context.year.label,
-      semester: context.semester.name,
+      academicYear: context.year?.label ?? null,
+      semester: context.semester?.name ?? null,
+      semesterId: hasAcademicPeriod ? data.semesterId : null,
       enrollmentStatus: student.enrollmentStatus,
     }, departmentId)
     await recordAudit(connection, {
@@ -361,6 +370,10 @@ export async function deleteStudent(userId, actor, requestedDepartmentId) {
 
 export async function registerStudent(data, actor) {
   const departmentId = await resolveDepartment(actor, data.departmentId)
+  const hasAcademicPeriod = Boolean(data.academicYearId && data.semesterId)
+  if (Boolean(data.academicYearId) !== Boolean(data.semesterId)) {
+    throw new HttpError(400, 'Provide both academic year and semester, or omit both')
+  }
   const userId = randomUUID()
   const passwordHash = await bcrypt.hash(data.password, PASSWORD_HASH_ROUNDS)
 
@@ -369,15 +382,17 @@ export async function registerStudent(data, actor) {
       const context = await repository.findImportContext(
         connection,
         departmentId,
-        data.academicYearId,
-        data.semesterId,
+        hasAcademicPeriod ? data.academicYearId : undefined,
+        hasAcademicPeriod ? data.semesterId : undefined,
       )
       if (!context.department) throw new HttpError(404, 'Department not found')
-      if (!context.year?.isActive || context.semester?.status !== 'active') {
-        throw new HttpError(409, 'Select an active academic year and semester')
-      }
-      if (context.semester.academicYearId !== data.academicYearId) {
-        throw new HttpError(400, 'Semester does not belong to the selected academic year')
+      if (hasAcademicPeriod) {
+        if (!context.year?.isActive || context.semester?.status !== 'active') {
+          throw new HttpError(409, 'Select an active academic year and semester')
+        }
+        if (context.semester.academicYearId !== data.academicYearId) {
+          throw new HttpError(400, 'Semester does not belong to the selected academic year')
+        }
       }
       const [emailRows] = await connection.execute(
         'SELECT id FROM users WHERE email = ? LIMIT 1 FOR UPDATE',
@@ -411,17 +426,19 @@ export async function registerStudent(data, actor) {
           data.cohort || null,
           data.yearLevel ?? null,
           data.phone || null,
-          context.year.label,
-          context.semester.name,
+          context.year?.label ?? null,
+          context.semester?.name ?? null,
           data.gpa,
         ],
       )
-      await connection.execute(
-        `INSERT INTO student_academic_records
-           (student_user_id, semester_id, gpa, year_level, enrollment_status)
-         VALUES (?, ?, ?, ?, 'active')`,
-        [userId, data.semesterId, data.gpa, data.yearLevel ?? null],
-      )
+      if (hasAcademicPeriod) {
+        await connection.execute(
+          `INSERT INTO student_academic_records
+             (student_user_id, semester_id, gpa, year_level, enrollment_status)
+           VALUES (?, ?, ?, ?, 'active')`,
+          [userId, data.semesterId, data.gpa, data.yearLevel ?? null],
+        )
+      }
       await setUserDepartments(connection, userId, [departmentId], actor.id)
       await recordAudit(connection, {
         userId: actor.id,
@@ -548,13 +565,24 @@ export async function saveDepartmentRules(departmentId, changes, actor) {
 
 export async function previewStudentImport({ buffer, originalFilename, departmentId: requestedDepartmentId, academicYearId, semesterId }, actor) {
   const departmentId = await resolveDepartment(actor, requestedDepartmentId)
-  const context = await repository.findImportContext(pool, departmentId, academicYearId, semesterId)
-  if (!context.department) throw new HttpError(404, 'Department not found')
-  if (!context.year || !context.year.isActive) throw new HttpError(409, 'Select an active academic year')
-  if (!context.semester || context.semester.academicYearId !== academicYearId) {
-    throw new HttpError(400, 'Semester does not belong to the selected academic year')
+  const hasAcademicPeriod = Boolean(academicYearId && semesterId)
+  if (Boolean(academicYearId) !== Boolean(semesterId)) {
+    throw new HttpError(400, 'Provide both academic year and semester, or omit both')
   }
-  if (context.semester.status !== 'active') throw new HttpError(409, 'Select an active semester')
+  const context = await repository.findImportContext(
+    pool,
+    departmentId,
+    hasAcademicPeriod ? academicYearId : undefined,
+    hasAcademicPeriod ? semesterId : undefined,
+  )
+  if (!context.department) throw new HttpError(404, 'Department not found')
+  if (hasAcademicPeriod) {
+    if (!context.year || !context.year.isActive) throw new HttpError(409, 'Select an active academic year')
+    if (!context.semester || context.semester.academicYearId !== academicYearId) {
+      throw new HttpError(400, 'Semester does not belong to the selected academic year')
+    }
+    if (context.semester.status !== 'active') throw new HttpError(409, 'Select an active semester')
+  }
 
   const rows = await parseStudentWorkbook(buffer)
   rows.forEach((row) => {
@@ -580,8 +608,8 @@ export async function previewStudentImport({ buffer, originalFilename, departmen
     await repository.createImportBatch(connection, {
       id: batchId,
       departmentId,
-      academicYearId,
-      semesterId,
+      academicYearId: academicYearId ?? null,
+      semesterId: semesterId ?? null,
       uploadedBy: actor.id,
       originalFilename: originalFilename.slice(0, 255),
       rows: importRows,
@@ -628,7 +656,12 @@ export async function confirmStudentImport(batchId, actor) {
       batch.academicYearId,
       batch.semesterId,
     )
-    if (!context.year?.isActive || context.semester?.status !== 'active') {
+    const hasAcademicPeriod = Boolean(batch.academicYearId && batch.semesterId)
+    if (Boolean(batch.academicYearId) !== Boolean(batch.semesterId)) {
+      throw new HttpError(409, 'Import batch has an incomplete academic period')
+    }
+    if (hasAcademicPeriod && (!context.year?.isActive || context.semester?.status !== 'active'
+      || context.semester.academicYearId !== batch.academicYearId)) {
       throw new HttpError(409, 'The selected academic year and semester must remain active')
     }
 
@@ -668,14 +701,14 @@ export async function confirmStudentImport(batchId, actor) {
         throw new HttpError(409, `Student account ${row.email} belongs to another department`)
       }
 
-      const academicYear = context.year.label
+      const academicYear = context.year?.label ?? null
       const student = {
         ...row,
         userId: user.id,
         departmentId,
         academicYear,
-        semester: context.semester.name,
-        semesterId: batch.semesterId,
+        semester: context.semester?.name ?? null,
+        semesterId: batch.semesterId ?? null,
         enrollmentStatus: 'active',
         assignedBy: actor.id,
       }
