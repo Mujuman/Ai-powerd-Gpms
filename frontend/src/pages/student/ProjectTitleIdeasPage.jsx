@@ -233,7 +233,7 @@ export default function ProjectTitleIdeasPage() {
                     <p className="muted-copy">Idea relevance: {Math.round(idea.relevanceScore * 100)}%</p>
                     {idea.closestApprovedTitleSimilarity !== null && (
                       <p className="muted-copy">
-                        Closest approved-title similarity: {Math.round(idea.closestApprovedTitleSimilarity * 100)}%
+                      Closest reference-title similarity: {Math.round(idea.closestApprovedTitleSimilarity * 100)}%
                       </p>
                     )}
                   </div>
