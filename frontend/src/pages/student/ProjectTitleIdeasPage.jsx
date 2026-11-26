@@ -3,59 +3,6 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
 
-const TITLE_EXAMPLES = [
-  {
-    kind: 'Software project',
-    title: 'Campus Service Request and Maintenance Tracking System',
-    description: 'Create a web application where students and staff can report facility issues, route requests to the right office, and track progress through resolution.',
-  },
-  {
-    kind: 'Software project',
-    title: 'Offline-Capable Mobile Attendance and Course Updates Platform',
-    description: 'Develop a mobile tool for recording class attendance and sharing course notices, with offline data capture and secure synchronization when internet access returns.',
-  },
-  {
-    kind: 'Software project',
-    title: 'Privacy-Aware Early Academic Support Dashboard',
-    description: 'Design a dashboard that helps authorized advisors identify students who may benefit from support using approved academic indicators, with clear access controls and human review.',
-  },
-  {
-    kind: 'Software project',
-    title: 'Crop Disease Reporting and Agricultural Advisory Application',
-    description: 'Build a mobile-friendly service for farmers to report crop symptoms, receive locally reviewed guidance, and connect with agricultural extension staff.',
-  },
-  {
-    kind: 'Software project',
-    title: 'University Document Search Assistant with Source References',
-    description: 'Create a search tool that answers common questions from approved university documents and links each response to the source information used.',
-  },
-  {
-    kind: 'Research study',
-    title: "Factors Influencing University Students' Adoption of Digital Learning Platforms",
-    description: 'Study how usability, internet access, digital skills, and instructor support relate to students’ use of online learning platforms.',
-  },
-  {
-    kind: 'Research study',
-    title: 'Study Habits, Online Learning Engagement, and Academic Performance',
-    description: 'Examine associations between students’ study routines, participation in online learning, and academic outcomes without assuming that one factor causes another.',
-  },
-  {
-    kind: 'Research study',
-    title: 'Usability and Accessibility of University Websites for Students with Disabilities',
-    description: 'Evaluate selected university websites against accessibility guidelines and gather feedback from users to identify practical improvements.',
-  },
-  {
-    kind: 'Research study',
-    title: 'Comparative Evaluation of Lightweight Models for Crop Disease Classification',
-    description: 'Compare selected computationally efficient image-classification models on a documented crop-image dataset using consistent accuracy and resource-use measures.',
-  },
-  {
-    kind: 'Research study',
-    title: 'Mobile Payment Adoption and Operational Efficiency in Small Businesses',
-    description: 'Investigate how small businesses’ use of mobile payments relates to transaction time, record keeping, and customer service through a clearly defined local study.',
-  },
-]
-
 function message(error, fallback) {
   return error?.response?.data?.message ?? fallback
 }
@@ -76,6 +23,10 @@ export default function ProjectTitleIdeasPage() {
   const projectsQuery = useQuery({
     queryKey: ['student-projects'],
     queryFn: async () => (await api.get('/projects/mine')).data.data,
+  })
+  const examplesQuery = useQuery({
+    queryKey: ['project-title-examples'],
+    queryFn: async () => (await api.get('/projects/title-examples')).data.data,
   })
   const projects = projectsQuery.data ?? []
   const selectedProject = projects.find((project) => project.groupId === groupId) ?? projects[0]
@@ -128,6 +79,10 @@ export default function ProjectTitleIdeasPage() {
         {message(recommendationMutation.error, 'Could not create title suggestions')}
       </div>}
       {projectsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
+      {examplesQuery.isLoading && <div className="table-loading" aria-busy="true">Loading title examples…</div>}
+      {examplesQuery.isError && <div className="table-error" role="alert">
+        {message(examplesQuery.error, 'Could not load title examples')}
+      </div>}
       <section className="academic-card title-examples-section" aria-labelledby="title-examples-heading">
         <div>
           <h2 id="title-examples-heading" className="section-title">Project and research title examples</h2>
@@ -136,11 +91,11 @@ export default function ProjectTitleIdeasPage() {
           </p>
         </div>
         <div className="title-example-grid">
-          {TITLE_EXAMPLES.map((example, index) => (
+          {(examplesQuery.data ?? []).map((example) => (
             <article className="title-example-card" key={example.title}>
               <div className="title-example-meta">
-                <span>{example.kind}</span>
-                <span>Example {String(index + 1).padStart(2, '0')}</span>
+                <span>{example.kind === 'project' ? 'Project example' : 'Research example'}</span>
+                <span>Example {String(example.id).padStart(2, '0')}</span>
               </div>
               <h3>{example.title}</h3>
               <p>{example.description}</p>
@@ -151,6 +106,9 @@ export default function ProjectTitleIdeasPage() {
               )}
             </article>
           ))}
+          {!examplesQuery.isLoading && !examplesQuery.isError && examplesQuery.data?.length === 0 && (
+            <p className="muted-copy">No title examples are available yet.</p>
+          )}
         </div>
       </section>
       {selectedProject && (

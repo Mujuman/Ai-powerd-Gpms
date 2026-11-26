@@ -84,14 +84,14 @@ function assertDocument(file) {
 export async function recommendTitles(groupId, preferences, actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
   const group = await authorizeGroup(groupId, actor)
-  const approvedTitles = await repository.listApprovedTitles(pool, group.departmentId, groupId)
+  const comparisonTitles = await repository.listApprovedTitles(pool, group.departmentId, groupId)
   const generated = await generateProjectTitles(preferences)
-  const approvedByNormalizedTitle = new Set(approvedTitles.map(({ title }) => normalizedTitle(title)))
+  const existingTitles = new Set(comparisonTitles.map(({ title }) => normalizedTitle(title)))
   const seenDrafts = new Set()
   const uniqueDrafts = []
   for (const title of generated.suggestions) {
     const normalized = normalizedTitle(title)
-    if (seenDrafts.has(normalized) || approvedByNormalizedTitle.has(normalized)) continue
+    if (seenDrafts.has(normalized) || existingTitles.has(normalized)) continue
     seenDrafts.add(normalized)
     uniqueDrafts.push({ id: `suggestion-${uniqueDrafts.length}`, title })
   }
@@ -100,7 +100,7 @@ export async function recommendTitles(groupId, preferences, actor) {
     return {
       generationMethod: generated.modelName,
       similarityModel: null,
-      notice: 'All generated titles matched an approved title and were removed. Revise your project details and try again.',
+      notice: 'All generated titles matched existing approved projects or reference examples and were removed. Revise your project details and try again.',
       suggestions: [],
     }
   }
@@ -119,11 +119,11 @@ export async function recommendTitles(groupId, preferences, actor) {
       ].filter(Boolean).join('\n').slice(0, 10000),
     },
     ...uniqueDrafts.map(({ id, title }) => ({ id, text: title })),
-    ...approvedTitles.map(({ id, title }) => ({ id: `approved-${id}`, text: title })),
+    ...comparisonTitles.map(({ id, title }) => ({ id: `approved-${id}`, text: title })),
   ]
   const pairs = uniqueDrafts.map(({ id }) => ({ leftId: 'project-details', rightId: id }))
   for (const draft of uniqueDrafts) {
-    for (const approved of approvedTitles) {
+    for (const approved of comparisonTitles) {
       pairs.push({ leftId: draft.id, rightId: `approved-${approved.id}` })
     }
   }
@@ -133,7 +133,7 @@ export async function recommendTitles(groupId, preferences, actor) {
     entry.score,
   ]))
   const suggestions = uniqueDrafts.map(({ id, title }) => {
-    const similarScores = approvedTitles.map((approved) =>
+    const similarScores = comparisonTitles.map((approved) =>
       scores.get(`${id}|approved-${approved.id}`) ?? 0)
     return {
       title,
@@ -145,9 +145,14 @@ export async function recommendTitles(groupId, preferences, actor) {
   return {
     generationMethod: generated.modelName,
     similarityModel: analysis.modelName,
-    notice: 'These titles were generated locally from your project information and compared with approved project titles. Similarity scores are advisory, not a plagiarism decision.',
+    notice: 'These titles were generated locally from your project information and compared with approved projects and database reference examples. Similarity scores are advisory, not a plagiarism decision.',
     suggestions,
   }
+}
+
+export async function listTitleExamples(actor) {
+  if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
+  return repository.listTitleExamples(pool)
 }
 
 export async function listMessages(groupId, actor) {

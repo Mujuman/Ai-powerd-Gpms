@@ -43,6 +43,11 @@ function handleDocumentUpload(request, response, next) {
 
 export const collaborationRoutes = Router()
 
+collaborationRoutes.get(
+  '/title-examples',
+  requireRoles('student'),
+  collaborationController.listTitleExamples,
+)
 collaborationRoutes.post(
   '/mine/:groupId/title-recommendations',
   requireRoles('student'),

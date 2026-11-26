@@ -104,6 +104,22 @@ export async function listApprovedTitles(connection, departmentId, excludeGroupI
       LIMIT 100`,
     [departmentId, excludeGroupId],
   )
+  const [examples] = await connection.execute(
+    `SELECT CONCAT('example-', id) AS id, title, description
+       FROM project_title_examples
+      WHERE is_active = TRUE
+      ORDER BY id`,
+  )
+  return [...rows, ...examples]
+}
+
+export async function listTitleExamples(connection) {
+  const [rows] = await connection.execute(
+    `SELECT id, kind, title, description
+       FROM project_title_examples
+      WHERE is_active = TRUE
+      ORDER BY id`,
+  )
   return rows
 }
 
