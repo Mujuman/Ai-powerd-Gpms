@@ -40,8 +40,6 @@ export default function StudentsPage() {
     ? (departmentsQuery.data ?? []).filter((department) => department.isActive)
     : (user?.departments ?? [])
   const [departmentId, setDepartmentId] = useState('')
-  const [academicYearId, setAcademicYearId] = useState('')
-  const [semesterId, setSemesterId] = useState('')
   const [nameSearch, setNameSearch] = useState('')
   const [yearLevelSearch, setYearLevelSearch] = useState('')
   const [batchSearch, setBatchSearch] = useState('')
@@ -68,48 +66,6 @@ export default function StudentsPage() {
   const selectedDepartmentLabel = selectedDepartment
     ? `${selectedDepartment.code} — ${selectedDepartment.name}`
     : ''
-
-  const yearsQuery = useQuery({
-    queryKey: ['academic-years'],
-    enabled: Boolean(departmentId),
-    queryFn: async () => (await api.get('/academics/years')).data.data.data,
-  })
-  const years = yearsQuery.data ?? []
-  const selectedYear = years.find((year) => year.id === academicYearId)
-  useEffect(() => {
-    if (!academicYearId && years.length) {
-      setAcademicYearId((years.find((year) => year.isActive) ?? years[0]).id)
-    }
-  }, [academicYearId, years])
-
-  const semestersQuery = useQuery({
-    queryKey: ['semesters', academicYearId],
-    enabled: Boolean(academicYearId),
-    queryFn: async () => (await api.get('/academics/semesters', { params: { academicYearId } })).data.data.semesters,
-  })
-  const semesters = semestersQuery.data ?? []
-  const selectedSemester = semesters.find((semester) => semester.id === semesterId)
-  let calendarSetupMessage = null
-  if (!yearsQuery.isLoading && !yearsQuery.isError) {
-    if (years.length === 0) {
-      calendarSetupMessage = 'No academic years are configured. A system administrator must create and activate an academic year before student imports can be previewed.'
-    } else if (!selectedYear) {
-      calendarSetupMessage = 'Select an academic year before previewing student imports.'
-    } else if (!selectedYear.isActive) {
-      calendarSetupMessage = 'The selected academic year is inactive. Activate it before previewing student imports.'
-    } else if (!semestersQuery.isLoading && !semestersQuery.isError) {
-      if (semesters.length === 0) {
-        calendarSetupMessage = 'No semesters are configured for this academic year. A system administrator must add and activate one before student imports can be previewed.'
-      } else if (selectedSemester?.status !== 'active') {
-        calendarSetupMessage = 'Select an active semester before previewing student imports.'
-      }
-    }
-  }
-  useEffect(() => {
-    if (!semesters.some((semester) => semester.id === semesterId)) {
-      setSemesterId(semesters.find((semester) => semester.status === 'active')?.id ?? '')
-    }
-  }, [semesterId, semesters])
 
   const studentsQuery = useQuery({
     queryKey: ['students', departmentId, nameSearch, yearLevelSearch, batchSearch],
@@ -140,8 +96,6 @@ export default function StudentsPage() {
       if (action === 'confirm') return (await api.post(`/students/imports/${batchId}/confirm`)).data.data
       const body = new FormData()
       body.append('departmentId', departmentId)
-      body.append('academicYearId', academicYearId)
-      body.append('semesterId', semesterId)
       body.append('excelFile', file)
       return (await api.post('/students/imports/preview', body)).data.data
     },
@@ -162,8 +116,6 @@ export default function StudentsPage() {
     mutationFn: async () => (await api.post('/students/register', {
       ...studentForm,
       departmentId,
-      academicYearId,
-      semesterId,
       yearLevel: studentForm.yearLevel ? Number(studentForm.yearLevel) : null,
       gpa: Number(studentForm.gpa),
     })).data.data,
@@ -232,8 +184,6 @@ export default function StudentsPage() {
       cohort: editingStudent.cohort || null,
       yearLevel: numberOrNull(editingStudent.yearLevel),
       gpa: numberOrNull(editingStudent.gpa),
-      academicYearId,
-      semesterId,
     })
   }
 
