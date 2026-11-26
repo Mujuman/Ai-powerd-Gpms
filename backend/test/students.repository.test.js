@@ -8,6 +8,7 @@ import {
   graduateGroupStudents,
   graduateStudent,
   insertGroup,
+  findStudent,
   listStudents,
   listGroups,
   listGroupNames,
@@ -49,6 +50,24 @@ test('student lists sort by highest GPA first with missing GPAs last', async () 
 
   await listStudents(databasePool, { departmentId: 'department-id', page: 1, limit: 50 })
   assert.match(queries[1], /ORDER BY sp\.gpa IS NULL, sp\.gpa DESC, u\.full_name/)
+  assert.match(queries[1], /d\.name AS departmentName/)
+})
+
+test('student profile includes the name of its assigned department', async () => {
+  let query = ''
+  const departmentName = 'Information Systems'
+  const databasePool = {
+    async execute(statement, parameters) {
+      query = statement
+      assert.deepEqual(parameters, ['student-id'])
+      return [[{ departmentName }]]
+    },
+  }
+
+  const student = await findStudent(databasePool, 'student-id')
+
+  assert.match(query, /d\.name AS departmentName/)
+  assert.equal(student.departmentName, departmentName)
 })
 
 test('student list filters by name, year level, and batch', async () => {
