@@ -31,7 +31,7 @@ const TITLE_EXAMPLES = [
   },
   {
     kind: 'Research study',
-    title: 'Factors Influencing University Students’ Adoption of Digital Learning Platforms',
+    title: "Factors Influencing University Students' Adoption of Digital Learning Platforms",
     description: 'Study how usability, internet access, digital skills, and instructor support relate to students’ use of online learning platforms.',
   },
   {

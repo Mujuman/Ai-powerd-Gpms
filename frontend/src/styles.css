@@ -913,6 +913,58 @@ textarea.form-input {
   width: 100%;
 }
 
+.title-examples-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.title-example-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  gap: 0.9rem;
+}
+
+.title-example-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #e3e9f2;
+  border-radius: 12px;
+}
+
+.title-example-meta {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 0.7rem;
+  color: #687891;
+  font-size: 0.75rem;
+}
+
+.title-example-card h3 {
+  margin: 0;
+  color: #17243b;
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
+.title-example-card p {
+  flex: 1;
+  margin: 0;
+  color: #61708a;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.title-example-card .btn-secondary {
+  margin-top: 0.25rem;
+}
+
 .staff-import-form {
   display: flex;
   flex-wrap: wrap;
