@@ -8,6 +8,7 @@ import {
   importStudentsSchema,
   registerStudentSchema,
   saveRulesSchema,
+  updateStudentSchema,
 } from '../src/modules/students/students.schemas.js'
 import { nextGroupName, planGpaBalancedGroups } from '../src/modules/students/students.service.js'
 
@@ -71,7 +72,8 @@ test('department rules reject contradictory GPA ranges', () => {
   assert.equal(result.success, false)
 })
 
-test('student import requires an academic year and semester', () => {
+test('student import permits no academic period but requires both values when supplied', () => {
+  assert.equal(importStudentsSchema.safeParse({ departmentId }).success, true)
   assert.equal(importStudentsSchema.safeParse({ departmentId, academicYearId }).success, false)
   assert.equal(importStudentsSchema.safeParse({ departmentId, academicYearId, semesterId }).success, true)
 })
@@ -79,8 +81,6 @@ test('student import requires an academic year and semester', () => {
 test('student registration accepts passwords with at least five characters', () => {
   const student = {
     departmentId,
-    academicYearId,
-    semesterId,
     email: 'student@example.com',
     fullName: 'Test Student',
     password: 'a@wru',
@@ -88,6 +88,8 @@ test('student registration accepts passwords with at least five characters', () 
     gpa: 3.5,
   }
   assert.equal(registerStudentSchema.safeParse(student).success, true)
+  assert.equal(registerStudentSchema.safeParse({ ...student, academicYearId, semesterId }).success, true)
+  assert.equal(registerStudentSchema.safeParse({ ...student, academicYearId }).success, false)
   assert.equal(registerStudentSchema.safeParse({ ...student, password: '1234' }).success, false)
 })
 
@@ -106,6 +108,16 @@ test('student registration requires a GPA within the supported range', () => {
   assert.equal(registerStudentSchema.safeParse({ ...student, gpa: null }).success, false)
   assert.equal(registerStudentSchema.safeParse({ ...student, gpa: 100 }).success, false)
   assert.equal(registerStudentSchema.safeParse({ ...student, gpa: undefined }).success, false)
+  assert.equal(updateStudentSchema.safeParse({
+    departmentId,
+    fullName: 'Test Student',
+    email: 'student@example.com',
+    studentId: 'student-1',
+    program: null,
+    cohort: null,
+    yearLevel: null,
+    gpa: 3.5,
+  }).success, true)
 })
 
 test('GPA-ranked students are distributed across balanced groups in a snake pattern', () => {
