@@ -1552,6 +1552,94 @@ textarea.form-input {
   gap: 1rem;
 }
 
+.dashboard-statistics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dashboard-statistics-heading h2 {
+  margin: 0;
+  color: #17233c;
+  font-size: 1.15rem;
+  letter-spacing: -0.025em;
+}
+
+.dashboard-statistics-heading p {
+  margin: 0.3rem 0 0;
+  color: #61708a;
+  font-size: 0.88rem;
+}
+
+.dashboard-statistics-error {
+  margin: 0;
+  color: #a4262c;
+  font-size: 0.88rem;
+}
+
+.dashboard-statistics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 0.9rem;
+}
+
+.dashboard-statistic-card {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding: 1rem;
+  background: white;
+  border: 1px solid #e5eaf2;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgb(25 42 75 / 3%);
+}
+
+.dashboard-statistic-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  color: var(--dashboard-accent, #c96e00);
+  background: var(--dashboard-accent-soft, #fff4e5);
+  border-radius: 11px;
+}
+
+.dashboard-statistic-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dashboard-statistic-label {
+  color: #61708a;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.dashboard-statistic-copy strong {
+  overflow: hidden;
+  color: #17233c;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+
+.dashboard-statistic-description {
+  color: #61708a;
+  font-size: 0.77rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.student-statistics-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
 .student-overview-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
