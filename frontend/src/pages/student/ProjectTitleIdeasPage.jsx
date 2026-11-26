@@ -24,10 +24,6 @@ export default function ProjectTitleIdeasPage() {
     queryKey: ['student-projects'],
     queryFn: async () => (await api.get('/projects/mine')).data.data,
   })
-  const examplesQuery = useQuery({
-    queryKey: ['project-title-examples'],
-    queryFn: async () => (await api.get('/projects/title-examples')).data.data,
-  })
   const projects = projectsQuery.data ?? []
   const selectedProject = projects.find((project) => project.groupId === groupId) ?? projects[0]
   const recommendationMutation = useMutation({
@@ -79,38 +75,6 @@ export default function ProjectTitleIdeasPage() {
         {message(recommendationMutation.error, 'Could not create title suggestions')}
       </div>}
       {projectsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
-      {examplesQuery.isLoading && <div className="table-loading" aria-busy="true">Loading title examples…</div>}
-      {examplesQuery.isError && <div className="table-error" role="alert">
-        {message(examplesQuery.error, 'Could not load title examples')}
-      </div>}
-      <section className="academic-card title-examples-section" aria-labelledby="title-examples-heading">
-        <div>
-          <h2 id="title-examples-heading" className="section-title">Project and research title examples</h2>
-          <p className="muted-copy">
-            Browse these ten examples for inspiration. Adapt the scope and wording to your own project and department requirements.
-          </p>
-        </div>
-        <div className="title-example-grid">
-          {(examplesQuery.data ?? []).map((example) => (
-            <article className="title-example-card" key={example.title}>
-              <div className="title-example-meta">
-                <span>{example.kind === 'project' ? 'Project example' : 'Research example'}</span>
-                <span>Example {String(example.id).padStart(2, '0')}</span>
-              </div>
-              <h3>{example.title}</h3>
-              <p>{example.description}</p>
-              {selectedProject && (
-                <button type="button" className="btn-secondary" onClick={() => useTitle(example.title)}>
-                  Use this title
-                </button>
-              )}
-            </article>
-          ))}
-          {!examplesQuery.isLoading && !examplesQuery.isError && examplesQuery.data?.length === 0 && (
-            <p className="muted-copy">No title examples are available yet.</p>
-          )}
-        </div>
-      </section>
       {selectedProject && (
         <section className="academic-card">
           <h2 className="section-title">{selectedProject.groupName}</h2>
