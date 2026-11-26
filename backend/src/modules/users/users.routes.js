@@ -8,6 +8,8 @@ export const usersRoutes = Router()
 // All routes require authentication
 usersRoutes.use(requireAuth)
 
+usersRoutes.get('/role-summary', requireRoles('system_administrator'), usersController.roleSummary)
+
 // Department Head Management (Admin only)
 // Create department head account
 usersRoutes.post(

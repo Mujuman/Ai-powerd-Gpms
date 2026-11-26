@@ -11,6 +11,7 @@ import {
   listUsers,
   getUserById,
   setDepartments,
+  getRoleSummary,
 } from './users.service.js'
 import { HttpError } from '../../utils/http-error.js'
 
@@ -51,6 +52,14 @@ function parseBody(schema, body) {
 }
 
 export const usersController = {
+  roleSummary: async (_request, response, next) => {
+    try {
+      response.json({ success: true, data: await getRoleSummary() })
+    } catch (error) {
+      next(error)
+    }
+  },
+
   /**
    * POST /users/department-heads — create department head account (admin only)
    */

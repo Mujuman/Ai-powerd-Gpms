@@ -255,4 +255,13 @@ export const projectsController = {
       response.json({ success: true, data: await service.getDepartmentReport(filters, actor(request)) })
     } catch (error) { next(error) }
   },
+  getDepartmentDashboardStats: async (request, response, next) => {
+    try {
+      const filters = parse(departmentQuerySchema, request.query)
+      response.json({
+        success: true,
+        data: { summary: await service.getDepartmentDashboardStats(filters, actor(request)) },
+      })
+    } catch (error) { next(error) }
+  },
 }

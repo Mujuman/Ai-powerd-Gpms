@@ -1,7 +1,10 @@
-import { ArrowRight, BarChart3, CalendarDays, ClipboardCheck, FolderKanban, UsersRound } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { ArrowRight, BarChart3, CalendarDays, ClipboardCheck, FileCheck2, FolderKanban, GraduationCap, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { RoleBadge } from '../../components/ui/RoleBadge'
+import { DashboardStatistics } from '../../components/DashboardStatistics'
+import api from '../../lib/api'
 
 const WORK_AREAS = [
   {
@@ -59,6 +62,30 @@ export default function HeadDashboard() {
   if (!user) return null
 
   const departments = Array.isArray(user.departments) ? user.departments : []
+  const departmentIds = departments.map((department) => department.id)
+  const statisticsQuery = useQuery({
+    queryKey: ['head-dashboard-statistics', departmentIds],
+    enabled: departmentIds.length > 0,
+    queryFn: async () => {
+      const responses = await Promise.all(departmentIds.map((departmentId) =>
+        api.get('/projects/dashboard-stats', { params: { departmentId } })))
+      return responses.reduce((totals, response) => {
+        Object.entries(response.data.data.summary).forEach(([key, value]) => {
+          totals[key] = (totals[key] ?? 0) + Number(value)
+        })
+        return totals
+      }, {})
+    },
+  })
+  const departmentStatistics = statisticsQuery.data ?? {}
+  const statistics = [
+    { label: 'Active students', value: departmentStatistics.activeStudents ?? 0, description: 'Active student profiles', icon: GraduationCap },
+    { label: 'Project groups', value: departmentStatistics.totalGroups ?? 0, description: 'Active groups across your departments', icon: UsersRound },
+    { label: 'Pending proposals', value: departmentStatistics.pendingSubmissions ?? 0, description: 'Submitted proposals awaiting review', icon: ClipboardCheck },
+    { label: 'Approved projects', value: departmentStatistics.approvedProjects ?? 0, description: 'Projects approved by department heads', icon: FileCheck2 },
+    { label: 'Scheduled defenses', value: departmentStatistics.scheduledDefenses ?? 0, description: 'Upcoming defense sessions', icon: CalendarDays },
+    { label: 'Advisor assignments', value: departmentStatistics.assignedAdvisors ?? 0, description: 'Active group advisor assignments', icon: FolderKanban },
+  ]
 
   return (
     <div className="head-dashboard">
@@ -84,6 +111,16 @@ export default function HeadDashboard() {
           </Link>
         </div>
       </section>
+
+      {departments.length > 0 && (
+        <DashboardStatistics
+          title="Department statistics"
+          statistics={statistics}
+          loading={statisticsQuery.isLoading}
+          error={statisticsQuery.isError}
+          errorMessage="Could not load department statistics. Try refreshing the dashboard."
+        />
+      )}
 
       <section className="head-work-section" aria-labelledby="head-work-title">
         <div className="head-section-heading">

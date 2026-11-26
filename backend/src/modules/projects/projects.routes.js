@@ -44,6 +44,7 @@ projectsRoutes.put('/defenses/:scheduleId/chairperson', departmentHead, projects
 projectsRoutes.post('/defenses/:scheduleId/examiners/assign-ai', departmentHead, projectsController.assignExaminerWithAi)
 projectsRoutes.get('/assessments', departmentHead, projectsController.listAssessments)
 projectsRoutes.get('/reports', departmentHead, projectsController.getDepartmentReport)
+projectsRoutes.get('/dashboard-stats', departmentHead, projectsController.getDepartmentDashboardStats)
 
 // Student project submission
 projectsRoutes.post('/mine/auto-review', requireRoles('student'), projectsController.autoReviewMySubmissions)

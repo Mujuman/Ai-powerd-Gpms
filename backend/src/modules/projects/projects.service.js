@@ -1227,3 +1227,11 @@ export async function getDepartmentReport(filters, actor) {
     latestSimilarityAnalysis: similarity[0] ?? null,
   }
 }
+
+export async function getDepartmentDashboardStats(filters, actor) {
+  const departmentId = assertDepartmentAccess(actor, filters.departmentId)
+  const summary = await repository.getDepartmentReport(pool, departmentId)
+  return Object.fromEntries(
+    Object.entries(summary).map(([key, value]) => [key, Number(value)]),
+  )
+}
