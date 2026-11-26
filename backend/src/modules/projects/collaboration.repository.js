@@ -88,37 +88,25 @@ export async function hasApprovedDefenseCorrection(connection, groupId) {
   return rows[0]?.review_status === 'approved'
 }
 
-export async function listApprovedTitles(connection, departmentId, excludeGroupId) {
+export async function listTitlesForComparison(connection, departmentId, excludeGroupId) {
   const [rows] = await connection.execute(
     `SELECT ps.id, ps.title, ps.description
        FROM project_submissions ps
        JOIN student_groups g ON g.id = ps.group_id
       WHERE g.department_id = ? AND g.is_active = TRUE AND g.id <> ?
         AND ps.status = 'approved'
-        AND ps.version = (
-          SELECT MAX(latest.version)
-            FROM project_submissions latest
-           WHERE latest.group_id = ps.group_id
+        AND (
+          ps.is_reference_sample = TRUE
+          OR ps.version = (
+            SELECT MAX(latest.version)
+              FROM project_submissions latest
+             WHERE latest.group_id = ps.group_id
+               AND latest.is_reference_sample = FALSE
+          )
         )
       ORDER BY ps.reviewed_at DESC, ps.submitted_at DESC
       LIMIT 100`,
     [departmentId, excludeGroupId],
-  )
-  const [examples] = await connection.execute(
-    `SELECT CONCAT('example-', id) AS id, title, description
-       FROM project_title_examples
-      WHERE is_active = TRUE
-      ORDER BY id`,
-  )
-  return [...rows, ...examples]
-}
-
-export async function listTitleExamples(connection) {
-  const [rows] = await connection.execute(
-    `SELECT id, kind, title, description
-       FROM project_title_examples
-      WHERE is_active = TRUE
-      ORDER BY id`,
   )
   return rows
 }

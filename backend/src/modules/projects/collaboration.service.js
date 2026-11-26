@@ -84,7 +84,7 @@ function assertDocument(file) {
 export async function recommendTitles(groupId, preferences, actor) {
   if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
   const group = await authorizeGroup(groupId, actor)
-  const comparisonTitles = await repository.listApprovedTitles(pool, group.departmentId, groupId)
+  const comparisonTitles = await repository.listTitlesForComparison(pool, group.departmentId, groupId)
   const generated = await generateProjectTitles(preferences)
   const existingTitles = new Set(comparisonTitles.map(({ title }) => normalizedTitle(title)))
   const seenDrafts = new Set()
@@ -100,7 +100,7 @@ export async function recommendTitles(groupId, preferences, actor) {
     return {
       generationMethod: generated.modelName,
       similarityModel: null,
-      notice: 'All generated titles matched existing approved projects or reference examples and were removed. Revise your project details and try again.',
+      notice: 'All generated titles matched existing approved projects or reference submissions and were removed. Revise your project details and try again.',
       suggestions: [],
     }
   }
@@ -145,14 +145,9 @@ export async function recommendTitles(groupId, preferences, actor) {
   return {
     generationMethod: generated.modelName,
     similarityModel: analysis.modelName,
-    notice: 'These titles were generated locally from your project information and compared with approved projects and database reference examples. Similarity scores are advisory, not a plagiarism decision.',
+    notice: 'These titles were generated locally from your project information and compared with approved projects and reference submissions. Similarity scores are advisory, not a plagiarism decision.',
     suggestions,
   }
-}
-
-export async function listTitleExamples(actor) {
-  if (actor.role !== 'student') throw new HttpError(403, 'Student access is required')
-  return repository.listTitleExamples(pool)
 }
 
 export async function listMessages(groupId, actor) {

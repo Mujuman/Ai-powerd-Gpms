@@ -1,9 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  listApprovedTitles,
+  listTitlesForComparison,
   listStudentDefenseSchedules,
-  listTitleExamples,
 } from '../src/modules/projects/collaboration.repository.js'
 
 test('student defense schedules include examiner assignments and assessment details', async () => {
@@ -66,47 +65,21 @@ test('student defense schedule lookup avoids a database query without project gr
   assert.deepEqual(await listStudentDefenseSchedules(connection, []), [])
 })
 
-test('title comparisons include approved submissions and active database examples', async () => {
-  const queries = []
-  const connection = {
-    async execute(query, parameters) {
-      queries.push({ query, parameters })
-      if (query.includes('FROM project_submissions')) {
-        return [[{ id: 'approved-id', title: 'Approved project', description: 'Existing project' }]]
-      }
-      return [[{ id: 'example-1', title: 'Research example', description: 'Reference study' }]]
-    },
-  }
-
-  const titles = await listApprovedTitles(connection, 'department-id', 'excluded-group-id')
-
-  assert.equal(queries.length, 2)
-  assert.deepEqual(queries[0].parameters, ['department-id', 'excluded-group-id'])
-  assert.match(queries[1].query, /WHERE is_active = TRUE/)
-  assert.deepEqual(titles.map(({ id }) => id), ['approved-id', 'example-1'])
-})
-
-test('title example catalog returns kind, title, and description from the database', async () => {
+test('title comparisons include approved submissions and seeded reference submissions', async () => {
   let query
   const connection = {
-    async execute(statement) {
-      query = statement
-      return [[{
-        id: 1,
-        kind: 'research',
-        title: 'Research example',
-        description: 'Example description',
-      }]]
+    async execute(statement, parameters) {
+      query = { statement, parameters }
+      return [[
+        { id: 'approved-id', title: 'Approved project', description: 'Existing project' },
+        { id: 'sample-id', title: 'Reference submission', description: 'Sample description' },
+      ]]
     },
   }
 
-  const examples = await listTitleExamples(connection)
+  const titles = await listTitlesForComparison(connection, 'department-id', 'excluded-group-id')
 
-  assert.match(query, /FROM project_title_examples/)
-  assert.deepEqual(examples, [{
-    id: 1,
-    kind: 'research',
-    title: 'Research example',
-    description: 'Example description',
-  }])
+  assert.deepEqual(query.parameters, ['department-id', 'excluded-group-id'])
+  assert.match(query.statement, /ps\.is_reference_sample = TRUE/)
+  assert.deepEqual(titles.map(({ id }) => id), ['approved-id', 'sample-id'])
 })

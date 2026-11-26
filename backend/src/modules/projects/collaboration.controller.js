@@ -29,11 +29,6 @@ function actor(request) {
 }
 
 export const collaborationController = {
-  listTitleExamples: async (_request, response, next) => {
-    try {
-      response.json({ success: true, data: await service.listTitleExamples(actor(_request)) })
-    } catch (error) { next(error) }
-  },
   recommendTitles: async (request, response, next) => {
     try {
       const groupId = parse(uuid, request.params.groupId)
