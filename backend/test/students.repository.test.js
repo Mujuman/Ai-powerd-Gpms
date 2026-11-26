@@ -10,6 +10,8 @@ import {
   insertGroup,
   findStudent,
   listStudents,
+  updateStudent,
+  upsertImportedStudent,
   listGroups,
   listGroupNames,
   permanentlyDeleteStudent,
@@ -68,6 +70,64 @@ test('student profile includes the name of its assigned department', async () =>
 
   assert.match(query, /d\.name AS departmentName/)
   assert.equal(student.departmentName, departmentName)
+})
+
+test('student updates without an academic period preserve profile history and skip term records', async () => {
+  const statements = []
+  const connection = {
+    async execute(query) {
+      statements.push(query)
+      return query.startsWith('SELECT') ? [[]] : [{ affectedRows: 1 }]
+    },
+  }
+
+  await updateStudent(connection, 'student-id', {
+    fullName: 'Test Student',
+    email: 'student@example.com',
+    studentId: 'student-1',
+    program: null,
+    cohort: null,
+    yearLevel: null,
+    gpa: 3.5,
+    academicYear: null,
+    semester: null,
+    semesterId: null,
+    enrollmentStatus: 'active',
+  }, 'department-id')
+
+  assert.match(statements[1], /academic_year = COALESCE/)
+  assert.match(statements[1], /semester = COALESCE/)
+  assert.equal(statements.some((query) => query.includes('student_academic_records')), false)
+})
+
+test('calendar-free imports create department profiles without term records', async () => {
+  const statements = []
+  const connection = {
+    async execute(query) {
+      statements.push(query)
+      return query.startsWith('SELECT') ? [[]] : [{ affectedRows: 1 }]
+    },
+  }
+
+  await upsertImportedStudent(connection, {
+    userId: 'student-id',
+    studentId: 'student-1',
+    departmentId: 'department-id',
+    program: null,
+    cohort: null,
+    yearLevel: null,
+    phone: null,
+    academicYear: null,
+    semester: null,
+    semesterId: null,
+    enrollmentStatus: 'active',
+    gpa: 3.5,
+    fullName: 'Test Student',
+    assignedBy: 'head-id',
+  })
+
+  assert.match(statements.find((query) => query.includes('INSERT INTO student_profiles')), /academic_year/)
+  assert.equal(statements.some((query) => query.includes('student_academic_records')), false)
 })
 
 test('student list filters by name, year level, and batch', async () => {
