@@ -18,16 +18,16 @@ export const app = express()
 
 app.disable('x-powered-by')
 app.use(helmet())
-app.use(cors({
-  origin(origin, callback) {
-    if (isAllowedFrontendOrigin(origin, config.frontendOrigins, config.nodeEnv)) {
-      callback(null, true)
-      return
-    }
-    callback(Object.assign(new Error('Origin is not allowed by CORS'), { status: 403 }))
-  },
-  credentials: true,
-}))
+// app.use(cors({
+//   origin(origin, callback) {
+//     if (isAllowedFrontendOrigin(origin, config.frontendOrigins, config.nodeEnv)) {
+//       callback(null, true)
+//       return
+//     }
+//     callback(Object.assign(new Error('Origin is not allowed by CORS'), { status: 403 }))
+//   },
+//   credentials: true,
+// }))
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
 app.use(rateLimit({
