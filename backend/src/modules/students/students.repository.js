@@ -30,6 +30,7 @@ export async function listStudents(databasePool, { departmentId, page, limit, se
     `SELECT u.id AS userId, u.full_name AS fullName, u.email,
             u.is_active AS isActive, sp.student_id AS studentId,
             sp.department_id AS departmentId, d.code AS departmentCode,
+            d.name AS departmentName,
             sp.program, sp.cohort, sp.year_level AS yearLevel,
             sp.academic_year AS academicYear, sp.semester,
             sp.enrollment_status AS enrollmentStatus, sp.gpa, sp.phone
@@ -342,6 +343,7 @@ export async function findStudent(databasePool, userId) {
     `SELECT u.id AS userId, u.full_name AS fullName, u.email,
             u.is_active AS isActive, sp.student_id AS studentId,
             sp.department_id AS departmentId, d.code AS departmentCode,
+            d.name AS departmentName,
             sp.program, sp.cohort, sp.year_level AS yearLevel,
             sp.academic_year AS academicYear, sp.semester,
             sp.enrollment_status AS enrollmentStatus, sp.gpa, sp.phone

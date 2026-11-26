@@ -490,7 +490,9 @@ export default function StudentsPage() {
                     {students.map((student) => (
                       <tr key={student.userId}>
                         <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                        <td>{selectedDepartmentLabel || student.departmentCode || '—'}</td>
+                        <td>{student.departmentName
+                          ? `${student.departmentCode} — ${student.departmentName}`
+                          : selectedDepartmentLabel || student.departmentCode || '—'}</td>
                         <td>{student.yearLevel ?? '—'}</td><td>{student.cohort || '—'}</td>
                         <td>{student.gpa ?? '—'}</td>
                         <td>{student.enrollmentStatus === 'graduated'

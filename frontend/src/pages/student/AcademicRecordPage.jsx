@@ -27,7 +27,9 @@ export default function AcademicRecordPage() {
           <dl className="record-grid">
             <div><dt>Student ID</dt><dd>{student.studentId}</dd></div>
             <div><dt>Name</dt><dd>{student.fullName}</dd></div>
-            <div><dt>Department</dt><dd>{student.departmentCode}</dd></div>
+            <div><dt>Department</dt><dd>{student.departmentName
+              ? `${student.departmentCode} — ${student.departmentName}`
+              : student.departmentCode}</dd></div>
             <div><dt>Program</dt><dd>{student.program || 'Not recorded'}</dd></div>
             <div><dt>Batch</dt><dd>{student.cohort || 'Not recorded'}</dd></div>
             <div><dt>Year level</dt><dd>{student.yearLevel ?? 'Not recorded'}</dd></div>
