@@ -81,5 +81,6 @@ test('title comparisons include approved submissions and seeded reference submis
 
   assert.deepEqual(query.parameters, ['department-id', 'excluded-group-id'])
   assert.match(query.statement, /ps\.is_reference_sample = TRUE/)
+  assert.match(query.statement, /ps\.is_reference_sample = TRUE OR g\.id <> \?/)
   assert.deepEqual(titles.map(({ id }) => id), ['approved-id', 'sample-id'])
 })

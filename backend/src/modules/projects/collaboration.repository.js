@@ -93,7 +93,8 @@ export async function listTitlesForComparison(connection, departmentId, excludeG
     `SELECT ps.id, ps.title, ps.description
        FROM project_submissions ps
        JOIN student_groups g ON g.id = ps.group_id
-      WHERE g.department_id = ? AND g.is_active = TRUE AND g.id <> ?
+      WHERE g.department_id = ? AND g.is_active = TRUE
+        AND (ps.is_reference_sample = TRUE OR g.id <> ?)
         AND ps.status = 'approved'
         AND (
           ps.is_reference_sample = TRUE
