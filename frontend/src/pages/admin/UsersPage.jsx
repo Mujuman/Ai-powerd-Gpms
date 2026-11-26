@@ -230,11 +230,10 @@ function EditUserModal({ user, departments, onClose }) {
   const currentDeptIds = user.departments?.map((d) => d.id) ?? []
 
   const mutation = useMutation({
-    mutationFn: async (values) => {
-      const { departmentIds, isActive, ...rest } = values
-      await updateUser(user.id, { ...rest, isActive })
-      await setDepartments(user.id, departmentIds ?? currentDeptIds)
-    },
+    mutationFn: (values) => updateUser(user.id, {
+      ...values,
+      departmentIds: values.departmentIds ?? currentDeptIds,
+    }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['users'] })
       onClose()
@@ -251,7 +250,7 @@ function EditUserModal({ user, departments, onClose }) {
   } = useForm({
     defaultValues: {
       fullName: user.fullName,
-      isActive: user.isActive,
+      isActive: Boolean(user.isActive),
       departmentIds: currentDeptIds,
     },
   })
@@ -259,7 +258,12 @@ function EditUserModal({ user, departments, onClose }) {
   async function onSubmit(raw) {
     setServerError(null)
     const result = editUserSchema.safeParse(raw)
-    if (!result.success) return
+    if (!result.success) {
+      setServerError(result.error.issues
+        .map((issue) => `${issue.path.join('.') || 'Form'}: ${issue.message}`)
+        .join('; '))
+      return
+    }
     await mutation.mutateAsync(result.data)
   }
 
