@@ -335,7 +335,7 @@ export default function StaffPage() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Staff member</th><th>Role</th><th>Specialization and interests</th>
+                      <th>Staff member</th><th>Role</th><th>Specialization</th><th>Interests</th>
                       <th>Assigned groups</th><th>Account</th><th>Actions</th>
                     </tr>
                   </thead>
@@ -344,10 +344,8 @@ export default function StaffPage() {
                       <tr key={member.id}>
                         <td>{member.fullName}<br /><span className="muted-copy">{member.email}</span></td>
                         <td>{member.role === 'academic_advisor' ? 'Advisor' : 'Examiner'}</td>
-                        <td>
-                          <div>{member.specialization || '—'}</div>
-                          <div className="muted-copy">Interests: {member.interests || 'Not provided'}</div>
-                        </td>
+                        <td>{member.specialization || '—'}</td>
+                        <td>{member.interests || 'Not provided'}</td>
                         <td>{member.activeWorkload}</td>
                         <td>
                           <span className={member.isActive ? 'status-active' : 'status-inactive'}>
@@ -369,7 +367,7 @@ export default function StaffPage() {
                       </tr>
                     ))}
                     {staff.length === 0 && (
-                      <tr><td className="table-empty" colSpan={6}>No advisors or examiners are assigned to this department.</td></tr>
+                      <tr><td className="table-empty" colSpan={7}>No advisors or examiners are assigned to this department.</td></tr>
                     )}
                   </tbody>
                 </table>
