@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, ToggleLeft, ToggleRight, Search, Trash2 } from 'lucide-react'
+import { ChevronDown, Plus, Pencil, ToggleLeft, ToggleRight, Search, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 import api from '../../lib/api'
@@ -66,6 +66,118 @@ async function deleteUser(id) {
 async function setDepartments(id, departmentIds) {
   const { data } = await api.patch(`/users/department-heads/${id}`, { departmentIds })
   return data
+}
+
+function DepartmentMultiSelect({ id, departments, selectedIds, onChange }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const pickerRef = useRef(null)
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (!pickerRef.current?.contains(event.target)) setIsOpen(false)
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
+
+  const normalizedSearch = search.trim().toLocaleLowerCase()
+  const filteredDepartments = departments.filter(({ code, name }) =>
+    `${code} ${name}`.toLocaleLowerCase().includes(normalizedSearch),
+  )
+
+  function toggleDepartment(departmentId) {
+    onChange(
+      selectedIds.includes(departmentId)
+        ? selectedIds.filter((idValue) => idValue !== departmentId)
+        : [...selectedIds, departmentId],
+    )
+  }
+
+  return (
+    <div className="department-picker" ref={pickerRef}>
+      <button
+        id={id}
+        type="button"
+        className="form-input department-picker-trigger"
+        aria-expanded={isOpen}
+        aria-controls={`${id}-menu`}
+        title={departments
+          .filter((department) => selectedIds.includes(department.id))
+          .map(({ code, name }) => `${code} — ${name}`)
+          .join(', ')}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <span>{selectedIds.length ? `${selectedIds.length} selected` : 'Select departments'}</span>
+        <ChevronDown size={16} aria-hidden="true" />
+      </button>
+
+      {isOpen && (
+        <div id={`${id}-menu`} className="department-picker-menu">
+          <label className="department-picker-search" htmlFor={`${id}-search`}>
+            <Search size={16} aria-hidden="true" />
+            <input
+              id={`${id}-search`}
+              type="search"
+              autoFocus
+              value={search}
+              placeholder="Search departments"
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+
+          <div className="department-picker-options" role="group" aria-label="Departments">
+            {filteredDepartments.map((department) => (
+              <label className="department-picker-option" key={department.id}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(department.id)}
+                  onChange={() => toggleDepartment(department.id)}
+                />
+                <span>{department.code} — {department.name}</span>
+              </label>
+            ))}
+            {filteredDepartments.length === 0 && (
+              <p className="department-picker-empty">No departments match your search.</p>
+            )}
+          </div>
+
+          <div className="department-picker-footer">
+            <span>{selectedIds.length} selected</span>
+            <div>
+              <button
+                type="button"
+                className="department-picker-clear"
+                disabled={selectedIds.length === 0}
+                onClick={() => onChange([])}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="department-picker-done"
+                onClick={() => {
+                  setIsOpen(false)
+                  setSearch('')
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Create User Modal ─────────────────────────────────────────────────────────
@@ -153,11 +265,6 @@ function CreateUserModal({ departments, onClose }) {
     await mutation.mutateAsync(result.data)
   }
 
-  function handleDeptSelect(e) {
-    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
-    setSelectedDepts(selectedOptions)
-  }
-
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="create-user-title">
       <div className="modal-card">
@@ -193,19 +300,12 @@ function CreateUserModal({ departments, onClose }) {
           {departments.length > 0 && (
             <div className="form-field">
               <label htmlFor="cu-depts" className="form-label">Departments (Required)</label>
-              <select 
-                id="cu-depts" 
-                className="form-input" 
-                multiple 
-                style={{ height: '100px' }} 
-                onChange={handleDeptSelect}
-                value={selectedDepts}
-              >
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.code} — {d.name}</option>
-                ))}
-              </select>
-              <p className="form-field-error" style={{ color: '#8290a6' }}>Hold Ctrl / Cmd to select multiple</p>
+              <DepartmentMultiSelect
+                id="cu-depts"
+                departments={departments}
+                selectedIds={selectedDepts}
+                onChange={setSelectedDepts}
+              />
               {selectedDepts.length === 0 && <p className="form-field-error">At least one department is required</p>}
             </div>
           )}
@@ -226,6 +326,9 @@ function CreateUserModal({ departments, onClose }) {
 function EditUserModal({ user, departments, onClose }) {
   const qc = useQueryClient()
   const [serverError, setServerError] = useState(null)
+  const [selectedDepts, setSelectedDepts] = useState(
+    () => user.departments?.map((department) => department.id) ?? [],
+  )
 
   const currentDeptIds = user.departments?.map((d) => d.id) ?? []
 
@@ -251,7 +354,6 @@ function EditUserModal({ user, departments, onClose }) {
     defaultValues: {
       fullName: user.fullName,
       isActive: Boolean(user.isActive),
-      departmentIds: currentDeptIds,
     },
   })
 
@@ -260,6 +362,7 @@ function EditUserModal({ user, departments, onClose }) {
     const result = editUserSchema.safeParse({
       ...raw,
       isActive: raw.isActive === true || raw.isActive === 1,
+      departmentIds: selectedDepts,
     })
     if (!result.success) {
       setServerError(result.error.issues
@@ -298,12 +401,12 @@ function EditUserModal({ user, departments, onClose }) {
           {departments.length > 0 && (
             <div className="form-field">
               <label htmlFor="eu-depts" className="form-label">Departments</label>
-              <select id="eu-depts" className="form-input" multiple style={{ height: '100px' }} {...register('departmentIds')}>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.code} — {d.name}</option>
-                ))}
-              </select>
-              <p style={{ fontSize: '0.78rem', color: '#8290a6', margin: 0 }}>Hold Ctrl / Cmd to select multiple</p>
+              <DepartmentMultiSelect
+                id="eu-depts"
+                departments={departments}
+                selectedIds={selectedDepts}
+                onChange={setSelectedDepts}
+              />
             </div>
           )}
 
