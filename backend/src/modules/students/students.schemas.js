@@ -2,6 +2,16 @@ import { z } from 'zod'
 
 const uuid = z.string().uuid()
 
+function allowOptionalAcademicPeriod(schema) {
+  return schema.refine(
+    ({ academicYearId, semesterId }) => Boolean(academicYearId) === Boolean(semesterId),
+    {
+      path: ['semesterId'],
+      message: 'Provide both academic year and semester, or omit both',
+    },
+  )
+}
+
 export const departmentQuerySchema = z.object({
   departmentId: uuid.optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -59,7 +69,7 @@ export const addGroupMembersSchema = z.object({
   message: 'Student IDs must be unique',
 })
 
-export const updateStudentSchema = z.object({
+export const updateStudentSchema = allowOptionalAcademicPeriod(z.object({
   departmentId: uuid.optional(),
   fullName: z.string().trim().min(1).max(160),
   email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
@@ -68,9 +78,9 @@ export const updateStudentSchema = z.object({
   cohort: z.string().trim().max(32).nullable(),
   yearLevel: z.number().int().positive().max(255).nullable(),
   gpa: z.number().min(0).max(99.99).nullable(),
-  academicYearId: uuid,
-  semesterId: uuid,
-}).strict()
+  academicYearId: uuid.optional(),
+  semesterId: uuid.optional(),
+}).strict())
 
 export const generateGroupsSchema = z.object({
   departmentId: uuid.optional(),
@@ -83,16 +93,16 @@ export const eligibilityQuerySchema = z.object({
   semesterId: uuid.optional(),
 }).strict()
 
-export const importStudentsSchema = z.object({
+export const importStudentsSchema = allowOptionalAcademicPeriod(z.object({
   departmentId: uuid.optional(),
-  academicYearId: uuid,
-  semesterId: uuid,
-}).strict()
+  academicYearId: uuid.optional(),
+  semesterId: uuid.optional(),
+}).strict())
 
-export const registerStudentSchema = z.object({
+export const registerStudentSchema = allowOptionalAcademicPeriod(z.object({
   departmentId: uuid.optional(),
-  academicYearId: uuid,
-  semesterId: uuid,
+  academicYearId: uuid.optional(),
+  semesterId: uuid.optional(),
   email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
   fullName: z.string().trim().min(1).max(160),
   password: z.string().min(5, 'Password must be at least 5 characters').refine(
@@ -105,4 +115,4 @@ export const registerStudentSchema = z.object({
   yearLevel: z.number().int().positive().max(255).nullable().optional(),
   gpa: z.number().min(0).max(99.99),
   phone: z.string().trim().max(32).optional().default(''),
-}).strict()
+}).strict())
