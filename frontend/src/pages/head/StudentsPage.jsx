@@ -264,30 +264,15 @@ export default function StudentsPage() {
             <div className="page-header">
               <div>
                 <h2 className="section-title">Students</h2>
-                <p className="page-subtitle">Import creates new student accounts and updates matching student records.</p>
-              </div>
-              <div className="filter-bar">
-                <select className="form-input" aria-label="Academic year" value={academicYearId}
-                  onChange={(event) => setAcademicYearId(event.target.value)}>
-                  <option value="">Select academic year</option>
-                  {years.map((year) => <option key={year.id} value={year.id}>{year.label}{year.isActive ? ' (Active)' : ''}</option>)}
-                </select>
-                <select className="form-input" aria-label="Semester" value={semesterId}
-                  onChange={(event) => setSemesterId(event.target.value)}>
-                  <option value="">Select semester</option>
-                  {semesters.map((semester) => <option key={semester.id} value={semester.id}>{semester.name} — {semester.status}</option>)}
-                </select>
+                <p className="page-subtitle">Import creates new student accounts and updates matching student records in this department.</p>
               </div>
             </div>
-            {yearsQuery.isError && <ErrorMessage error={yearsQuery.error} fallback="Could not load academic years" />}
-            {semestersQuery.isError && <ErrorMessage error={semestersQuery.error} fallback="Could not load semesters" />}
-            {calendarSetupMessage && <p className="form-field-error" role="status">{calendarSetupMessage}</p>}
             <form className="rules-form student-registration-form" onSubmit={(event) => {
               event.preventDefault()
               registerStudentMutation.mutate()
             }}>
               <h3 className="section-title">Register a student</h3>
-              <p className="page-subtitle">Create a student login and academic record in the selected active year and semester.</p>
+              <p className="page-subtitle">Create a student login and assign the student to this department.</p>
               <div className="rules-grid">
                 <label className="form-field"><span className="form-label">Full name</span>
                   <input className="form-input" required maxLength={160} value={studentForm.fullName}
@@ -328,7 +313,7 @@ export default function StudentsPage() {
                     value={studentForm.gpa}
                     onChange={(event) => setStudentForm({ ...studentForm, gpa: event.target.value })} /></label>
               </div>
-              <button className="btn-primary" disabled={!selectedYear?.isActive || selectedSemester?.status !== 'active' || registerStudentMutation.isPending}>
+              <button className="btn-primary" disabled={registerStudentMutation.isPending}>
                 {registerStudentMutation.isPending ? 'Registering…' : 'Register student'}
               </button>
             </form>
@@ -341,7 +326,7 @@ export default function StudentsPage() {
                     setImportResult(null)
                   }} />
               </label>
-              <button className="btn-primary" disabled={!file || !selectedYear?.isActive || selectedSemester?.status !== 'active' || importMutation.isPending}>
+              <button className="btn-primary" disabled={!file || importMutation.isPending}>
                 {importMutation.isPending && importMutation.variables?.action !== 'confirm' ? 'Validating…' : 'Preview import'}
               </button>
             </form>
@@ -531,7 +516,7 @@ export default function StudentsPage() {
                   <div className="modal-actions">
                     <button type="button" className="btn-secondary" onClick={() => setEditingStudent(null)}>Cancel</button>
                     <button type="submit" className="btn-primary"
-                      disabled={updateStudentMutation.isPending || !selectedYear?.isActive || selectedSemester?.status !== 'active'}>
+                      disabled={updateStudentMutation.isPending}>
                       {updateStudentMutation.isPending ? 'Saving…' : 'Save changes'}
                     </button>
                   </div>
