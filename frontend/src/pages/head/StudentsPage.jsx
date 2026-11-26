@@ -326,6 +326,9 @@ export default function StudentsPage() {
                     setImportResult(null)
                   }} />
               </label>
+              <p className="muted-copy">
+                Department is assigned automatically from {selectedDepartmentLabel}. Any Department column in the workbook is replaced.
+              </p>
               <button className="btn-primary" disabled={!file || importMutation.isPending}>
                 {importMutation.isPending && importMutation.variables?.action !== 'confirm' ? 'Validating…' : 'Preview import'}
               </button>
@@ -378,7 +381,8 @@ export default function StudentsPage() {
                       <tbody>{preview.preview.map((student) => (
                         <tr key={`${student.rowNumber}-${student.email}`}>
                           <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                          <td>{selectedDepartmentLabel || '—'}</td><td>{student.yearLevel ?? '—'}</td><td>{student.gpa ?? '—'}</td>
+                          <td>{student.departmentCode ? selectedDepartmentLabel : '—'}</td>
+                          <td>{student.yearLevel ?? '—'}</td><td>{student.gpa ?? '—'}</td>
                         </tr>
                       ))}</tbody>
                     </table>

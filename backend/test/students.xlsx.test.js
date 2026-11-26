@@ -2,7 +2,21 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import ExcelJS from 'exceljs'
 import * as XLSX from '@e965/xlsx'
-import { parseStudentWorkbook } from '../src/modules/students/students.service.js'
+import {
+  applyImportDepartment,
+  parseStudentWorkbook,
+} from '../src/modules/students/students.service.js'
+
+test('student imports replace workbook departments with the assigned department', () => {
+  const rows = applyImportDepartment([
+    { department: 'OTHER', studentId: 'ST-1' },
+    { department: '', studentId: 'ST-2' },
+    { studentId: 'ST-3' },
+  ], 'IS')
+
+  assert.deepEqual(rows.map((row) => row.department), ['IS', 'IS', 'IS'])
+  assert.deepEqual(rows.map((row) => row.departmentCode), ['IS', 'IS', 'IS'])
+})
 
 test('student import parser accepts a valid XLSX workbook', async () => {
   const workbook = new ExcelJS.Workbook()

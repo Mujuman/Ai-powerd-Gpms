@@ -46,6 +46,14 @@ function normalizeHeader(value) {
   return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
+export function applyImportDepartment(rows, departmentCode) {
+  return rows.map((row) => ({
+    ...row,
+    department: departmentCode,
+    departmentCode,
+  }))
+}
+
 export async function parseStudentWorkbook(buffer) {
   const zipSignature = Buffer.from([0x50, 0x4b, 0x03, 0x04])
   const oleSignature = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
@@ -584,13 +592,10 @@ export async function previewStudentImport({ buffer, originalFilename, departmen
     if (context.semester.status !== 'active') throw new HttpError(409, 'Select an active semester')
   }
 
-  const rows = await parseStudentWorkbook(buffer)
-  rows.forEach((row) => {
-    row.departmentCode = context.department.code
-    if (row.department && row.department.toUpperCase() !== context.department.code.toUpperCase()) {
-      row.errors.push(`Department must match ${context.department.code}`)
-    }
-  })
+  const rows = applyImportDepartment(
+    await parseStudentWorkbook(buffer),
+    context.department.code,
+  )
   const validRows = rows.filter((row) => row.errors.length === 0)
   const duplicateErrors = await repository.findImportDuplicates(pool, validRows, departmentId)
   for (const row of validRows) row.errors.push(...(duplicateErrors.get(row.rowNumber) ?? []))
@@ -631,7 +636,10 @@ export async function previewStudentImport({ buffer, originalFilename, departmen
     validRows: rows.length - errors.length,
     invalidRows: errors.length,
     errors,
-    preview: importRows.slice(0, 20).map(({ rowNumber, ...row }) => row),
+    preview: importRows.slice(0, 20).map(({ rowNumber, ...row }) => ({
+      ...row,
+      departmentCode: context.department.code,
+    })),
   }
 }
 
