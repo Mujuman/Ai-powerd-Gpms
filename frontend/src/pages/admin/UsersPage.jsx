@@ -257,7 +257,10 @@ function EditUserModal({ user, departments, onClose }) {
 
   async function onSubmit(raw) {
     setServerError(null)
-    const result = editUserSchema.safeParse(raw)
+    const result = editUserSchema.safeParse({
+      ...raw,
+      isActive: raw.isActive === true || raw.isActive === 1,
+    })
     if (!result.success) {
       setServerError(result.error.issues
         .map((issue) => `${issue.path.join('.') || 'Form'}: ${issue.message}`)
