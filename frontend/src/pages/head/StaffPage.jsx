@@ -227,7 +227,7 @@ export default function StaffPage() {
             <option value="">Select a department</option>
             {departments.map((department) => (
               <option key={department.id} value={department.id}>
-                {department.code} — {department.name}
+                {department.name}
               </option>
             ))}
           </select>

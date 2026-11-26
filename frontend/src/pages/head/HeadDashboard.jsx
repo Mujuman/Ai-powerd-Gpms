@@ -71,7 +71,7 @@ export default function HeadDashboard() {
             {departments.length > 0
               ? departments.map((department) => (
                 <span key={department.id} className="head-department-pill">
-                  {department.code} <span aria-hidden="true">·</span> {department.name}
+                  {department.name}
                 </span>
               ))
               : <span className="head-department-pill">No department assigned</span>}

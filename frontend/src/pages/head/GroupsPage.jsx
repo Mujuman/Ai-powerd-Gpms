@@ -181,7 +181,7 @@ export default function GroupsPage() {
           }}>
             <option value="">Select a department</option>
             {departments.map((department) => (
-              <option key={department.id} value={department.id}>{department.code} — {department.name}</option>
+              <option key={department.id} value={department.id}>{department.name}</option>
             ))}
           </select>
         </label>

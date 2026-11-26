@@ -7,13 +7,24 @@ import api from '../../lib/api'
 
 // ── Zod schema ────────────────────────────────────────────────────────────────
 const deptSchema = z.object({
-  code: z
-    .string()
-    .min(2, 'At least 2 characters')
-    .max(32, 'Max 32 characters')
-    .regex(/^[A-Za-z0-9_-]+$/, 'Only letters, digits, hyphens and underscores'),
   name: z.string().min(2, 'At least 2 characters').max(120, 'Max 120 characters'),
 })
+
+function generateDepartmentCode(name, existingCodes) {
+  const normalizedName = name.normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  const base = (normalizedName || 'DEPARTMENT').slice(0, 32).replace(/_+$/g, '')
+  const usedCodes = new Set(existingCodes.map((code) => code.toUpperCase()))
+
+  for (let suffix = 1; ; suffix += 1) {
+    const suffixText = suffix === 1 ? '' : `_${suffix}`
+    const candidate = `${base.slice(0, 32 - suffixText.length).replace(/_+$/g, '')}${suffixText}`
+    if (candidate.length >= 2 && !usedCodes.has(candidate)) return candidate
+  }
+}
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 async function fetchDepartments() {
@@ -41,14 +52,17 @@ async function setDepartmentHeads(deptId, headIds) {
 }
 
 // ── Create Modal ──────────────────────────────────────────────────────────────
-function CreateDeptModal({ departmentHeads, onClose }) {
+function CreateDeptModal({ departmentHeads, existingCodes, onClose }) {
   const qc = useQueryClient()
   const [serverError, setServerError] = useState(null)
   const [selectedHeads, setSelectedHeads] = useState([])
 
   const mutation = useMutation({
     mutationFn: async (values) => {
-      const dept = await createDepartment({ code: values.code.toUpperCase(), name: values.name })
+      const dept = await createDepartment({
+        code: generateDepartmentCode(values.name, existingCodes),
+        name: values.name,
+      })
       const deptId = dept.data?.department?.id
       if (deptId && selectedHeads.length > 0) {
         await setDepartmentHeads(deptId, selectedHeads)
@@ -64,7 +78,7 @@ function CreateDeptModal({ departmentHeads, onClose }) {
     },
   })
 
-  const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: { code: '', name: '' } })
+  const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: { name: '' } })
 
   async function onSubmit(values) {
     setServerError(null)
@@ -89,12 +103,6 @@ function CreateDeptModal({ departmentHeads, onClose }) {
         {serverError && <div className="form-error-banner" role="alert">{serverError}</div>}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="modal-form">
-          <div className="form-field">
-            <label htmlFor="cd-code" className="form-label">Department Code</label>
-            <input id="cd-code" type="text" placeholder="e.g. CS" className={`form-input${errors.code ? ' is-invalid' : ''}`} {...register('code')} />
-            {errors.code && <p className="form-field-error" role="alert">{errors.code.message}</p>}
-          </div>
-
           <div className="form-field">
             <label htmlFor="cd-name" className="form-label">Department Name</label>
             <input id="cd-name" type="text" placeholder="e.g. Computer Science" className={`form-input${errors.name ? ' is-invalid' : ''}`} {...register('name')} />
@@ -149,7 +157,7 @@ function EditDeptModal({ dept, onClose }) {
     },
   })
 
-  const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: { code: dept.code, name: dept.name } })
+  const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: { name: dept.name } })
 
   async function onSubmit(values) {
     setServerError(null)
@@ -165,11 +173,6 @@ function EditDeptModal({ dept, onClose }) {
         {serverError && <div className="form-error-banner" role="alert">{serverError}</div>}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="modal-form">
-          <div className="form-field">
-            <label className="form-label">Code</label>
-            <input type="text" className="form-input" value={dept.code} disabled aria-label="Department code (read-only)" />
-          </div>
-
           <div className="form-field">
             <label htmlFor="ed-name" className="form-label">Department Name</label>
             <input id="ed-name" type="text" className={`form-input${errors.name ? ' is-invalid' : ''}`} {...register('name')} />
@@ -259,7 +262,6 @@ export default function DepartmentsPage() {
           <table className="data-table" aria-label="Departments table">
             <thead>
               <tr>
-                <th scope="col">Code</th>
                 <th scope="col">Name</th>
                 <th scope="col">Status</th>
                 <th scope="col">Actions</th>
@@ -268,7 +270,6 @@ export default function DepartmentsPage() {
             <tbody>
               {departmentRows.map((d) => (
                 <tr key={d.id}>
-                  <td style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>{d.code}</td>
                   <td style={{ fontWeight: 500 }}>{d.name}</td>
                   <td>
                     <span className={d.isActive ? 'status-active' : 'status-inactive'}>
@@ -308,7 +309,7 @@ export default function DepartmentsPage() {
                 </tr>
               ))}
               {departmentRows.length === 0 && (
-                <tr><td colSpan={4} className="table-empty">No departments found</td></tr>
+                <tr><td colSpan={3} className="table-empty">No departments found</td></tr>
               )}
             </tbody>
           </table>
@@ -316,7 +317,13 @@ export default function DepartmentsPage() {
       )}
 
       {/* Modals */}
-      {showCreate && <CreateDeptModal departmentHeads={headsQuery.data?.data || []} onClose={() => setShowCreate(false)} />}
+      {showCreate && (
+        <CreateDeptModal
+          departmentHeads={headsQuery.data?.data || []}
+          existingCodes={departmentRows.map((department) => department.code)}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
       {editDept && <EditDeptModal dept={editDept} onClose={() => setEditDept(null)} />}
     </div>
   )

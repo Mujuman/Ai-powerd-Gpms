@@ -12,10 +12,18 @@ test('student imports replace workbook departments with the assigned department'
     { department: 'OTHER', studentId: 'ST-1' },
     { department: '', studentId: 'ST-2' },
     { studentId: 'ST-3' },
-  ], 'IS')
+  ], 'Information Systems')
 
-  assert.deepEqual(rows.map((row) => row.department), ['IS', 'IS', 'IS'])
-  assert.deepEqual(rows.map((row) => row.departmentCode), ['IS', 'IS', 'IS'])
+  assert.deepEqual(rows.map((row) => row.department), [
+    'Information Systems',
+    'Information Systems',
+    'Information Systems',
+  ])
+  assert.deepEqual(rows.map((row) => row.departmentName), [
+    'Information Systems',
+    'Information Systems',
+    'Information Systems',
+  ])
 })
 
 test('student import parser accepts a valid XLSX workbook', async () => {

@@ -364,7 +364,7 @@ export async function findStudent(databasePool, userId) {
 
 export async function findImportContext(databasePool, departmentId, academicYearId, semesterId) {
   const [departments] = await databasePool.execute(
-    'SELECT id, code FROM departments WHERE id = ? AND is_active = TRUE LIMIT 1',
+    'SELECT id, name FROM departments WHERE id = ? AND is_active = TRUE LIMIT 1',
     [departmentId],
   )
   const [years] = academicYearId

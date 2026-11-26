@@ -143,7 +143,7 @@ function DepartmentMultiSelect({ id, departments, selectedIds, onChange }) {
                   checked={selectedIds.includes(department.id)}
                   onChange={() => toggleDepartment(department.id)}
                 />
-                <span>{department.code} — {department.name}</span>
+                <span>{department.name}</span>
               </label>
             ))}
             {filteredDepartments.length === 0 && (
@@ -529,7 +529,7 @@ export default function UsersPage() {
                     <td>
                       <div className="chip-row">
                         {(Array.isArray(u.departments) ? u.departments : []).map((d) => (
-                          <span key={d.id} className="dept-chip">{d.code}</span>
+                          <span key={d.id} className="dept-chip">{d.name}</span>
                         ))}
                         {(!Array.isArray(u.departments) || u.departments.length === 0) && <span style={{ color: '#8290a6', fontSize: '0.85rem' }}>—</span>}
                       </div>

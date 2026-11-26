@@ -63,9 +63,7 @@ export default function StudentsPage() {
     }
   }, [departmentId, departments, user?.role])
   const selectedDepartment = departments.find((department) => department.id === departmentId)
-  const selectedDepartmentLabel = selectedDepartment
-    ? `${selectedDepartment.code} — ${selectedDepartment.name}`
-    : ''
+  const selectedDepartmentLabel = selectedDepartment?.name ?? ''
 
   const studentsQuery = useQuery({
     queryKey: ['students', departmentId, nameSearch, yearLevelSearch, batchSearch],
@@ -232,7 +230,7 @@ export default function StudentsPage() {
             setPreview(null)
           }}>
             <option value="">Select a department</option>
-            {departments.map((department) => <option key={department.id} value={department.id}>{department.code} — {department.name}</option>)}
+            {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
           </select>
         </label>
       )}
@@ -381,7 +379,7 @@ export default function StudentsPage() {
                       <tbody>{preview.preview.map((student) => (
                         <tr key={`${student.rowNumber}-${student.email}`}>
                           <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                          <td>{student.departmentCode ? selectedDepartmentLabel : '—'}</td>
+                          <td>{student.departmentName || selectedDepartmentLabel || '—'}</td>
                           <td>{student.yearLevel ?? '—'}</td><td>{student.gpa ?? '—'}</td>
                         </tr>
                       ))}</tbody>
@@ -446,9 +444,7 @@ export default function StudentsPage() {
                     {students.map((student) => (
                       <tr key={student.userId}>
                         <td>{student.studentId}</td><td>{student.fullName}</td><td>{student.email}</td>
-                        <td>{student.departmentName
-                          ? `${student.departmentCode} — ${student.departmentName}`
-                          : selectedDepartmentLabel || student.departmentCode || '—'}</td>
+                        <td>{student.departmentName || selectedDepartmentLabel || '—'}</td>
                         <td>{student.yearLevel ?? '—'}</td><td>{student.cohort || '—'}</td>
                         <td>{student.gpa ?? '—'}</td>
                         <td>{student.enrollmentStatus === 'graduated'

@@ -177,7 +177,7 @@ export default function ProjectsPage() {
           <select className="form-input" value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}>
             <option value="">Select a department</option>
             {departments.map((department) => (
-              <option key={department.id} value={department.id}>{department.code} — {department.name}</option>
+              <option key={department.id} value={department.id}>{department.name}</option>
             ))}
           </select>
         </label>

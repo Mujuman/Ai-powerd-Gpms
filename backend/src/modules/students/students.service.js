@@ -46,11 +46,11 @@ function normalizeHeader(value) {
   return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-export function applyImportDepartment(rows, departmentCode) {
+export function applyImportDepartment(rows, departmentName) {
   return rows.map((row) => ({
     ...row,
-    department: departmentCode,
-    departmentCode,
+    department: departmentName,
+    departmentName,
   }))
 }
 
@@ -594,7 +594,7 @@ export async function previewStudentImport({ buffer, originalFilename, departmen
 
   const rows = applyImportDepartment(
     await parseStudentWorkbook(buffer),
-    context.department.code,
+    context.department.name,
   )
   const validRows = rows.filter((row) => row.errors.length === 0)
   const duplicateErrors = await repository.findImportDuplicates(pool, validRows, departmentId)
@@ -604,7 +604,7 @@ export async function previewStudentImport({ buffer, originalFilename, departmen
     .filter((row) => row.errors.length > 0)
     .map(({ rowNumber, email, errors: messages }) => ({ rowNumber, email, messages }))
   const importRows = rows.map((row) => {
-    const { errors: rowErrors, department, departmentCode, ...data } = row
+    const { errors: rowErrors, department, departmentName, ...data } = row
     return { ...data, departmentId }
   })
   const batchId = randomUUID()
@@ -638,7 +638,7 @@ export async function previewStudentImport({ buffer, originalFilename, departmen
     errors,
     preview: importRows.slice(0, 20).map(({ rowNumber, ...row }) => ({
       ...row,
-      departmentCode: context.department.code,
+      departmentName: context.department.name,
     })),
   }
 }

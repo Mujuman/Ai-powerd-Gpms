@@ -31,7 +31,7 @@ export default function ProjectGroupPage() {
             <div className="page-header">
               <div>
                 <h2 className="section-title">{project.groupName}</h2>
-                <p className="page-subtitle">{project.departmentCode} · {project.departmentName}</p>
+                <p className="page-subtitle">{project.departmentName || 'Department not recorded'}</p>
                 <p className="muted-copy">Advisor: {project.advisorName ?? 'Not assigned yet'}</p>
               </div>
               <span className="dept-chip">{project.members?.length ?? 0} members</span>

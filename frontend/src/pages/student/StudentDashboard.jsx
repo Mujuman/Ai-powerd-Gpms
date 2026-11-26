@@ -123,8 +123,8 @@ export default function StudentDashboard() {
           detail={groups.length > 1
             ? `${groups.length} active groups`
             : group?.departmentName
-              ? `${group.departmentCode} — ${group.departmentName}`
-              : group?.departmentCode ?? 'Your group will appear here when assigned.'}
+              ? group.departmentName
+              : 'Your group will appear here when assigned.'}
           to="/student/project/proposal"
           loading={projectsQuery.isLoading}
           error={projectsQuery.isError}

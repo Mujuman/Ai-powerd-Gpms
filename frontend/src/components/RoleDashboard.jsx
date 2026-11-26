@@ -18,7 +18,7 @@ export function RoleDashboard({ user, eyebrow, summary, workAreas, footer, child
             <div className="overview-departments" aria-label="Your departments">
               {departments.map((department) => (
                 <span key={department.id} className="overview-department">
-                  {department.code} <span aria-hidden="true">·</span> {department.name}
+                  {department.name}
                 </span>
               ))}
             </div>
