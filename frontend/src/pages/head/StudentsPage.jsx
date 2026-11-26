@@ -89,6 +89,22 @@ export default function StudentsPage() {
   })
   const semesters = semestersQuery.data ?? []
   const selectedSemester = semesters.find((semester) => semester.id === semesterId)
+  let calendarSetupMessage = null
+  if (!yearsQuery.isLoading && !yearsQuery.isError) {
+    if (years.length === 0) {
+      calendarSetupMessage = 'No academic years are configured. A system administrator must create and activate an academic year before student imports can be previewed.'
+    } else if (!selectedYear) {
+      calendarSetupMessage = 'Select an academic year before previewing student imports.'
+    } else if (!selectedYear.isActive) {
+      calendarSetupMessage = 'The selected academic year is inactive. Activate it before previewing student imports.'
+    } else if (!semestersQuery.isLoading && !semestersQuery.isError) {
+      if (semesters.length === 0) {
+        calendarSetupMessage = 'No semesters are configured for this academic year. A system administrator must add and activate one before student imports can be previewed.'
+      } else if (selectedSemester?.status !== 'active') {
+        calendarSetupMessage = 'Select an active semester before previewing student imports.'
+      }
+    }
+  }
   useEffect(() => {
     if (!semesters.some((semester) => semester.id === semesterId)) {
       setSemesterId(semesters.find((semester) => semester.status === 'active')?.id ?? '')
@@ -315,6 +331,7 @@ export default function StudentsPage() {
             </div>
             {yearsQuery.isError && <ErrorMessage error={yearsQuery.error} fallback="Could not load academic years" />}
             {semestersQuery.isError && <ErrorMessage error={semestersQuery.error} fallback="Could not load semesters" />}
+            {calendarSetupMessage && <p className="form-field-error" role="status">{calendarSetupMessage}</p>}
             <form className="rules-form student-registration-form" onSubmit={(event) => {
               event.preventDefault()
               registerStudentMutation.mutate()
