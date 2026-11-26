@@ -1,8 +1,20 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { RoleBadge } from './ui/RoleBadge'
+import { DashboardStatistics } from './DashboardStatistics'
 
-export function RoleDashboard({ user, eyebrow, summary, workAreas, footer, children }) {
+export function RoleDashboard({
+  user,
+  eyebrow,
+  summary,
+  workAreas,
+  footer,
+  children,
+  statistics,
+  statisticsLoading,
+  statisticsError,
+  statisticsErrorMessage,
+}) {
   if (!user) return null
 
   const departments = Array.isArray(user.departments) ? user.departments : []
@@ -33,6 +45,15 @@ export function RoleDashboard({ user, eyebrow, summary, workAreas, footer, child
           )}
         </div>
       </section>
+
+      {statistics && (
+        <DashboardStatistics
+          statistics={statistics}
+          loading={statisticsLoading}
+          error={statisticsError}
+          errorMessage={statisticsErrorMessage}
+        />
+      )}
 
       {children}
 

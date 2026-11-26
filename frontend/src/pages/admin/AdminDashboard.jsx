@@ -1,6 +1,8 @@
-import { CalendarDays, Building2, Settings2, UsersRound, Workflow } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Building2, CalendarDays, GraduationCap, Settings2, ShieldCheck, UserRound, UsersRound, Workflow } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { RoleDashboard } from '../../components/RoleDashboard'
+import api from '../../lib/api'
 
 const WORK_AREAS = [
   {
@@ -46,6 +48,25 @@ const WORK_AREAS = [
 
 export default function AdminDashboard() {
   const { user } = useAuth()
+  const usersQuery = useQuery({
+    queryKey: ['admin-dashboard-role-summary'],
+    queryFn: async () => (await api.get('/users/role-summary')).data.data,
+  })
+  const departmentsQuery = useQuery({
+    queryKey: ['admin-dashboard-departments'],
+    queryFn: async () => (await api.get('/departments', { params: { limit: 1 } })).data.data,
+  })
+  const roleCounts = Object.fromEntries((usersQuery.data ?? [])
+    .map(({ role, count }) => [role, Number(count)]))
+  const totalUsers = Object.values(roleCounts).reduce((total, count) => total + count, 0)
+  const statistics = [
+    { label: 'User accounts', value: totalUsers, description: 'Across all system roles', icon: UsersRound },
+    { label: 'Students', value: roleCounts.student ?? 0, description: 'Student accounts', icon: GraduationCap },
+    { label: 'Department heads', value: roleCounts.department_head ?? 0, description: 'Department leaders', icon: UserRound },
+    { label: 'Advisors', value: roleCounts.academic_advisor ?? 0, description: 'Academic advisors', icon: UserRound },
+    { label: 'Examiners', value: roleCounts.examiner ?? 0, description: 'Examiner accounts', icon: ShieldCheck },
+    { label: 'Departments', value: departmentsQuery.data?.total ?? 0, description: 'Departments in the system', icon: Building2 },
+  ]
 
   return (
     <RoleDashboard
@@ -54,6 +75,10 @@ export default function AdminDashboard() {
       summary="Manage the people, departments, and academic calendar that power your university workflow."
       workAreas={WORK_AREAS}
       footer="Use the available workspaces to configure your system. Audit, backup, and production AI tools are planned for later phases."
+      statistics={statistics}
+      statisticsLoading={usersQuery.isLoading || departmentsQuery.isLoading}
+      statisticsError={usersQuery.isError || departmentsQuery.isError}
+      statisticsErrorMessage="Could not load system statistics. Try refreshing the dashboard."
     />
   )
 }
