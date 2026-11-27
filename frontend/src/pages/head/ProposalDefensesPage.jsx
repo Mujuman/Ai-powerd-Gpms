@@ -146,12 +146,17 @@ export default function ProposalDefensesPage() {
                         `${examiner.fullName} (${examiner.assignmentMethod === 'ai' ? 'AI' : 'manual'}${examiner.isChairperson ? ', chairperson' : ''})`).join(', ') || 'Unassigned'}</div>
                       {schedule.status === 'scheduled' && (
                         <div className="head-review-actions">
-                          <button className="btn-secondary" disabled={mutation.isPending || !examiners.length}
+                          <button className="btn-secondary"
+                            disabled={mutation.isPending
+                              || examiners.length < (schedule.defenseType === 'final' ? 2 : 1)}
                             onClick={() => mutation.mutate({ action: 'assign-examiner-ai', id: schedule.id })}>
                             {schedule.defenseType === 'final'
                               ? 'Assign two examiners with AI'
                               : 'Assign examiner with AI'}
                           </button>
+                          {schedule.defenseType === 'final' && examiners.length < 2 && (
+                            <p className="muted-copy">Two active examiners are required for a final defense.</p>
+                          )}
                           {schedule.examiners.length > 0 && (
                             <div className="action-row">
                               <select className="form-input" aria-label={`Chairperson for ${schedule.groupName}`}

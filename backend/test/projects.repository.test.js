@@ -34,14 +34,16 @@ test('student project groups include the full active roster and selected leader'
 
 test('advisor project groups include the full active roster and selected leader', async () => {
   const queries = []
+  let memberQueryParameters = []
   const connection = {
-    async execute(query) {
+    async execute(query, parameters) {
       queries.push(query)
       if (queries.length === 1) {
         return [[{ groupId, leaderUserId, groupName: 'Group 1' }]]
       }
+      memberQueryParameters = parameters
       return [[
-        { groupId, userId: leaderUserId, fullName: 'Group Leader', isLeader: 1 },
+        { groupId, userId: leaderUserId, fullName: 'Group Leader', isLeader: 1, advisorMark: '86.50' },
         { groupId, userId: 'member-id', fullName: 'Group Member', isLeader: 0 },
       ]]
     },
@@ -50,8 +52,11 @@ test('advisor project groups include the full active roster and selected leader'
   const groups = await listAdvisorProjects(connection, 'advisor-id')
   assert.match(queries[0], /g\.leader_user_id AS leaderUserId/)
   assert.match(queries[1], /gm\.is_active = TRUE/)
+  assert.match(queries[1], /project_advisor_assessments/)
   assert.equal(groups[0].leaderUserId, leaderUserId)
   assert.deepEqual(groups[0].members.map(({ fullName }) => fullName), ['Group Leader', 'Group Member'])
+  assert.equal(groups[0].members[0].advisorMark, 86.5)
+  assert.deepEqual(memberQueryParameters, ['advisor-id', groupId])
 })
 
 test('department final results combine saved advisor marks with per-student examiner grades', async () => {
