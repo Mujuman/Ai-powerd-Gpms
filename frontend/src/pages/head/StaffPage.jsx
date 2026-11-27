@@ -12,46 +12,6 @@ const EMPTY_FORM = {
   interests: '',
 }
 
-function getErrorToast(error, fallback) {
-  const response = error?.response?.data
-  const details = Array.isArray(response?.errors)
-    ? response.errors.map((detail) => (
-      `${detail.path ? `${detail.path}: ` : ''}${detail.message}`
-    ))
-    : []
-  return {
-    id: Date.now(),
-    type: 'error',
-    message: response?.message ?? fallback,
-    details,
-  }
-}
-
-function ToastPopup({ toast, onDismiss }) {
-  if (!toast) return null
-  return (
-    <div className="toast-viewport">
-      <div
-        className={`toast-popup toast-popup-${toast.type}`}
-        role={toast.type === 'error' ? 'alert' : 'status'}
-        aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
-      >
-        <div className="toast-popup-header">
-          <span>{toast.message}</span>
-          <button type="button" className="toast-popup-dismiss" onClick={onDismiss}>
-            Dismiss
-          </button>
-        </div>
-        {toast.details.length > 0 && (
-          <ul className="toast-popup-details">
-            {toast.details.map((detail, index) => <li key={`${detail}-${index}`}>{detail}</li>)}
-          </ul>
-        )}
-      </div>
-    </div>
-  )
-}
-
 export default function StaffPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -61,7 +21,6 @@ export default function StaffPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [staffFile, setStaffFile] = useState(null)
   const [editingStaff, setEditingStaff] = useState(null)
-  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     if (!departmentId && departments.length === 1) setDepartmentId(departments[0].id)
@@ -73,17 +32,6 @@ export default function StaffPage() {
     queryFn: async () => (await api.get('/projects/staff', { params: { departmentId } })).data.data,
   })
   const staff = Array.isArray(staffQuery.data) ? staffQuery.data : []
-
-  useEffect(() => {
-    if (!staffQuery.error) return
-    setToast(getErrorToast(staffQuery.error, 'Could not load staff'))
-  }, [staffQuery.error])
-
-  useEffect(() => {
-    if (!toast) return undefined
-    const timeout = window.setTimeout(() => setToast(null), 6000)
-    return () => window.clearTimeout(timeout)
-  }, [toast])
 
   function invalidateStaff() {
     void queryClient.invalidateQueries({ queryKey: ['head-project-staff', departmentId] })
@@ -115,24 +63,6 @@ export default function StaffPage() {
       if (variables.action === 'create') setForm({ ...EMPTY_FORM })
       if (variables.action === 'update') setEditingStaff(null)
       invalidateStaff()
-      const messages = {
-        create: 'Staff account created successfully.',
-        update: 'Staff account updated successfully.',
-        active: variables.changes.isActive
-          ? 'Staff account activated successfully.'
-          : 'Staff account deactivated successfully.',
-        delete: 'Staff account deleted successfully.',
-      }
-      setToast({ id: Date.now(), type: 'success', message: messages[variables.action], details: [] })
-    },
-    onError: (error, variables) => {
-      const fallbacks = {
-        create: 'Could not create staff account',
-        update: 'Could not update staff account',
-        active: 'Could not change staff account status',
-        delete: 'Could not delete staff account',
-      }
-      setToast(getErrorToast(error, fallbacks[variables.action]))
     },
   })
 
@@ -143,18 +73,9 @@ export default function StaffPage() {
       body.append('excelFile', staffFile)
       return (await api.post('/projects/staff/import', body)).data.data
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       setStaffFile(null)
       invalidateStaff()
-      setToast({
-        id: Date.now(),
-        type: 'success',
-        message: `Imported ${result.imported} staff members (${result.advisors} advisors, ${result.examiners} examiners).`,
-        details: [],
-      })
-    },
-    onError: (error) => {
-      setToast(getErrorToast(error, 'Could not import staff'))
     },
   })
 
@@ -209,7 +130,6 @@ export default function StaffPage() {
 
   return (
     <div className="page-content">
-      <ToastPopup toast={toast} onDismiss={() => setToast(null)} />
       <div className="page-header">
         <div>
           <h1 className="page-title">Advisors and examiners</h1>
@@ -330,6 +250,9 @@ export default function StaffPage() {
               </div>
             </div>
             {staffQuery.isLoading && <div className="table-loading" aria-busy="true">Loading staff…</div>}
+            {staffQuery.isError && <div className="table-error" role="alert">
+              {staffQuery.error?.response?.data?.message ?? 'Could not load staff'}
+            </div>}
             {staffQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">

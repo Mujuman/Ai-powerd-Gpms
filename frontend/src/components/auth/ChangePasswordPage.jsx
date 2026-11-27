@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth, ROLE_HOME } from '../../contexts/AuthContext'
 import { setAuth } from '../../lib/auth'
 import api from '../../lib/api'
+import { publishToast } from '../../lib/toastBus'
 
 export default function ChangePasswordPage() {
   const { user } = useAuth()
@@ -28,9 +29,20 @@ export default function ChangePasswordPage() {
         newPassword,
       })
       setAuth(data.data.user, data.data.accessToken)
+      publishToast({ type: 'success', message: 'Operation successful.' })
       navigate(ROLE_HOME[data.data.user.role], { replace: true })
     } catch (requestError) {
-      setError(requestError?.response?.data?.message ?? 'Could not change your password')
+      const response = requestError?.response?.data
+      const details = Array.isArray(response?.errors)
+        ? response.errors.map((detail) => (
+          `${detail.path ? `${detail.path}: ` : ''}${detail.message}`
+        ))
+        : []
+      publishToast({
+        type: 'error',
+        message: response?.message ?? 'Could not change your password',
+        details,
+      })
     } finally {
       setIsSaving(false)
     }
