@@ -70,11 +70,6 @@ function ExaminerDefenseCard({ schedule, assessmentMutation }) {
           {documentsQuery.error && <div className="table-error" role="alert">
             {message(documentsQuery.error, 'Could not load defense correction status')}
           </div>}
-          {assessmentMutation.error && assessmentMutation.variables?.scheduleId === schedule.scheduleId && (
-            <div className="table-error" role="alert">
-              {message(assessmentMutation.error, 'Could not submit the assessment')}
-            </div>
-          )}
           <form className="rules-form" onSubmit={saveAssessment}>
             <label className="form-field"><span className="form-label">Evaluation outcome</span>
               <select className="form-input" value={form.outcome}

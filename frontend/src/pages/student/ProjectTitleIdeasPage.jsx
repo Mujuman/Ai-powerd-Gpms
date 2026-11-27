@@ -71,9 +71,6 @@ export default function ProjectTitleIdeasPage() {
       {projectsQuery.isError && <div className="table-error" role="alert">
         {message(projectsQuery.error, 'Could not load your project groups')}
       </div>}
-      {recommendationMutation.error && <div className="table-error" role="alert">
-        {message(recommendationMutation.error, 'Could not create title suggestions')}
-      </div>}
       {projectsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
       {selectedProject && (
         <section className="academic-card">

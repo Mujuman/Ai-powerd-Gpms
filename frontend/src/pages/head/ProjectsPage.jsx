@@ -88,7 +88,6 @@ export default function ProjectsPage() {
   })
 
   const report = reportsQuery.data
-  const mutationError = mutation.error
 
   return (
     <div className="page-content">
@@ -111,7 +110,6 @@ export default function ProjectsPage() {
       )}
       {!departmentId && <p className="muted-copy">Select one of your assigned departments to continue.</p>}
       {queryErrors.map((error, index) => <ErrorNotice key={index} error={error} fallback="Could not load department project data" />)}
-      <ErrorNotice error={mutationError} fallback="The requested operation failed" />
 
       {enabled && (
         <>

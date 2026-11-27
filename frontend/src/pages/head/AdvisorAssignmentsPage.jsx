@@ -27,6 +27,7 @@ export default function AdvisorAssignmentsPage() {
       advisorUserId: advisorSelections[groupId],
       departmentId,
     })).data.data,
+    meta: { successToastMessage: 'Assignment successful.' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-staff', departmentId] })
@@ -36,14 +37,13 @@ export default function AdvisorAssignmentsPage() {
     mutationFn: async () => (await api.post('/projects/groups/advisors/assign-ai', {
       departmentId,
     })).data.data,
+    meta: { successToastMessage: 'Assignment successful.' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['head-project-groups', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-staff', departmentId] })
       void queryClient.invalidateQueries({ queryKey: ['head-project-reports', departmentId] })
     },
   })
-  const automaticResult = automaticAssignmentMutation.data
-
   function changeDepartment(nextDepartmentId) {
     setDepartmentId(nextDepartmentId)
     setAdvisorSelections({})
@@ -61,10 +61,7 @@ export default function AdvisorAssignmentsPage() {
       </div>
       <DepartmentSelector departments={departments} departmentId={departmentId} onChange={changeDepartment} />
       {!departmentId && <p className="muted-copy">Select one of your assigned departments to continue.</p>}
-      <DepartmentPageAlerts
-        errors={[groupsQuery.error, staffQuery.error]}
-        mutationError={automaticAssignmentMutation.error ?? mutation.error}
-      />
+      <DepartmentPageAlerts errors={[groupsQuery.error, staffQuery.error]} />
       {enabled && (
         <section className="academic-card">
           {groupsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
@@ -84,25 +81,6 @@ export default function AdvisorAssignmentsPage() {
               All approved groups are reconsidered, including groups that already have an advisor.
             </p>
           </div>
-          {automaticResult && (
-            <div className="import-preview" role="status" aria-live="polite">
-              {automaticResult.totalProjects === 0
-                ? <p>No approved active project groups were available to assign.</p>
-                : <p>
-                  Automatic assignment complete using {automaticResult.modelName || 'no AI model'}:
-                  {' '}{automaticResult.assignedCount} assigned or reassigned,
-                  {' '}{automaticResult.unchangedCount} unchanged,
-                  {' '}{automaticResult.unassignedCount} unassigned.
-                </p>}
-              {automaticResult.results.filter((result) => result.status === 'unassigned').length > 0 && (
-                <ul>
-                  {automaticResult.results
-                    .filter((result) => result.status === 'unassigned')
-                    .map((result) => <li key={result.groupId}>{result.groupName}: {result.reason}</li>)}
-                </ul>
-              )}
-            </div>
-          )}
           <div className="table-wrapper">
             <table className="data-table">
               <thead>

@@ -209,11 +209,6 @@ export default function StudentsPage() {
   }
 
   const students = studentsQuery.data?.data ?? []
-  const formError = registerStudentMutation.error
-    ?? deleteStudentMutation.error
-    ?? graduateStudentMutation.error
-    ?? temporaryPasswordMutation.error
-
   return (
     <div className="page-content">
       <div className="page-header">
@@ -236,7 +231,6 @@ export default function StudentsPage() {
       )}
       {!departmentId && <p className="muted-copy">Select or assign a department to manage academic records.</p>}
       {departmentsQuery.isError && <ErrorMessage error={departmentsQuery.error} fallback="Could not load departments" />}
-      {formError && <ErrorMessage error={formError} fallback="The operation failed" />}
       {issuedCredential && (
         <div className="import-preview" role="status">
           <strong>Temporary password for {issuedCredential.fullName}</strong>
@@ -358,7 +352,6 @@ export default function StudentsPage() {
                 )}
               </div>
             )}
-            <ErrorMessage error={importMutation.error} fallback="Could not preview the student import" />
             {preview && (
               <div className="import-preview">
                 <p><strong>{preview.validRows}</strong> valid of {preview.totalRows}; <strong>{preview.invalidRows}</strong> need correction.</p>
@@ -488,7 +481,6 @@ export default function StudentsPage() {
             <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-student-title">
               <div className="modal-card student-edit-modal">
                 <h2 id="edit-student-title" className="modal-title">Edit student</h2>
-                <ErrorMessage error={updateStudentMutation.error} fallback="Could not update student" />
                 <form className="modal-form" onSubmit={saveStudent}>
                   <div className="student-edit-grid">
                     <label className="form-field"><span className="form-label">Student ID</span>

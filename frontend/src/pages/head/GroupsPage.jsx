@@ -206,9 +206,6 @@ export default function GroupsPage() {
                 {generateGroupsMutation.isPending ? 'Creating groups…' : 'Create groups automatically'}
               </button>
             </div>
-            {!showGroupCountDialog && (
-              <ErrorMessage error={generateGroupsMutation.error} fallback="Could not generate groups" />
-            )}
             {generateGroupsMutation.data && (
               <p className="status-active" role="status">
                 Created {generateGroupsMutation.data.groups.length} groups for {generateGroupsMutation.data.studentCount} active students.
@@ -232,7 +229,6 @@ export default function GroupsPage() {
                     value={requestedGroupCount}
                     onChange={(event) => setRequestedGroupCount(event.target.value)} />
                 </label>
-                <ErrorMessage error={generateGroupsMutation.error} fallback="Could not generate groups" />
                 <div className="modal-actions">
                   <button type="button" className="btn-secondary" disabled={generateGroupsMutation.isPending}
                     onClick={() => setShowGroupCountDialog(false)}>Cancel</button>
@@ -279,7 +275,6 @@ export default function GroupsPage() {
                 {groupMutation.isPending ? 'Creating…' : 'Create selected group'}
               </button>
             </form>
-            <ErrorMessage error={groupMutation.error} fallback="Could not create group" />
             {studentsQuery.isError && <ErrorMessage error={studentsQuery.error} fallback="Could not load students" />}
           </section>
 
@@ -287,8 +282,6 @@ export default function GroupsPage() {
             <h2 className="section-title">Existing groups</h2>
             {groupsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading groups…</div>}
             {groupsQuery.isError && <ErrorMessage error={groupsQuery.error} fallback="Could not load groups" />}
-            <ErrorMessage error={deleteGroupMutation.error} fallback="Could not delete group" />
-            <ErrorMessage error={graduateGroupMutation.error} fallback="Could not graduate group members" />
             {groupsQuery.data && (
               <div className="table-wrapper">
                 <table className="data-table">
@@ -397,7 +390,6 @@ export default function GroupsPage() {
                     <p className="muted-copy">No available students match this search.</p>
                   )}
                 </div>
-                <ErrorMessage error={groupMembersMutation.error} fallback="Could not update group members" />
                 <div className="modal-actions">
                   <button type="button" className="btn-secondary" disabled={groupMembersMutation.isPending}
                     onClick={() => {

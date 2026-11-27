@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
+import { publishToast } from '../../lib/toastBus'
 
 function message(error, fallback) {
   return error?.response?.data?.message ?? fallback
@@ -21,7 +22,6 @@ export function ProjectCollaborationPanel({
   const [messageText, setMessageText] = useState('')
   const [file, setFile] = useState(null)
   const [documentType, setDocumentType] = useState('advisor_document')
-  const [downloadError, setDownloadError] = useState('')
   const [reviewNotes, setReviewNotes] = useState({})
   const messagesQuery = useQuery({
     queryKey: ['project-messages', groupId],
@@ -66,7 +66,6 @@ export function ProjectCollaborationPanel({
   })
 
   async function downloadDocument(document) {
-    setDownloadError('')
     try {
       const response = await api.get(`/projects/documents/${document.id}/download`, {
         responseType: 'blob',
@@ -79,8 +78,9 @@ export function ProjectCollaborationPanel({
       link.click()
       link.remove()
       window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+      publishToast({ type: 'success', message: 'Document downloaded successfully.' })
     } catch (error) {
-      setDownloadError(message(error, 'Could not download the project document'))
+      publishToast({ type: 'error', message: message(error, 'Could not download the project document') })
     }
   }
 
@@ -104,9 +104,6 @@ export function ProjectCollaborationPanel({
           <p className="page-subtitle">Messages refresh automatically every five seconds.</p>
           {messagesQuery.error && <div className="table-error" role="alert">
             {message(messagesQuery.error, 'Could not load messages')}
-          </div>}
-          {sendMutation.error && <div className="table-error" role="alert">
-            {message(sendMutation.error, 'Could not send your message')}
           </div>}
           <div className="project-message-list" aria-live="polite">
             {(messagesQuery.data ?? []).map((item) => (
@@ -144,13 +141,6 @@ export function ProjectCollaborationPanel({
       {documentsQuery.error && <div className="table-error" role="alert">
         {message(documentsQuery.error, 'Could not load project documents')}
       </div>}
-      {uploadMutation.error && <div className="table-error" role="alert">
-        {message(uploadMutation.error, 'Could not upload the document')}
-      </div>}
-      {reviewMutation.error && <div className="table-error" role="alert">
-        {message(reviewMutation.error, 'Could not review the correction')}
-      </div>}
-      {downloadError && <div className="table-error" role="alert">{downloadError}</div>}
       <div className="table-wrapper">
         <table className="data-table">
           <thead><tr><th>Document</th><th>Type / review</th><th>Uploaded by</th><th>Date</th><th>Action</th></tr></thead>

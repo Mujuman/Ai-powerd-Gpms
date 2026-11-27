@@ -104,9 +104,6 @@ export default function ProjectSubmissionPage() {
       {autoReviewQuery.isError && <div className="table-error" role="alert">
         {message(autoReviewQuery.error, 'Could not complete the automatic proposal review')}
       </div>}
-      {submitMutation.error && <div className="table-error" role="alert">{message(submitMutation.error, 'Could not submit the project')}</div>}
-      {updateMutation.error && <div className="table-error" role="alert">{message(updateMutation.error, 'Could not update the approved proposal')}</div>}
-      {withdrawMutation.error && <div className="table-error" role="alert">{message(withdrawMutation.error, 'Could not withdraw the approved proposal')}</div>}
       {isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
       {projects.map((project) => {
         const status = project.submissionStatus

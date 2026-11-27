@@ -93,7 +93,7 @@ export default function ProposalDefensesPage() {
       <DepartmentSelector departments={departments} departmentId={departmentId} onChange={setDepartmentId} />
       {!departmentId && <p className="muted-copy">Select one of your assigned departments to continue.</p>}
       <DepartmentPageAlerts errors={[groupsQuery.error, staffQuery.error, defensesQuery.error]}
-        mutationError={mutation.error} />
+      />
       {enabled && (
         <section className="academic-card">
           {groupsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading approved projects…</div>}
