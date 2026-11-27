@@ -180,7 +180,7 @@ export default function HeadDashboard() {
       </section>
 
       <p className="head-dashboard-footnote">
-        Use the project workspace for submissions, staff assignments, similarity analysis, schedules, assessments, and department reports.
+        Use the dedicated workspaces for advisor assignments, AI similarity, examiner evaluations, project reviews, and defense schedules.
       </p>
     </div>
   )
