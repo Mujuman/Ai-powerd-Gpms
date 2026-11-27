@@ -174,14 +174,14 @@ export default function ProjectsPage() {
             {submissionsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading submissions…</div>}
             <div className="table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Group</th><th>Project title and description</th><th>Version</th><th>Submitted</th><th>Decision</th></tr></thead>
+                <thead><tr><th>Group</th><th>Project title and description</th><th>Submitted</th><th>Decision</th></tr></thead>
                 <tbody>
                   {(submissionsQuery.data ?? []).map((submission) => (
                     <tr key={submission.id}>
                       <td>{submission.groupName}</td>
                       <td><strong>{submission.title}</strong><p className="muted-copy">{submission.description}</p>
                         {submission.reviewNote && <p className="muted-copy">Review: {submission.reviewNote}</p>}</td>
-                      <td>{submission.version}</td><td>{formatDate(submission.submittedAt)}</td>
+                      <td>{formatDate(submission.submittedAt)}</td>
                       <td>
                         {submission.status === 'submitted' ? (
                           <div className="head-review-actions">
@@ -200,7 +200,7 @@ export default function ProjectsPage() {
                       </td>
                     </tr>
                   ))}
-                  {submissionsQuery.data?.length === 0 && <tr><td className="table-empty" colSpan={5}>No project titles have been submitted yet.</td></tr>}
+                  {submissionsQuery.data?.length === 0 && <tr><td className="table-empty" colSpan={4}>No project titles have been submitted yet.</td></tr>}
                 </tbody>
               </table>
             </div>
