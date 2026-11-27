@@ -40,14 +40,6 @@ const WORK_AREAS = [
     tasks: ['View current assignments', 'Assign or reassign advisors'],
   },
   {
-    title: 'AI project similarity',
-    description: 'Compare project submissions and review similarity scores.',
-    icon: BarChart3,
-    status: 'Available',
-    to: '/head/project-similarity',
-    tasks: ['Run similarity analysis', 'Review project comparisons'],
-  },
-  {
     title: 'Examiner evaluations',
     description: 'Review outcomes, grades, and comments submitted by examiners.',
     icon: ClipboardCheck,
@@ -180,7 +172,7 @@ export default function HeadDashboard() {
       </section>
 
       <p className="head-dashboard-footnote">
-        Use the dedicated workspaces for advisor assignments, AI similarity, examiner evaluations, project reviews, and defense schedules.
+        Use the dedicated workspaces for advisor assignments, examiner evaluations, project reviews, and defense schedules.
       </p>
     </div>
   )
