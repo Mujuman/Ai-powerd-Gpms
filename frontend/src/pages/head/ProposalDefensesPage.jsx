@@ -53,11 +53,6 @@ export default function ProposalDefensesPage() {
           examinerUserId: variables.examinerUserId,
         })).data
       }
-      if (action === 'assign-examiner-ai') {
-        return (await api.post(`/projects/defenses/${variables.id}/examiners/assign-ai`, {
-          departmentId,
-        })).data.data
-      }
       throw new Error('Unsupported Department Head action')
     },
     onSuccess: (_data, variables) => {

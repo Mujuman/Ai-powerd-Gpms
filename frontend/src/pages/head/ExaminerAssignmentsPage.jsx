@@ -69,7 +69,10 @@ export default function ExaminerAssignmentsPage() {
           {defensesQuery.isLoading && (
             <div className="table-loading" aria-busy="true">Loading final defense schedules…</div>
           )}
-          {activeExaminers.length < 2 && (
+          {staffQuery.isLoading && (
+            <div className="table-loading" aria-busy="true">Loading examiners…</div>
+          )}
+          {!staffQuery.isLoading && activeExaminers.length < 2 && (
             <p className="muted-copy">At least two active examiners must be assigned to this department.</p>
           )}
           <div className="table-wrapper">
