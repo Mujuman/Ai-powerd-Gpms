@@ -32,6 +32,17 @@ export default function AdvisorAssignmentsPage() {
       void queryClient.invalidateQueries({ queryKey: ['head-project-staff', departmentId] })
     },
   })
+  const automaticAssignmentMutation = useMutation({
+    mutationFn: async () => (await api.post('/projects/groups/advisors/assign-ai', {
+      departmentId,
+    })).data.data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['head-project-groups', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['head-project-staff', departmentId] })
+      void queryClient.invalidateQueries({ queryKey: ['head-project-reports', departmentId] })
+    },
+  })
+  const automaticResult = automaticAssignmentMutation.data
 
   return (
     <div className="page-content">
@@ -43,10 +54,45 @@ export default function AdvisorAssignmentsPage() {
       </div>
       <DepartmentSelector departments={departments} departmentId={departmentId} onChange={setDepartmentId} />
       {!departmentId && <p className="muted-copy">Select one of your assigned departments to continue.</p>}
-      <DepartmentPageAlerts errors={[groupsQuery.error, staffQuery.error]} mutationError={mutation.error} />
+      <DepartmentPageAlerts
+        errors={[groupsQuery.error, staffQuery.error, automaticAssignmentMutation.error]}
+        mutationError={mutation.error}
+      />
       {enabled && (
         <section className="academic-card">
           {groupsQuery.isLoading && <div className="table-loading" aria-busy="true">Loading project groups…</div>}
+          <div className="head-review-actions">
+            <button className="btn-primary"
+              disabled={!approvedGroups.length || mutation.isPending || automaticAssignmentMutation.isPending}
+              onClick={() => {
+                if (window.confirm('Automatically assign advisors to all approved project groups? Existing assignments may be replaced.')) {
+                  automaticAssignmentMutation.mutate()
+                }
+              }}>
+              {automaticAssignmentMutation.isPending ? 'Assigning advisors…' : 'Automatically assign advisors'}
+            </button>
+            <p className="muted-copy">
+              AI compares each project title and description with advisors’ specialization and interests.
+              All approved groups are reconsidered, including groups that already have an advisor.
+            </p>
+          </div>
+          {automaticResult && (
+            <div className="import-preview" role="status" aria-live="polite">
+              <p>
+                Automatic assignment complete using {automaticResult.modelName || 'no AI model'}:
+                {' '}{automaticResult.assignedCount} assigned or reassigned,
+                {' '}{automaticResult.unchangedCount} unchanged,
+                {' '}{automaticResult.unassignedCount} unassigned.
+              </p>
+              {automaticResult.results.filter((result) => result.status === 'unassigned').length > 0 && (
+                <ul>
+                  {automaticResult.results
+                    .filter((result) => result.status === 'unassigned')
+                    .map((result) => <li key={result.groupId}>{result.groupName}: {result.reason}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
@@ -76,8 +122,11 @@ export default function AdvisorAssignmentsPage() {
                           ))}
                         </select>
                         <button className="btn-secondary"
-                          disabled={!advisorSelections[group.id] || mutation.isPending}
-                          onClick={() => mutation.mutate(group.id)}>Assign advisor</button>
+                          disabled={!advisorSelections[group.id] || mutation.isPending || automaticAssignmentMutation.isPending}
+                          onClick={() => {
+                            automaticAssignmentMutation.reset()
+                            mutation.mutate(group.id)
+                          }}>Assign advisor</button>
                       </div>
                     </td>
                   </tr>

@@ -151,6 +151,15 @@ export const projectsController = {
       })
     } catch (error) { next(error) }
   },
+  automaticallyAssignAdvisors: async (request, response, next) => {
+    try {
+      const filters = parse(departmentQuerySchema, request.body)
+      response.json({
+        success: true,
+        data: await service.automaticallyAssignAdvisors(filters, actor(request)),
+      })
+    } catch (error) { next(error) }
+  },
   runSimilarityAnalysis: async (request, response, next) => {
     try {
       const filters = parse(departmentQuerySchema, request.body)

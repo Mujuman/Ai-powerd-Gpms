@@ -141,6 +141,43 @@ async function rankAdvisorCandidates(departmentId, title, description) {
   }
 }
 
+export function buildAdvisorSimilarityRequest(projects, candidates) {
+  const projectItems = projects.map((project) => ({
+    id: `project:${project.groupId}`,
+    text: `${project.title}\n${project.description}`,
+  }))
+  const advisorItems = candidates.map((advisor) => ({
+    id: `advisor:${advisor.userId}`,
+    text: `${advisor.title} ${advisor.specialization} ${advisor.interests}`.trim()
+      || 'Academic project supervision',
+  }))
+
+  return {
+    items: [...projectItems, ...advisorItems],
+    pairs: projects.flatMap((project) => candidates.map((advisor) => ({
+      leftId: `project:${project.groupId}`,
+      rightId: `advisor:${advisor.userId}`,
+    }))),
+  }
+}
+
+async function rankAdvisorCandidatesForProjects(departmentId, projects) {
+  const scoresByGroup = new Map(projects.map((project) => [project.groupId, new Map()]))
+  if (!projects.length) return { modelName: null, scoresByGroup }
+
+  const candidates = await repository.listAdvisorCandidates(pool, departmentId)
+  if (!candidates.length) return { modelName: null, scoresByGroup }
+
+  const { items, pairs } = buildAdvisorSimilarityRequest(projects, candidates)
+  const analysis = await analyzeSimilarity(items, pairs)
+  for (const score of analysis.scores) {
+    const groupId = score.leftId.slice('project:'.length)
+    const advisorUserId = score.rightId.slice('advisor:'.length)
+    scoresByGroup.get(groupId)?.set(advisorUserId, score.score)
+  }
+  return { modelName: analysis.modelName, scoresByGroup }
+}
+
 async function assignApprovedProjectAdvisor(
   connection,
   { groupId, departmentId, ranking, actor, replaceExisting = false },
@@ -946,6 +983,76 @@ export async function listSimilarityAnalyses(filters, actor) {
 
 export async function assignManualAdvisor(groupId, advisorUserId, filters, actor) {
   return assignAdvisor(groupId, advisorUserId, filters, actor, 'manual')
+}
+
+export async function automaticallyAssignAdvisors(filters, actor) {
+  const departmentId = assertDepartmentAccess(actor, filters.departmentId)
+  const groups = await repository.listDepartmentGroups(pool, departmentId)
+  const projects = groups
+    .filter((group) => group.isActive && group.submissionStatus === 'approved')
+    .map((group) => ({
+      groupId: group.id,
+      groupName: group.name,
+      submissionId: group.submissionId,
+      title: group.title,
+      description: group.description,
+    }))
+  const ranking = await rankAdvisorCandidatesForProjects(departmentId, projects)
+
+  const results = await withTransaction(pool, async (connection) => {
+    const assignments = []
+    for (const project of projects) {
+      const group = await repository.findGroupForDepartment(
+        connection, project.groupId, departmentId, true,
+      )
+      if (!group || !group.isActive) {
+        assignments.push({
+          groupId: project.groupId,
+          groupName: project.groupName,
+          status: 'unassigned',
+          reason: 'Project group is no longer active.',
+        })
+        continue
+      }
+
+      const approvedProject = await repository.getApprovedProjectText(connection, project.groupId)
+      if (!approvedProject || approvedProject.id !== project.submissionId) {
+        assignments.push({
+          groupId: project.groupId,
+          groupName: project.groupName,
+          status: 'unassigned',
+          reason: 'The approved project changed while assignments were being prepared.',
+        })
+        continue
+      }
+
+      const assignment = await assignApprovedProjectAdvisor(connection, {
+        groupId: project.groupId,
+        departmentId,
+        ranking: {
+          modelName: ranking.modelName,
+          scores: ranking.scoresByGroup.get(project.groupId) ?? new Map(),
+        },
+        actor,
+        replaceExisting: true,
+      })
+      assignments.push({
+        groupId: project.groupId,
+        groupName: project.groupName,
+        ...assignment,
+      })
+    }
+    return assignments
+  })
+
+  return {
+    modelName: ranking.modelName,
+    totalProjects: projects.length,
+    assignedCount: results.filter((result) => result.status === 'assigned').length,
+    unchangedCount: results.filter((result) => result.status === 'already_assigned').length,
+    unassignedCount: results.filter((result) => result.status === 'unassigned').length,
+    results,
+  }
 }
 
 export async function listDefenseSchedules(filters, actor) {
