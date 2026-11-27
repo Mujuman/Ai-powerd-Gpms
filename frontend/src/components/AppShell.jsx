@@ -31,6 +31,7 @@ const NAV_LINKS = {
     { label: 'Advisors & Examiners', to: '/head/staff', icon: ClipboardCheck },
     { label: 'Projects', to: '/head/projects', icon: FolderKanban },
     { label: 'Advisor assignments', to: '/head/advisor-assignments', icon: UsersRound },
+    { label: 'Examiner assignments', to: '/head/examiner-assignments', icon: ClipboardCheck },
     { label: 'Final results', to: '/head/results', icon: ClipboardCheck },
     { label: 'Proposal defenses', to: '/head/defenses', icon: CalendarDays },
   ],

@@ -25,11 +25,8 @@ export default function ProposalDefensesPage() {
     queryFn: async () => (await api.get(path, { params: { departmentId } })).data.data,
   })
   const groupsQuery = useQuery(queryOptions('head-project-groups', '/projects/groups'))
-  const staffQuery = useQuery(queryOptions('head-project-staff', '/projects/staff'))
   const defensesQuery = useQuery(queryOptions('head-project-defenses', '/projects/defenses'))
   const groups = groupsQuery.data ?? []
-  const examiners = (staffQuery.data ?? []).filter((member) =>
-    member.role === 'examiner' && member.isActive)
   const approvedGroups = groups.filter((group) => group.submissionStatus === 'approved' && group.isActive)
   const mutation = useMutation({
     mutationFn: async ({ action, ...variables }) => {
@@ -92,7 +89,7 @@ export default function ProposalDefensesPage() {
       </div>
       <DepartmentSelector departments={departments} departmentId={departmentId} onChange={setDepartmentId} />
       {!departmentId && <p className="muted-copy">Select one of your assigned departments to continue.</p>}
-      <DepartmentPageAlerts errors={[groupsQuery.error, staffQuery.error, defensesQuery.error]}
+      <DepartmentPageAlerts errors={[groupsQuery.error, defensesQuery.error]}
       />
       {enabled && (
         <section className="academic-card">
@@ -146,17 +143,6 @@ export default function ProposalDefensesPage() {
                         `${examiner.fullName} (${examiner.assignmentMethod === 'ai' ? 'AI' : 'manual'}${examiner.isChairperson ? ', chairperson' : ''})`).join(', ') || 'Unassigned'}</div>
                       {schedule.status === 'scheduled' && (
                         <div className="head-review-actions">
-                          <button className="btn-secondary"
-                            disabled={mutation.isPending
-                              || examiners.length < (schedule.defenseType === 'final' ? 2 : 1)}
-                            onClick={() => mutation.mutate({ action: 'assign-examiner-ai', id: schedule.id })}>
-                            {schedule.defenseType === 'final'
-                              ? 'Assign two examiners with AI'
-                              : 'Assign examiner with AI'}
-                          </button>
-                          {schedule.defenseType === 'final' && examiners.length < 2 && (
-                            <p className="muted-copy">Two active examiners are required for a final defense.</p>
-                          )}
                           {schedule.examiners.length > 0 && (
                             <div className="action-row">
                               <select className="form-input" aria-label={`Chairperson for ${schedule.groupName}`}

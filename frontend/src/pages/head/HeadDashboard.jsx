@@ -40,6 +40,14 @@ const WORK_AREAS = [
     tasks: ['View current assignments', 'Assign or reassign advisors'],
   },
   {
+    title: 'Examiner assignments',
+    description: 'Use AI to assign two examiners to scheduled final defenses.',
+    icon: ClipboardCheck,
+    status: 'Available',
+    to: '/head/examiner-assignments',
+    tasks: ['Compare approved project titles and descriptions', 'Assign two active examiners'],
+  },
+  {
     title: 'Project progress',
     description: 'Monitor project status and manage advisor and examiner assignments.',
     icon: FolderKanban,
