@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { useAuth } from '../../contexts/AuthContext'
@@ -54,7 +54,6 @@ export default function ProjectsPage() {
   })
   const [scheduleEdit, setScheduleEdit] = useState(null)
   const [chairpersonSelections, setChairpersonSelections] = useState({})
-  const [advisorSelections, setAdvisorSelections] = useState({})
 
   useEffect(() => {
     if (!departmentId && departments.length === 1) setDepartmentId(departments[0].id)
@@ -70,13 +69,10 @@ export default function ProjectsPage() {
   const submissionsQuery = useQuery(queryOptions('head-project-submissions', '/projects/submissions'))
   const staffQuery = useQuery(queryOptions('head-project-staff', '/projects/staff'))
   const defensesQuery = useQuery(queryOptions('head-project-defenses', '/projects/defenses'))
-  const assessmentsQuery = useQuery(queryOptions('head-project-assessments', '/projects/assessments'))
   const reportsQuery = useQuery(queryOptions('head-project-reports', '/projects/reports'))
-  const similarityQuery = useQuery(queryOptions('head-project-similarity', '/projects/similarity'))
 
   const groups = groupsQuery.data ?? []
   const staff = staffQuery.data ?? []
-  const advisors = staff.filter((member) => member.role === 'academic_advisor' && member.isActive)
   const examiners = staff.filter((member) => member.role === 'examiner' && member.isActive)
   const approvedGroups = groups.filter((group) => group.submissionStatus === 'approved' && group.isActive)
   const queryErrors = [
@@ -84,16 +80,13 @@ export default function ProjectsPage() {
     submissionsQuery.error,
     staffQuery.error,
     defensesQuery.error,
-    assessmentsQuery.error,
     reportsQuery.error,
-    similarityQuery.error,
   ].filter(Boolean)
 
   function invalidateWorkspaces() {
     for (const key of [
       'head-project-groups', 'head-project-submissions', 'head-project-staff',
-      'head-project-defenses', 'head-project-assessments', 'head-project-reports',
-      'head-project-similarity',
+      'head-project-defenses', 'head-project-reports',
     ]) void queryClient.invalidateQueries({ queryKey: [key, departmentId] })
   }
 
@@ -104,15 +97,6 @@ export default function ProjectsPage() {
           decision: variables.decision,
           note: reviewNotes[variables.id] ?? '',
         })).data.data
-      }
-      if (action === 'assign-advisor') {
-        return (await api.put(`/projects/groups/${variables.groupId}/advisor`, {
-          advisorUserId: advisorSelections[variables.groupId],
-          departmentId,
-        })).data.data
-      }
-      if (action === 'analyze-similarity') {
-        return (await api.post('/projects/similarity', { departmentId })).data.data
       }
       if (action === 'create-defense') {
         return (await api.post('/projects/defenses', {
@@ -153,8 +137,6 @@ export default function ProjectsPage() {
     },
   })
 
-  const similarity = similarityQuery.data?.[0]
-  const comparisons = useMemo(() => similarity?.results?.comparisons ?? [], [similarity])
   const report = reportsQuery.data
   const mutationError = mutation.error
 
@@ -168,7 +150,7 @@ export default function ProjectsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Department Projects</h1>
-          <p className="page-subtitle">Review projects, assign advisors, plan defenses, and monitor department progress.</p>
+          <p className="page-subtitle">Review project titles, plan defenses, and monitor department progress.</p>
         </div>
       </div>
       {departments.length > 1 && (
@@ -222,59 +204,6 @@ export default function ProjectsPage() {
                 </tbody>
               </table>
             </div>
-          </Section>
-
-          <Section id="advisor-assignments" title="Advisor assignments" description="AI assigns an active advisor automatically when a project is approved. The Department Head can select another advisor or reassign at any time.">
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead><tr><th>Project group</th><th>Approved title</th><th>Current advisor</th><th>Assign advisor</th></tr></thead>
-                <tbody>{approvedGroups.map((group) => (
-                  <tr key={group.id}>
-                    <td>{group.name}</td><td>{group.title}</td>
-                    <td>{group.advisorName || 'Unassigned'}{group.advisorAssignmentMethod
-                      ? <span className="muted-copy"> · {group.advisorAssignmentMethod === 'ai' ? 'AI assigned' : 'manual'}</span>
-                      : null}</td>
-                    <td><div className="action-row">
-                      <select className="form-input" aria-label={`Advisor for ${group.name}`}
-                        value={advisorSelections[group.id] ?? ''}
-                        onChange={(event) => setAdvisorSelections({ ...advisorSelections, [group.id]: event.target.value })}>
-                        <option value="">Choose advisor</option>
-                        {advisors.map((advisor) => <option key={advisor.id} value={advisor.id}>
-                          {advisor.fullName} ({advisor.activeWorkload} assigned groups)
-                        </option>)}
-                      </select>
-                      <button className="btn-secondary" disabled={!advisorSelections[group.id] || mutation.isPending}
-                        onClick={() => mutation.mutate({ action: 'assign-advisor', groupId: group.id })}>Assign advisor</button>
-                    </div></td>
-                  </tr>
-                ))}
-                  {approvedGroups.length === 0 && <tr><td className="table-empty" colSpan={4}>Approved project titles will appear here for advisor assignment.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-
-          <Section id="similarity" title="AI project similarity" description="Compare project titles and descriptions with the configured sentence-embedding model, or a clearly labeled local TF-IDF baseline when the AI service is not configured. Similarity scores are not plagiarism findings.">
-            <div className="action-row">
-              <button className="btn-primary" disabled={mutation.isPending}
-                onClick={() => mutation.mutate({ action: 'analyze-similarity' })}>Run AI similarity analysis</button>
-              {similarity && <span className="muted-copy">{similarity.results.projectCount} projects · {formatDate(similarity.createdAt)}</span>}
-            </div>
-            {similarity && (
-              <div className="table-wrapper">
-                <table className="data-table">
-                  <thead><tr><th>Project one</th><th>Project two</th><th>Cosine similarity</th></tr></thead>
-                  <tbody>{comparisons.slice(0, 50).map((comparison) => (
-                    <tr key={`${comparison.leftSubmissionId}-${comparison.rightSubmissionId}`}>
-                      <td>{comparison.leftTitle}</td><td>{comparison.rightTitle}</td>
-                      <td>{Number(comparison.score).toFixed(3)}</td>
-                    </tr>
-                  ))}
-                    {comparisons.length === 0 && <tr><td className="table-empty" colSpan={3}>Submit at least two project titles to compare.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </Section>
 
           <Section id="defense-schedules" title="Proposal defense schedules" description="Create and manage defense schedules. Use AI to select an active examiner based on project relevance and examiner workload.">
@@ -388,30 +317,6 @@ export default function ProjectsPage() {
             </div>
           </Section>
 
-          <Section id="assessment-review" title="Examiner evaluations" description="Review outcomes and written evaluation records submitted by assigned examiners.">
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead><tr><th>Group / project</th><th>Defense</th><th>Examiner</th><th>Assignment</th><th>Outcome</th><th>Student grades</th><th>Comments</th><th>Submitted</th></tr></thead>
-                <tbody>{(assessmentsQuery.data ?? []).map((assessment) => (
-                  <tr key={assessment.id}>
-                    <td>{assessment.groupName}<br /><span className="muted-copy">{assessment.title}</span></td>
-                    <td>{assessment.defenseType}<br />{formatDate(assessment.scheduledAt)}</td>
-                    <td>{assessment.examinerName}</td><td>{assessment.assignmentMethod}</td>
-                    <td>{assessment.outcome}</td>
-                    <td>{assessment.studentGrades?.length
-                      ? assessment.studentGrades.map((grade) => (
-                        <p key={grade.studentUserId}>{grade.studentName}: {grade.grade} / 100</p>
-                      ))
-                      : '—'}</td>
-                    <td>{assessment.comments}</td><td>{formatDate(assessment.submittedAt)}</td>
-                  </tr>
-                ))}
-                  {assessmentsQuery.data?.length === 0 && <tr><td className="table-empty" colSpan={8}>No examiner evaluations have been submitted yet.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-
           <Section id="project-reports" title="Project progress and department reports" description="Monitor each group's latest proposal status, advisor, upcoming defense, and received evaluations.">
             {report?.summary && (
               <div className="head-report-grid">
@@ -426,9 +331,6 @@ export default function ProjectsPage() {
                 ].map(([label, value]) => <div className="head-report-stat" key={label}><strong>{value}</strong><span>{label}</span></div>)}
               </div>
             )}
-            {report?.latestSimilarityAnalysis && <p className="muted-copy">
-              Latest similarity analysis: {report.latestSimilarityAnalysis.results.projectCount} projects, {report.latestSimilarityAnalysis.results.comparisons.length} comparisons, {formatDate(report.latestSimilarityAnalysis.createdAt)}.
-            </p>}
             <div className="table-wrapper">
               <table className="data-table">
                 <thead><tr><th>Group</th><th>Members</th><th>Project status</th><th>Advisor</th><th>Next defense</th><th>Assessments</th></tr></thead>
