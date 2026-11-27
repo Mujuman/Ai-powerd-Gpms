@@ -147,7 +147,6 @@ export async function listDepartmentResults(connection, departmentId) {
   const [rows] = await connection.execute(
     `SELECT g.id AS groupId, g.name AS groupName, ps.title,
             gm.student_user_id AS studentUserId, student.full_name AS studentName,
-            COALESCE(currentAdvisor.full_name, savedAdvisor.full_name) AS advisorName,
             CASE WHEN aa.advisor_user_id IS NULL
                        OR paa.advisor_user_id = aa.advisor_user_id
                  THEN paa.mark ELSE NULL END AS advisorMark,
@@ -164,10 +163,8 @@ export async function listDepartmentResults(connection, departmentId) {
         AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest
                            WHERE latest.group_id = g.id)
        LEFT JOIN project_advisor_assignments aa ON aa.group_id = g.id AND aa.is_active = TRUE
-       LEFT JOIN users currentAdvisor ON currentAdvisor.id = aa.advisor_user_id
        LEFT JOIN project_advisor_assessments paa
          ON paa.group_id = g.id AND paa.student_user_id = gm.student_user_id
-       LEFT JOIN users savedAdvisor ON savedAdvisor.id = paa.advisor_user_id
       WHERE g.department_id = ?
       ORDER BY g.name, student.full_name`,
     [departmentId],
@@ -181,14 +178,13 @@ export async function listDepartmentResults(connection, departmentId) {
   if (scheduleIds.length) {
     const placeholders = scheduleIds.map(() => '?').join(', ')
     const [examiners] = await connection.execute(
-      `SELECT de.schedule_id AS scheduleId, examiner.id AS examinerUserId,
-              examiner.full_name AS examinerName, da.student_grades_json AS studentGrades
+      `SELECT de.schedule_id AS scheduleId, de.examiner_user_id AS examinerUserId,
+              da.student_grades_json AS studentGrades
          FROM defense_schedule_examiners de
-         JOIN users examiner ON examiner.id = de.examiner_user_id
          LEFT JOIN defense_assessments da
            ON da.schedule_id = de.schedule_id AND da.examiner_user_id = de.examiner_user_id
         WHERE de.schedule_id IN (${placeholders}) AND de.is_active = TRUE
-        ORDER BY examiner.full_name, examiner.id`,
+        ORDER BY de.examiner_user_id`,
       scheduleIds,
     )
     for (const examiner of examiners) {
@@ -205,8 +201,6 @@ export async function listDepartmentResults(connection, departmentId) {
     examinerResults: (examinersBySchedule.get(row.finalScheduleId) ?? [])
       .slice(0, 2)
       .map((examiner) => ({
-        examinerUserId: examiner.examinerUserId,
-        examinerName: examiner.examinerName,
         mark: examiner.studentGrades.find((grade) =>
           grade.studentUserId === row.studentUserId)?.grade ?? null,
       })),

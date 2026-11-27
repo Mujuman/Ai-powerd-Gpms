@@ -71,7 +71,6 @@ test('department final results combine saved advisor marks with per-student exam
           title: 'Project title',
           studentUserId: leaderUserId,
           studentName: 'Group Leader',
-          advisorName: 'Advisor One',
           advisorMark: '82.50',
           finalScheduleId: 'final-schedule-id',
         }]]
@@ -80,13 +79,11 @@ test('department final results combine saved advisor marks with per-student exam
         {
           scheduleId: 'final-schedule-id',
           examinerUserId: 'examiner-one',
-          examinerName: 'Examiner One',
           studentGrades: JSON.stringify([{ studentUserId: leaderUserId, grade: 91 }]),
         },
         {
           scheduleId: 'final-schedule-id',
           examinerUserId: 'examiner-two',
-          examinerName: 'Examiner Two',
           studentGrades: JSON.stringify([{ studentUserId: leaderUserId, grade: 93.5 }]),
         },
       ]]
@@ -98,8 +95,8 @@ test('department final results combine saved advisor marks with per-student exam
   assert.match(queries[1].query, /de\.is_active = TRUE/)
   assert.equal(result.advisorMark, 82.5)
   assert.deepEqual(result.examinerResults, [
-    { examinerUserId: 'examiner-one', examinerName: 'Examiner One', mark: 91 },
-    { examinerUserId: 'examiner-two', examinerName: 'Examiner Two', mark: 93.5 },
+    { mark: 91 },
+    { mark: 93.5 },
   ])
 })
 

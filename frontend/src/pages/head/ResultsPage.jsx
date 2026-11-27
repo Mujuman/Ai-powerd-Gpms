@@ -13,13 +13,7 @@ function markValue(mark) {
 function examinerResult(examiner, defenseScheduled) {
   if (!defenseScheduled) return 'No final defense'
   if (!examiner) return 'Not assigned'
-  return (
-    <>
-      <strong>{examiner.examinerName}</strong>
-      <br />
-      {examiner.mark == null ? 'Pending' : examiner.mark}
-    </>
-  )
+  return examiner.mark == null ? 'Pending' : examiner.mark
 }
 
 export default function ResultsPage() {
@@ -53,9 +47,8 @@ export default function ResultsPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th scope="col">Project group</th>
-                <th scope="col">Project</th>
                 <th scope="col">Student</th>
+                <th scope="col">Project</th>
                 <th scope="col">Advisor mark</th>
                 <th scope="col">Examiner 1</th>
                 <th scope="col">Examiner 2</th>
@@ -67,13 +60,9 @@ export default function ResultsPage() {
                 const examiners = result.examinerResults ?? []
                 return (
                   <tr key={`${result.groupId}:${result.studentUserId}`}>
-                    <td>{result.groupName}</td>
-                    <td>{result.title ?? 'No approved project title'}</td>
                     <td>{result.studentName}</td>
-                    <td>
-                      {result.advisorName && <strong>{result.advisorName}<br /></strong>}
-                      {markValue(result.advisorMark)}
-                    </td>
+                    <td>{result.title ?? 'No approved project title'}</td>
+                    <td>{markValue(result.advisorMark)}</td>
                     <td>{examinerResult(examiners[0], result.finalDefenseScheduled)}</td>
                     <td>{examinerResult(examiners[1], result.finalDefenseScheduled)}</td>
                     <td><strong>{markValue(result.totalMark)}</strong></td>
@@ -81,7 +70,7 @@ export default function ResultsPage() {
                 )
               })}
               {resultsQuery.data.length === 0 && (
-                <tr><td className="table-empty" colSpan={7}>No student results are available for this department.</td></tr>
+                <tr><td className="table-empty" colSpan={6}>No student results are available for this department.</td></tr>
               )}
             </tbody>
           </table>
