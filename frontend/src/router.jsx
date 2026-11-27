@@ -14,6 +14,7 @@ import HeadProjectsPage from './pages/head/ProjectsPage'
 import AdvisorAssignmentsPage from './pages/head/AdvisorAssignmentsPage'
 import ExaminerEvaluationsPage from './pages/head/ExaminerEvaluationsPage'
 import ProjectSimilarityPage from './pages/head/ProjectSimilarityPage'
+import ProposalDefensesPage from './pages/head/ProposalDefensesPage'
 import HeadGroupsPage from './pages/head/GroupsPage'
 import HeadStaffPage from './pages/head/StaffPage'
 import StudentProjectPage from './pages/student/ProjectSubmissionPage'
@@ -84,6 +85,7 @@ export const router = createBrowserRouter([
                   { path: 'advisor-assignments', element: <AdvisorAssignmentsPage /> },
                   { path: 'examiner-evaluations', element: <ExaminerEvaluationsPage /> },
                   { path: 'project-similarity', element: <ProjectSimilarityPage /> },
+                  { path: 'defenses', element: <ProposalDefensesPage /> },
                 ],
               },
             ],

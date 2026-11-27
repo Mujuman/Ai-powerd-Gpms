@@ -70,7 +70,7 @@ export default function ProjectsPage() {
 
   function invalidateWorkspaces() {
     for (const key of [
-      'head-project-submissions', 'head-project-reports',
+      'head-project-groups', 'head-project-submissions', 'head-project-reports',
     ]) void queryClient.invalidateQueries({ queryKey: [key, departmentId] })
   }
 

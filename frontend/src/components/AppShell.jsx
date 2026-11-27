@@ -34,6 +34,7 @@ const NAV_LINKS = {
     { label: 'Advisor assignments', to: '/head/advisor-assignments', icon: UsersRound },
     { label: 'AI similarity', to: '/head/project-similarity', icon: BarChart3 },
     { label: 'Examiner evaluations', to: '/head/examiner-evaluations', icon: ClipboardCheck },
+    { label: 'Proposal defenses', to: '/head/defenses', icon: CalendarDays },
   ],
   academic_advisor: [
     { label: 'Dashboard', to: '/advisor/dashboard', icon: LayoutDashboard },

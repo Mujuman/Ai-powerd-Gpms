@@ -64,11 +64,11 @@ const WORK_AREAS = [
     tasks: ['Monitor group progress', 'Manage examiner assignments'],
   },
   {
-    title: 'Defenses & assessments',
-    description: 'Create and update defense schedules and manage examiner assignments.',
+    title: 'Proposal defenses',
+    description: 'Create and update defense schedules, and manage examiner assignments.',
     icon: CalendarDays,
     status: 'Available',
-    to: '/head/projects#defense-schedules',
+    to: '/head/defenses',
     tasks: ['Schedule defense sessions', 'Assign examiners and chairpersons'],
   },
   {
