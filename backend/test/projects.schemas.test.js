@@ -5,6 +5,7 @@ import {
   createStaffSchema,
   createDefenseSchema,
   reviewSubmissionSchema,
+  saveAdvisorMarksSchema,
   studentSubmissionSchema,
   submitAssessmentSchema,
 } from '../src/modules/projects/projects.schemas.js'
@@ -166,5 +167,21 @@ test('examiner grades include one valid grade for each student', () => {
   assert.equal(submitAssessmentSchema.safeParse({
     ...assessment,
     studentGrades: [assessment.studentGrades[0], assessment.studentGrades[0]],
+  }).success, false)
+})
+
+test('advisor marks are per-student, nullable for clearing, and limited to the examiner scale', () => {
+  const marks = {
+    studentMarks: [
+      { studentUserId: groupId, mark: 82.5 },
+      { studentUserId: advisorId, mark: null },
+    ],
+  }
+  assert.equal(saveAdvisorMarksSchema.safeParse(marks).success, true)
+  assert.equal(saveAdvisorMarksSchema.safeParse({
+    studentMarks: [{ studentUserId: groupId, mark: 101 }],
+  }).success, false)
+  assert.equal(saveAdvisorMarksSchema.safeParse({
+    studentMarks: [marks.studentMarks[0], marks.studentMarks[0]],
   }).success, false)
 })

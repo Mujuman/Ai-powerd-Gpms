@@ -21,9 +21,10 @@ test('staff deletion checks all history protected by restrictive user foreign ke
   assert.match(capturedSql, /project_advisor_assignments/)
   assert.match(capturedSql, /defense_schedule_examiners/)
   assert.match(capturedSql, /defense_assessments/)
+  assert.match(capturedSql, /project_advisor_assessments/)
   assert.match(capturedSql, /project_messages/)
   assert.match(capturedSql, /project_documents/)
-  assert.deepEqual(capturedParams, Array(5).fill('staff-id'))
+  assert.deepEqual(capturedParams, Array(6).fill('staff-id'))
 })
 
 test('staff deletion is blocked when the account belongs to another active department', async () => {
