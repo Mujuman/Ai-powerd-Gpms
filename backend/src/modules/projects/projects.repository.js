@@ -105,7 +105,7 @@ export async function listAdvisorProjects(connection, advisorUserId) {
   for (const member of members) {
     membersByGroup.get(member.groupId).push({
       ...member,
-      advisorMark: member.advisorMark === null ? null : Number(member.advisorMark),
+      advisorMark: member.advisorMark == null ? null : Number(member.advisorMark),
     })
   }
   return rows.map((row) => ({ ...row, members: membersByGroup.get(row.groupId) }))
@@ -201,7 +201,7 @@ export async function listDepartmentResults(connection, departmentId) {
 
   return rows.map((row) => ({
     ...row,
-    advisorMark: row.advisorMark === null ? null : Number(row.advisorMark),
+    advisorMark: row.advisorMark == null ? null : Number(row.advisorMark),
     examinerResults: (examinersBySchedule.get(row.finalScheduleId) ?? [])
       .slice(0, 2)
       .map((examiner) => ({

@@ -1340,8 +1340,9 @@ export async function saveAdvisorMarks(groupId, data, actor) {
 export async function listDepartmentResults(filters, actor) {
   const departmentId = assertDepartmentAccess(actor, filters.departmentId)
   const results = await repository.listDepartmentResults(pool, departmentId)
-  return results.map((result) => ({
+  return results.map(({ finalScheduleId, ...result }) => ({
     ...result,
+    finalDefenseScheduled: Boolean(finalScheduleId),
     totalMark: calculateFinalResultTotal(
       result.advisorMark,
       result.examinerResults.map(({ mark }) => mark),

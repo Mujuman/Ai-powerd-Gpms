@@ -148,7 +148,9 @@ export default function ProposalDefensesPage() {
                         <div className="head-review-actions">
                           <button className="btn-secondary" disabled={mutation.isPending || !examiners.length}
                             onClick={() => mutation.mutate({ action: 'assign-examiner-ai', id: schedule.id })}>
-                            Assign examiner with AI
+                            {schedule.defenseType === 'final'
+                              ? 'Assign two examiners with AI'
+                              : 'Assign examiner with AI'}
                           </button>
                           {schedule.examiners.length > 0 && (
                             <div className="action-row">

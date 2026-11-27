@@ -48,6 +48,14 @@ const WORK_AREAS = [
     tasks: ['Monitor group progress', 'Manage examiner assignments'],
   },
   {
+    title: 'Final results',
+    description: 'Review per-student advisor and final-defense examiner marks.',
+    icon: FileCheck2,
+    status: 'Available',
+    to: '/head/results',
+    tasks: ['Compare advisor and examiner marks', 'Review each student total'],
+  },
+  {
     title: 'Proposal defenses',
     description: 'Create and update defense schedules, and manage examiner assignments.',
     icon: CalendarDays,
@@ -164,7 +172,7 @@ export default function HeadDashboard() {
       </section>
 
       <p className="head-dashboard-footnote">
-        Use the dedicated workspaces for advisor assignments, project reviews, and defense schedules.
+        Use the dedicated workspaces for advisor assignments, project reviews, final results, and defense schedules.
       </p>
     </div>
   )
