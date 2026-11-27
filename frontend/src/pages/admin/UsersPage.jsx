@@ -207,10 +207,6 @@ function CreateUserModal({ departments, onClose }) {
       void qc.invalidateQueries({ queryKey: ['users'] })
       onClose()
     },
-    onError: (err) => {
-      console.error('Mutation error:', err)
-      setServerError(err?.response?.data?.message ?? 'Failed to create user')
-    },
   })
 
   const {
@@ -262,7 +258,7 @@ function CreateUserModal({ departments, onClose }) {
     }
     
     console.log('✅ Validation passed, mutating...')
-    await mutation.mutateAsync(result.data)
+    mutation.mutate(result.data)
   }
 
   return (
@@ -341,9 +337,6 @@ function EditUserModal({ user, departments, onClose }) {
       void qc.invalidateQueries({ queryKey: ['users'] })
       onClose()
     },
-    onError: (err) => {
-      setServerError(err?.response?.data?.message ?? 'Failed to update user')
-    },
   })
 
   const {
@@ -370,7 +363,7 @@ function EditUserModal({ user, departments, onClose }) {
         .join('; '))
       return
     }
-    await mutation.mutateAsync(result.data)
+    mutation.mutate(result.data)
   }
 
   return (
@@ -489,16 +482,6 @@ export default function UsersPage() {
       {usersQuery.isError && (
         <div className="table-error" role="alert">
           {usersQuery.error?.response?.data?.message ?? 'Failed to load users'}
-        </div>
-      )}
-      {toggleMutation.error && (
-        <div className="table-error" role="alert">
-          {toggleMutation.error?.response?.data?.message ?? 'Could not change department head status'}
-        </div>
-      )}
-      {deleteMutation.error && (
-        <div className="table-error" role="alert">
-          {deleteMutation.error?.response?.data?.message ?? 'Could not delete department head'}
         </div>
       )}
       {usersResponseInvalid && (

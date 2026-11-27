@@ -73,9 +73,6 @@ function CreateDeptModal({ departmentHeads, existingCodes, onClose }) {
       void qc.invalidateQueries({ queryKey: ['departments'] })
       onClose()
     },
-    onError: (err) => {
-      setServerError(err?.response?.data?.message ?? 'Failed to create department')
-    },
   })
 
   const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: { name: '' } })
@@ -88,7 +85,7 @@ function CreateDeptModal({ departmentHeads, existingCodes, onClose }) {
     }
     const result = deptSchema.safeParse(values)
     if (!result.success) return
-    await mutation.mutateAsync(result.data)
+    mutation.mutate(result.data)
   }
 
   function handleHeadSelect(e) {
@@ -144,7 +141,6 @@ function CreateDeptModal({ departmentHeads, existingCodes, onClose }) {
 // ── Edit Modal ────────────────────────────────────────────────────────────────
 function EditDeptModal({ dept, onClose }) {
   const qc = useQueryClient()
-  const [serverError, setServerError] = useState(null)
 
   const mutation = useMutation({
     mutationFn: (body) => updateDepartment(dept.id, body),
@@ -152,26 +148,20 @@ function EditDeptModal({ dept, onClose }) {
       void qc.invalidateQueries({ queryKey: ['departments'] })
       onClose()
     },
-    onError: (err) => {
-      setServerError(err?.response?.data?.message ?? 'Failed to update department')
-    },
   })
 
   const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: { name: dept.name } })
 
   async function onSubmit(values) {
-    setServerError(null)
     const result = deptSchema.safeParse(values)
     if (!result.success) return
-    await mutation.mutateAsync({ name: result.data.name })
+    mutation.mutate({ name: result.data.name })
   }
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-dept-title">
       <div className="modal-card">
         <h2 id="edit-dept-title" className="modal-title">Edit Department</h2>
-        {serverError && <div className="form-error-banner" role="alert">{serverError}</div>}
-
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="modal-form">
           <div className="form-field">
             <label htmlFor="ed-name" className="form-label">Department Name</label>
@@ -240,16 +230,6 @@ export default function DepartmentsPage() {
       {deptsQuery.isError && (
         <div className="table-error" role="alert">
           {deptsQuery.error?.response?.data?.message ?? 'Failed to load departments'}
-        </div>
-      )}
-      {toggleMutation.error && (
-        <div className="table-error" role="alert">
-          {toggleMutation.error?.response?.data?.message ?? 'Could not change department status'}
-        </div>
-      )}
-      {deleteMutation.error && (
-        <div className="table-error" role="alert">
-          {deleteMutation.error?.response?.data?.message ?? 'Could not delete department'}
         </div>
       )}
       {departmentsResponseInvalid && (

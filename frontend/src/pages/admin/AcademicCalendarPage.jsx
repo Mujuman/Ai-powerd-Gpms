@@ -14,7 +14,6 @@ export default function AcademicCalendarPage() {
   const [yearForm, setYearForm] = useState(initialYear)
   const [semesterForm, setSemesterForm] = useState(initialSemester)
   const [selectedYearId, setSelectedYearId] = useState('')
-  const [message, setMessage] = useState('')
 
   const yearsQuery = useQuery({
     queryKey: ['academic-years'],
@@ -34,7 +33,6 @@ export default function AcademicCalendarPage() {
     mutationFn: async (body) => (await api.post('/academics/years', body)).data,
     onSuccess: () => {
       setYearForm(initialYear)
-      setMessage('Academic year created.')
       void queryClient.invalidateQueries({ queryKey: ['academic-years'] })
     },
   })
@@ -46,7 +44,6 @@ export default function AcademicCalendarPage() {
     mutationFn: async (body) => (await api.post('/academics/semesters', body)).data,
     onSuccess: () => {
       setSemesterForm(initialSemester)
-      setMessage('Semester created.')
       void queryClient.invalidateQueries({ queryKey: ['semesters', selectedYear?.id] })
     },
   })
@@ -57,28 +54,18 @@ export default function AcademicCalendarPage() {
 
   function submitYear(event) {
     event.preventDefault()
-    setMessage('')
     yearMutation.mutate(yearForm)
   }
 
   function submitSemester(event) {
     event.preventDefault()
     if (!selectedYear) return
-    setMessage('')
     semesterMutation.mutate({ ...semesterForm, academicYearId: selectedYear.id })
   }
 
   const error = yearsQuery.error
     ? requestError(yearsQuery.error, 'Could not load academic years')
-    : yearsQuery.isError
-      ? 'Could not load academic years'
-      : yearMutation.error
-        ? requestError(yearMutation.error, 'Could not create academic year')
-        : semesterMutation.error
-          ? requestError(semesterMutation.error, 'Could not create semester')
-          : activateYearMutation.error || statusMutation.error
-            ? requestError(activateYearMutation.error ?? statusMutation.error, 'Could not update calendar status')
-            : null
+    : null
 
   return (
     <div className="page-content">
@@ -89,7 +76,6 @@ export default function AcademicCalendarPage() {
         </div>
       </div>
 
-      {message && <div className="status-active" role="status">{message}</div>}
       {error && <div className="table-error" role="alert">{error}</div>}
 
       <section className="academic-card">
