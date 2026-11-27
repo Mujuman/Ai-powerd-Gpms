@@ -44,6 +44,13 @@ export default function AdvisorAssignmentsPage() {
   })
   const automaticResult = automaticAssignmentMutation.data
 
+  function changeDepartment(nextDepartmentId) {
+    setDepartmentId(nextDepartmentId)
+    setAdvisorSelections({})
+    mutation.reset()
+    automaticAssignmentMutation.reset()
+  }
+
   return (
     <div className="page-content">
       <div className="page-header">
@@ -52,11 +59,11 @@ export default function AdvisorAssignmentsPage() {
           <p className="page-subtitle">Assign or reassign an active academic advisor to an approved project group.</p>
         </div>
       </div>
-      <DepartmentSelector departments={departments} departmentId={departmentId} onChange={setDepartmentId} />
+      <DepartmentSelector departments={departments} departmentId={departmentId} onChange={changeDepartment} />
       {!departmentId && <p className="muted-copy">Select one of your assigned departments to continue.</p>}
       <DepartmentPageAlerts
-        errors={[groupsQuery.error, staffQuery.error, automaticAssignmentMutation.error]}
-        mutationError={mutation.error}
+        errors={[groupsQuery.error, staffQuery.error]}
+        mutationError={automaticAssignmentMutation.error ?? mutation.error}
       />
       {enabled && (
         <section className="academic-card">
@@ -66,24 +73,27 @@ export default function AdvisorAssignmentsPage() {
               disabled={!approvedGroups.length || mutation.isPending || automaticAssignmentMutation.isPending}
               onClick={() => {
                 if (window.confirm('Automatically assign advisors to all approved project groups? Existing assignments may be replaced.')) {
+                  automaticAssignmentMutation.reset()
                   automaticAssignmentMutation.mutate()
                 }
               }}>
               {automaticAssignmentMutation.isPending ? 'Assigning advisors…' : 'Automatically assign advisors'}
             </button>
             <p className="muted-copy">
-              AI compares each project title and description with advisors’ specialization and interests.
+              AI compares each project title and description with advisor titles, specialization, and interests.
               All approved groups are reconsidered, including groups that already have an advisor.
             </p>
           </div>
           {automaticResult && (
             <div className="import-preview" role="status" aria-live="polite">
-              <p>
-                Automatic assignment complete using {automaticResult.modelName || 'no AI model'}:
-                {' '}{automaticResult.assignedCount} assigned or reassigned,
-                {' '}{automaticResult.unchangedCount} unchanged,
-                {' '}{automaticResult.unassignedCount} unassigned.
-              </p>
+              {automaticResult.totalProjects === 0
+                ? <p>No approved active project groups were available to assign.</p>
+                : <p>
+                  Automatic assignment complete using {automaticResult.modelName || 'no AI model'}:
+                  {' '}{automaticResult.assignedCount} assigned or reassigned,
+                  {' '}{automaticResult.unchangedCount} unchanged,
+                  {' '}{automaticResult.unassignedCount} unassigned.
+                </p>}
               {automaticResult.results.filter((result) => result.status === 'unassigned').length > 0 && (
                 <ul>
                   {automaticResult.results
