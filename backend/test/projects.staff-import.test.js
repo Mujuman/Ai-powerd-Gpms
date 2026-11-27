@@ -1,7 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import ExcelJS from 'exceljs'
-import { parseStaffWorkbook } from '../src/modules/projects/projects.service.js'
+import {
+  parseStaffWorkbook,
+  validateStaffImportRows,
+} from '../src/modules/projects/projects.service.js'
 
 async function createStaffWorkbook(rows) {
   const workbook = new ExcelJS.Workbook()
@@ -38,6 +41,46 @@ test('staff Excel import reads required interests and optional specialization', 
       interests: 'Cybersecurity',
     },
   ])
+})
+
+test('staff Excel import accepts parser row metadata while validating advisor and examiner rows', async () => {
+  const workbook = await createStaffWorkbook([
+    ['Full Name', 'Email', 'Temporary Password', 'Staff Role', 'Instructor Interests'],
+    ['Advisor One', 'advisor@example.edu', 'temporary-password', 'Advisor', 'Distributed systems'],
+    ['Examiner One', 'examiner@example.edu', 'another-password', 'Examiner', 'Cybersecurity'],
+  ])
+  const rows = await parseStaffWorkbook(workbook)
+
+  const staff = validateStaffImportRows(rows, '00000000-0000-4000-8000-000000000001')
+
+  assert.deepEqual(staff.map(({ data }) => ({
+    fullName: data.fullName,
+    role: data.role,
+    interests: data.interests,
+  })), [
+    { fullName: 'Advisor One', role: 'academic_advisor', interests: 'Distributed systems' },
+    { fullName: 'Examiner One', role: 'examiner', interests: 'Cybersecurity' },
+  ])
+  assert.equal(staff.some(({ data }) => Object.hasOwn(data, 'rowNumber')), false)
+})
+
+test('staff Excel import retains row numbers in validation errors', async () => {
+  const rows = await parseStaffWorkbook(await createStaffWorkbook([
+    ['Full Name', 'Email', 'Temporary Password', 'Staff Role', 'Instructor Interests'],
+    ['Advisor One', 'invalid-email', 'temporary-password', 'Advisor', 'Distributed systems'],
+  ]))
+
+  assert.throws(
+    () => validateStaffImportRows(rows, '00000000-0000-4000-8000-000000000001'),
+    (error) => {
+      assert.equal(error.status, 400)
+      assert.deepEqual(error.details, [{
+        path: 'row 2.email',
+        message: 'Invalid email address',
+      }])
+      return true
+    },
+  )
 })
 
 test('staff Excel import accepts more than 100 staff rows', async () => {

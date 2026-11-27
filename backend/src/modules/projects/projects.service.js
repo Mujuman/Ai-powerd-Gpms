@@ -379,6 +379,38 @@ export async function parseStaffWorkbook(buffer) {
   return rows
 }
 
+export function validateStaffImportRows(rows, departmentId) {
+  const emails = new Set()
+  const staffRows = []
+  const errors = []
+
+  for (const row of rows) {
+    const { rowNumber, ...staffData } = row
+    const parsed = createStaffSchema.safeParse({ ...staffData, departmentId })
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        errors.push({
+          path: `row ${rowNumber}.${issue.path.join('.')}`,
+          message: issue.message,
+        })
+      }
+      continue
+    }
+    if (emails.has(parsed.data.email)) {
+      errors.push({
+        path: `row ${rowNumber}.email`,
+        message: 'This email is duplicated in the workbook',
+      })
+      continue
+    }
+    emails.add(parsed.data.email)
+    staffRows.push({ id: randomUUID(), data: parsed.data })
+  }
+
+  if (errors.length) throw new HttpError(400, 'Correct the staff rows and upload the workbook again', errors)
+  return staffRows
+}
+
 async function insertDepartmentStaff(connection, { id, data, departmentId, passwordHash, actor }) {
   await insertUser(connection, {
     id,
@@ -739,33 +771,7 @@ export async function importStaffWorkbook({ buffer, departmentId: requestedDepar
   if (actor.role !== 'department_head') throw new HttpError(403, 'Only a Department Head may add departmental staff')
   const departmentId = assertDepartmentAccess(actor, requestedDepartmentId)
   const rows = await parseStaffWorkbook(buffer)
-  const emails = new Set()
-  const staffRows = []
-  const errors = []
-
-  for (const row of rows) {
-    const parsed = createStaffSchema.safeParse({ ...row, departmentId })
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
-        errors.push({
-          path: `row ${row.rowNumber}.${issue.path.join('.')}`,
-          message: issue.message,
-        })
-      }
-      continue
-    }
-    if (emails.has(parsed.data.email)) {
-      errors.push({
-        path: `row ${row.rowNumber}.email`,
-        message: 'This email is duplicated in the workbook',
-      })
-      continue
-    }
-    emails.add(parsed.data.email)
-    staffRows.push({ id: randomUUID(), data: parsed.data })
-  }
-
-  if (errors.length) throw new HttpError(400, 'Correct the staff rows and upload the workbook again', errors)
+  const staffRows = validateStaffImportRows(rows, departmentId)
 
   const preparedRows = await Promise.all(staffRows.map(async (row) => ({
     ...row,
