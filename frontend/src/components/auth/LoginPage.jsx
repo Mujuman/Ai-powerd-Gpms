@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 import { useAuth } from '../../contexts/AuthContext'
+import { publishToast } from '../../lib/toastBus'
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -10,7 +10,6 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const { login } = useAuth()
-  const [serverError, setServerError] = useState(null)
 
   const {
     register,
@@ -20,8 +19,6 @@ export default function LoginPage() {
   } = useForm({ mode: 'onBlur' })
 
   async function onSubmit(raw) {
-    setServerError(null)
-
     const result = loginSchema.safeParse(raw)
     if (!result.success) {
       const fieldErrors = result.error.flatten().fieldErrors
@@ -33,8 +30,10 @@ export default function LoginPage() {
     try {
       await login(result.data.email, result.data.password)
     } catch (err) {
-      const msg = err?.response?.data?.message ?? 'Invalid email or password'
-      setServerError(msg)
+      publishToast({
+        type: 'error',
+        message: err?.response?.data?.message ?? 'Invalid email or password',
+      })
     }
   }
 
@@ -54,10 +53,6 @@ export default function LoginPage() {
         <p className="auth-subtitle">Graduation Project Management System</p>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate aria-label="Login form" className="auth-form">
-          {serverError && (
-            <div className="form-error-banner" role="alert">{serverError}</div>
-          )}
-
           {/* Email */}
           <div className="form-field">
             <label htmlFor="email" className="form-label">Email address</label>
