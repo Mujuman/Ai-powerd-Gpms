@@ -91,6 +91,17 @@ export const submitAssessmentSchema = z.object({
     message: 'A student may only receive one grade per assessment',
   })
 
+export const saveAdvisorMarksSchema = z.object({
+  studentMarks: z.array(z.object({
+    studentUserId: uuid,
+    mark: z.number().min(0).max(100).nullable(),
+  }).strict()).min(1).max(100),
+}).strict().refine(
+  (value) => new Set(value.studentMarks.map(({ studentUserId }) => studentUserId)).size
+    === value.studentMarks.length,
+  { path: ['studentMarks'], message: 'A student may only have one advisor mark' },
+)
+
 export const assignChairpersonSchema = z.object({
   examinerUserId: uuid,
 }).strict()
