@@ -18,6 +18,8 @@ export default function StaffPage() {
   const departments = Array.isArray(user?.departments) ? user.departments : []
   const [departmentId, setDepartmentId] = useState('')
   const [activeTab, setActiveTab] = useState('list')
+  const [staffNameSearch, setStaffNameSearch] = useState('')
+  const [staffRoleFilter, setStaffRoleFilter] = useState('')
   const [form, setForm] = useState(EMPTY_FORM)
   const [staffFile, setStaffFile] = useState(null)
   const [editingStaff, setEditingStaff] = useState(null)
@@ -32,6 +34,11 @@ export default function StaffPage() {
     queryFn: async () => (await api.get('/projects/staff', { params: { departmentId } })).data.data,
   })
   const staff = Array.isArray(staffQuery.data) ? staffQuery.data : []
+  const normalizedStaffNameSearch = staffNameSearch.trim().toLocaleLowerCase()
+  const filteredStaff = staff.filter((member) => (
+    (!normalizedStaffNameSearch || member.fullName.toLocaleLowerCase().includes(normalizedStaffNameSearch))
+    && (!staffRoleFilter || member.role === staffRoleFilter)
+  ))
 
   function invalidateStaff() {
     void queryClient.invalidateQueries({ queryKey: ['head-project-staff', departmentId] })
@@ -254,47 +261,72 @@ export default function StaffPage() {
               {staffQuery.error?.response?.data?.message ?? 'Could not load staff'}
             </div>}
             {staffQuery.data && (
-              <div className="table-wrapper">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Staff member</th><th>Role</th><th>Specialization</th><th>Interests</th>
-                      <th>Assigned groups</th><th>Account</th><th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {staff.map((member) => (
-                      <tr key={member.id}>
-                        <td>{member.fullName}<br /><span className="muted-copy">{member.email}</span></td>
-                        <td>{member.role === 'academic_advisor' ? 'Advisor' : 'Examiner'}</td>
-                        <td>{member.specialization || '—'}</td>
-                        <td>{member.interests || 'Not provided'}</td>
-                        <td>{member.activeWorkload}</td>
-                        <td>
-                          <span className={member.isActive ? 'status-active' : 'status-inactive'}>
-                            {member.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="action-row">
-                            <button className="btn-secondary" onClick={() => setEditingStaff({ ...member })}>Edit</button>
-                            <button className={member.isActive ? 'btn-danger' : 'btn-secondary'}
-                              disabled={staffMutation.isPending}
-                              onClick={() => setStaffActive(member, !member.isActive)}>
-                              {member.isActive ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button className="btn-danger" disabled={staffMutation.isPending}
-                              onClick={() => deleteStaff(member)}>Delete</button>
-                          </div>
-                        </td>
+              <>
+                <div className="student-search-grid" role="search" aria-label="Search department staff">
+                  <label className="form-field">
+                    <span className="form-label">Staff name</span>
+                    <input className="form-input" type="search" value={staffNameSearch}
+                      placeholder="Search by name"
+                      onChange={(event) => setStaffNameSearch(event.target.value)} />
+                  </label>
+                  <label className="form-field">
+                    <span className="form-label">Staff role</span>
+                    <select className="form-input" value={staffRoleFilter}
+                      onChange={(event) => setStaffRoleFilter(event.target.value)}>
+                      <option value="">All roles</option>
+                      <option value="academic_advisor">Advisors</option>
+                      <option value="examiner">Examiners</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="table-wrapper">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Staff member</th><th>Role</th><th>Specialization</th><th>Interests</th>
+                        <th>Assigned groups</th><th>Account</th><th>Actions</th>
                       </tr>
-                    ))}
-                    {staff.length === 0 && (
-                      <tr><td className="table-empty" colSpan={7}>No advisors or examiners are assigned to this department.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredStaff.map((member) => (
+                        <tr key={member.id}>
+                          <td>{member.fullName}<br /><span className="muted-copy">{member.email}</span></td>
+                          <td>{member.role === 'academic_advisor' ? 'Advisor' : 'Examiner'}</td>
+                          <td>{member.specialization || '—'}</td>
+                          <td>{member.interests || 'Not provided'}</td>
+                          <td>{member.activeWorkload}</td>
+                          <td>
+                            <span className={member.isActive ? 'status-active' : 'status-inactive'}>
+                              {member.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="action-row">
+                              <button className="btn-secondary" onClick={() => setEditingStaff({ ...member })}>Edit</button>
+                              <button className={member.isActive ? 'btn-danger' : 'btn-secondary'}
+                                disabled={staffMutation.isPending}
+                                onClick={() => setStaffActive(member, !member.isActive)}>
+                                {member.isActive ? 'Deactivate' : 'Activate'}
+                              </button>
+                              <button className="btn-danger" disabled={staffMutation.isPending}
+                                onClick={() => deleteStaff(member)}>Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredStaff.length === 0 && (
+                        <tr>
+                          <td className="table-empty" colSpan={7}>
+                            {staff.length === 0
+                              ? 'No advisors or examiners are assigned to this department.'
+                              : 'No staff match your search and role filters.'}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </section>
           )}
