@@ -43,6 +43,7 @@ projectsRoutes.post('/defenses/:scheduleId/cancel', departmentHead, projectsCont
 projectsRoutes.put('/defenses/:scheduleId/examiners', departmentHead, projectsController.assignExaminers)
 projectsRoutes.put('/defenses/:scheduleId/chairperson', departmentHead, projectsController.assignDefenseChairperson)
 projectsRoutes.post('/defenses/:scheduleId/examiners/assign-ai', departmentHead, projectsController.assignExaminerWithAi)
+projectsRoutes.get('/results', departmentHead, projectsController.listDepartmentResults)
 projectsRoutes.get('/reports', departmentHead, projectsController.getDepartmentReport)
 projectsRoutes.get('/dashboard-stats', departmentHead, projectsController.getDepartmentDashboardStats)
 
@@ -58,3 +59,4 @@ projectsRoutes.get('/mine/defenses', requireRoles('student'), projectsController
 projectsRoutes.get('/examiner/defenses', requireRoles('examiner'), projectsController.listExaminerDefenses)
 projectsRoutes.post('/examiner/defenses/:scheduleId/assessment', requireRoles('examiner'), projectsController.submitAssessment)
 projectsRoutes.get('/advisor/projects', requireRoles('academic_advisor'), projectsController.listAdvisorProjects)
+projectsRoutes.put('/advisor/projects/:groupId/marks', requireRoles('academic_advisor'), projectsController.saveAdvisorMarks)

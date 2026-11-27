@@ -88,18 +88,129 @@ export async function listAdvisorProjects(connection, advisorUserId) {
   const [members] = await connection.execute(
     `SELECT gm.group_id AS groupId, u.id AS userId, u.full_name AS fullName,
             sp.student_id AS studentId,
-            CASE WHEN u.id = g.leader_user_id THEN TRUE ELSE FALSE END AS isLeader
+            CASE WHEN u.id = g.leader_user_id THEN TRUE ELSE FALSE END AS isLeader,
+            paa.mark AS advisorMark
        FROM student_group_members gm
        JOIN student_groups g ON g.id = gm.group_id
        JOIN users u ON u.id = gm.student_user_id
        LEFT JOIN student_profiles sp ON sp.user_id = u.id
+       LEFT JOIN project_advisor_assessments paa
+         ON paa.group_id = gm.group_id AND paa.student_user_id = u.id
+        AND paa.advisor_user_id = ?
       WHERE gm.group_id IN (${placeholders}) AND gm.is_active = TRUE
       ORDER BY u.full_name`,
-    rows.map((row) => row.groupId),
+    [advisorUserId, ...rows.map((row) => row.groupId)],
   )
   const membersByGroup = new Map(rows.map((row) => [row.groupId, []]))
-  for (const member of members) membersByGroup.get(member.groupId).push(member)
+  for (const member of members) {
+    membersByGroup.get(member.groupId).push({
+      ...member,
+      advisorMark: member.advisorMark === null ? null : Number(member.advisorMark),
+    })
+  }
   return rows.map((row) => ({ ...row, members: membersByGroup.get(row.groupId) }))
+}
+
+export async function findAdvisorGroup(connection, groupId, advisorUserId, lock = false) {
+  const [rows] = await connection.execute(
+    `SELECT g.id, g.is_active AS isActive
+       FROM student_groups g
+       JOIN project_advisor_assignments aa ON aa.group_id = g.id AND aa.is_active = TRUE
+      WHERE g.id = ? AND aa.advisor_user_id = ? AND g.is_active = TRUE
+      LIMIT 1${lock ? ' FOR UPDATE' : ''}`,
+    [groupId, advisorUserId],
+  )
+  return rows[0] ?? null
+}
+
+export async function saveAdvisorMark(connection, assessment) {
+  await connection.execute(
+    `INSERT INTO project_advisor_assessments
+       (id, group_id, student_user_id, advisor_user_id, mark)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE advisor_user_id = VALUES(advisor_user_id),
+       mark = VALUES(mark), updated_at = CURRENT_TIMESTAMP(3)`,
+    [assessment.id, assessment.groupId, assessment.studentUserId,
+      assessment.advisorUserId, assessment.mark],
+  )
+}
+
+export async function deleteAdvisorMark(connection, groupId, studentUserId, advisorUserId) {
+  await connection.execute(
+    `DELETE FROM project_advisor_assessments
+      WHERE group_id = ? AND student_user_id = ? AND advisor_user_id = ?`,
+    [groupId, studentUserId, advisorUserId],
+  )
+}
+
+export async function listDepartmentResults(connection, departmentId) {
+  const [rows] = await connection.execute(
+    `SELECT g.id AS groupId, g.name AS groupName, ps.title,
+            gm.student_user_id AS studentUserId, student.full_name AS studentName,
+            COALESCE(currentAdvisor.full_name, savedAdvisor.full_name) AS advisorName,
+            CASE WHEN aa.advisor_user_id IS NULL
+                       OR paa.advisor_user_id = aa.advisor_user_id
+                 THEN paa.mark ELSE NULL END AS advisorMark,
+            (SELECT ds.id
+               FROM defense_schedules ds
+              WHERE ds.group_id = g.id AND ds.defense_type = 'final'
+                AND ds.status <> 'cancelled'
+              ORDER BY ds.scheduled_at DESC, ds.id DESC
+              LIMIT 1) AS finalScheduleId
+       FROM student_groups g
+       JOIN student_group_members gm ON gm.group_id = g.id AND gm.is_active = TRUE
+       JOIN users student ON student.id = gm.student_user_id
+       LEFT JOIN project_submissions ps ON ps.group_id = g.id
+        AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest
+                           WHERE latest.group_id = g.id)
+       LEFT JOIN project_advisor_assignments aa ON aa.group_id = g.id AND aa.is_active = TRUE
+       LEFT JOIN users currentAdvisor ON currentAdvisor.id = aa.advisor_user_id
+       LEFT JOIN project_advisor_assessments paa
+         ON paa.group_id = g.id AND paa.student_user_id = gm.student_user_id
+       LEFT JOIN users savedAdvisor ON savedAdvisor.id = paa.advisor_user_id
+      WHERE g.department_id = ?
+      ORDER BY g.name, student.full_name`,
+    [departmentId],
+  )
+  if (!rows.length) return rows
+
+  const scheduleIds = [...new Set(rows
+    .map((row) => row.finalScheduleId)
+    .filter(Boolean))]
+  const examinersBySchedule = new Map(scheduleIds.map((scheduleId) => [scheduleId, []]))
+  if (scheduleIds.length) {
+    const placeholders = scheduleIds.map(() => '?').join(', ')
+    const [examiners] = await connection.execute(
+      `SELECT de.schedule_id AS scheduleId, examiner.id AS examinerUserId,
+              examiner.full_name AS examinerName, da.student_grades_json AS studentGrades
+         FROM defense_schedule_examiners de
+         JOIN users examiner ON examiner.id = de.examiner_user_id
+         LEFT JOIN defense_assessments da
+           ON da.schedule_id = de.schedule_id AND da.examiner_user_id = de.examiner_user_id
+        WHERE de.schedule_id IN (${placeholders}) AND de.is_active = TRUE
+        ORDER BY examiner.full_name, examiner.id`,
+      scheduleIds,
+    )
+    for (const examiner of examiners) {
+      examinersBySchedule.get(examiner.scheduleId).push({
+        ...examiner,
+        studentGrades: parseJson(examiner.studentGrades, []),
+      })
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    advisorMark: row.advisorMark === null ? null : Number(row.advisorMark),
+    examinerResults: (examinersBySchedule.get(row.finalScheduleId) ?? [])
+      .slice(0, 2)
+      .map((examiner) => ({
+        examinerUserId: examiner.examinerUserId,
+        examinerName: examiner.examinerName,
+        mark: examiner.studentGrades.find((grade) =>
+          grade.studentUserId === row.studentUserId)?.grade ?? null,
+      })),
+  }))
 }
 
 export async function getLatestSubmission(connection, groupId, lock = false) {
@@ -307,9 +418,10 @@ export async function countStaffHistoryReferences(connection, userId) {
        (SELECT COUNT(*) FROM project_advisor_assignments WHERE advisor_user_id = ?) +
        (SELECT COUNT(*) FROM defense_schedule_examiners WHERE examiner_user_id = ?) +
        (SELECT COUNT(*) FROM defense_assessments WHERE examiner_user_id = ?) +
+       (SELECT COUNT(*) FROM project_advisor_assessments WHERE advisor_user_id = ?) +
        (SELECT COUNT(*) FROM project_messages WHERE sender_user_id = ?) +
        (SELECT COUNT(*) FROM project_documents WHERE uploaded_by = ?) AS referenceCount`,
-    [userId, userId, userId, userId, userId],
+    [userId, userId, userId, userId, userId, userId],
   )
   return Number(rows[0]?.referenceCount ?? 0)
 }

@@ -8,6 +8,7 @@ import {
   createStaffSchema,
   departmentQuerySchema,
   reviewSubmissionSchema,
+  saveAdvisorMarksSchema,
   staffQuerySchema,
   studentSubmissionSchema,
   submitAssessmentSchema,
@@ -184,6 +185,12 @@ export const projectsController = {
       response.json({ success: true, data: await service.listDefenseSchedules(filters, actor(request)) })
     } catch (error) { next(error) }
   },
+  listDepartmentResults: async (request, response, next) => {
+    try {
+      const filters = parse(departmentQuerySchema, request.query)
+      response.json({ success: true, data: await service.listDepartmentResults(filters, actor(request)) })
+    } catch (error) { next(error) }
+  },
   updateDefense: async (request, response, next) => {
     try {
       const scheduleId = parse(uuid, request.params.scheduleId)
@@ -237,6 +244,13 @@ export const projectsController = {
   listAdvisorProjects: async (request, response, next) => {
     try {
       response.json({ success: true, data: await service.listAdvisorProjects(actor(request)) })
+    } catch (error) { next(error) }
+  },
+  saveAdvisorMarks: async (request, response, next) => {
+    try {
+      const groupId = parse(uuid, request.params.groupId)
+      const data = parse(saveAdvisorMarksSchema, request.body)
+      response.json({ success: true, data: await service.saveAdvisorMarks(groupId, data, actor(request)) })
     } catch (error) { next(error) }
   },
   submitAssessment: async (request, response, next) => {

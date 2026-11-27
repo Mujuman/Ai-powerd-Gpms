@@ -66,6 +66,25 @@ export function selectAiAdvisorCandidate(candidates, scores) {
     ))[0] ?? null
 }
 
+export function selectAiExaminerCandidates(candidates, scores, count) {
+  return candidates
+    .filter((examiner) => scores.has(examiner.userId))
+    .sort((left, right) => (
+      scores.get(right.userId) - scores.get(left.userId)
+      || Number(left.activeWorkload) - Number(right.activeWorkload)
+      || left.fullName.localeCompare(right.fullName)
+      || left.userId.localeCompare(right.userId)
+    ))
+    .slice(0, count)
+}
+
+export function calculateFinalResultTotal(advisorMark, examinerMarks) {
+  if (advisorMark == null || examinerMarks.length !== 2
+    || examinerMarks.some((mark) => mark == null)) return null
+  const total = Number(advisorMark) + examinerMarks.reduce((sum, mark) => sum + Number(mark), 0)
+  return Math.round(total * 100) / 100
+}
+
 async function analyzeProjectSimilarity({ groupId, departmentId, title, description }) {
   const approvedTitles = await collaborationRepository.listApprovedTitles(pool, departmentId, groupId)
   if (!approvedTitles.length) {
@@ -1153,6 +1172,9 @@ export async function assignExaminersManually(scheduleId, examinerUserIds, filte
   await withTransaction(pool, async (connection) => {
     const schedule = await repository.findDefenseSchedule(connection, scheduleId, departmentId, true)
     if (!schedule || schedule.status !== 'scheduled') throw new HttpError(404, 'Scheduled defense not found')
+    if (schedule.defenseType === 'final' && examinerUserIds.length !== 2) {
+      throw new HttpError(400, 'A final defense requires exactly two examiners')
+    }
     const examinerRows = await Promise.all(examinerUserIds.map((userId) =>
       repository.findExaminerInDepartment(connection, departmentId, userId, true),
     ))
@@ -1187,7 +1209,10 @@ export async function assignExaminerWithAi(scheduleId, filters, actor) {
     repository.listExaminerCandidates(pool, departmentId),
   ])
   if (!schedule || schedule.status !== 'scheduled') throw new HttpError(404, 'Scheduled defense not found')
-  if (!candidates.length) throw new HttpError(409, 'Add an active examiner to this department first')
+  const examinerCount = schedule.defenseType === 'final' ? 2 : 1
+  if (candidates.length < examinerCount) {
+    throw new HttpError(409, `Add at least ${examinerCount} active examiners to this department first`)
+  }
   const project = await repository.getApprovedProjectText(pool, schedule.groupId)
   if (!project) throw new HttpError(409, 'The project title must be approved before examiner assignment')
   const items = [
@@ -1203,40 +1228,43 @@ export async function assignExaminerWithAi(scheduleId, filters, actor) {
     candidates.map((candidate) => ({ leftId: 'project', rightId: candidate.userId })),
   )
   const scores = new Map(analysis.scores.map((entry) => [entry.rightId, entry.score]))
-  const selected = candidates.sort((left, right) =>
-    (scores.get(right.userId) ?? -1) - (scores.get(left.userId) ?? -1)
-      || Number(left.activeWorkload) - Number(right.activeWorkload)
-      || left.fullName.localeCompare(right.fullName),
-  )[0]
+  const selected = selectAiExaminerCandidates(candidates, scores, examinerCount)
+  if (selected.length !== examinerCount) {
+    throw new HttpError(502, 'Could not rank enough active examiners for this defense')
+  }
   await withTransaction(pool, async (connection) => {
     const currentSchedule = await repository.findDefenseSchedule(connection, scheduleId, departmentId, true)
     if (!currentSchedule || currentSchedule.status !== 'scheduled') {
       throw new HttpError(409, 'Defense schedule is no longer available for examiner assignment')
     }
-    const examiner = await repository.findExaminerInDepartment(connection, departmentId, selected.userId, true)
-    if (!examiner?.isActive) throw new HttpError(409, 'The recommended examiner is no longer active in this department')
+    const examiners = await Promise.all(selected.map((candidate) =>
+      repository.findExaminerInDepartment(connection, departmentId, candidate.userId, true),
+    ))
+    if (examiners.some((examiner) => !examiner?.isActive)) {
+      throw new HttpError(409, 'A recommended examiner is no longer active in this department')
+    }
     await repository.endScheduleExaminers(connection, scheduleId)
-    await repository.insertScheduleExaminer(connection, {
-      id: randomUUID(),
-      scheduleId,
-      examinerUserId: selected.userId,
-      method: 'ai',
-      assignedBy: actor.id,
-    })
+    for (const candidate of selected) {
+      await repository.insertScheduleExaminer(connection, {
+        id: randomUUID(),
+        scheduleId,
+        examinerUserId: candidate.userId,
+        method: 'ai',
+        assignedBy: actor.id,
+      })
+    }
     await recordAudit(connection, {
       userId: actor.id,
       action: 'defense_examiners.ai_assign',
       targetType: 'defense_schedule',
       targetId: scheduleId,
       remoteAddress: actor.remoteAddress,
-      metadata: { examinerUserId: selected.userId, modelName: analysis.modelName },
+      metadata: { examinerUserIds: selected.map(({ userId }) => userId), modelName: analysis.modelName },
     })
   })
   return {
     scheduleId,
-    examinerUserId: selected.userId,
-    examinerName: selected.fullName,
-    similarity: scores.get(selected.userId),
+    examiners: selected.map(({ userId, fullName }) => ({ userId, fullName })),
     modelName: analysis.modelName,
   }
 }
@@ -1271,6 +1299,54 @@ export async function listExaminerDefenses(actor) {
 export async function listAdvisorProjects(actor) {
   if (actor.role !== 'academic_advisor') throw new HttpError(403, 'Academic Advisor access is required')
   return repository.listAdvisorProjects(pool, actor.id)
+}
+
+export async function saveAdvisorMarks(groupId, data, actor) {
+  if (actor.role !== 'academic_advisor') throw new HttpError(403, 'Academic Advisor access is required')
+  await withTransaction(pool, async (connection) => {
+    const group = await repository.findAdvisorGroup(connection, groupId, actor.id, true)
+    if (!group) throw new HttpError(404, 'Active assigned project group not found')
+    const students = await repository.listActiveGroupStudents(connection, groupId)
+    const studentIds = new Set(students.map((student) => student.userId))
+    if (data.studentMarks.some(({ studentUserId }) => !studentIds.has(studentUserId))) {
+      throw new HttpError(400, 'Advisor marks can only be saved for active students in the assigned group')
+    }
+
+    for (const { studentUserId, mark } of data.studentMarks) {
+      if (mark === null) {
+        await repository.deleteAdvisorMark(connection, groupId, studentUserId, actor.id)
+      } else {
+        await repository.saveAdvisorMark(connection, {
+          id: randomUUID(),
+          groupId,
+          studentUserId,
+          advisorUserId: actor.id,
+          mark,
+        })
+      }
+    }
+    await recordAudit(connection, {
+      userId: actor.id,
+      action: 'advisor_assessments.submit',
+      targetType: 'student_group',
+      targetId: groupId,
+      remoteAddress: actor.remoteAddress,
+      metadata: { studentCount: data.studentMarks.length },
+    })
+  })
+  return { groupId, savedCount: data.studentMarks.filter(({ mark }) => mark !== null).length }
+}
+
+export async function listDepartmentResults(filters, actor) {
+  const departmentId = assertDepartmentAccess(actor, filters.departmentId)
+  const results = await repository.listDepartmentResults(pool, departmentId)
+  return results.map((result) => ({
+    ...result,
+    totalMark: calculateFinalResultTotal(
+      result.advisorMark,
+      result.examinerResults.map(({ mark }) => mark),
+    ),
+  }))
 }
 
 export async function submitAssessment(scheduleId, data, actor) {
