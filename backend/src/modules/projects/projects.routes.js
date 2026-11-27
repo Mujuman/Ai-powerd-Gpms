@@ -43,7 +43,6 @@ projectsRoutes.post('/defenses/:scheduleId/cancel', departmentHead, projectsCont
 projectsRoutes.put('/defenses/:scheduleId/examiners', departmentHead, projectsController.assignExaminers)
 projectsRoutes.put('/defenses/:scheduleId/chairperson', departmentHead, projectsController.assignDefenseChairperson)
 projectsRoutes.post('/defenses/:scheduleId/examiners/assign-ai', departmentHead, projectsController.assignExaminerWithAi)
-projectsRoutes.get('/assessments', departmentHead, projectsController.listAssessments)
 projectsRoutes.get('/reports', departmentHead, projectsController.getDepartmentReport)
 projectsRoutes.get('/dashboard-stats', departmentHead, projectsController.getDepartmentDashboardStats)
 

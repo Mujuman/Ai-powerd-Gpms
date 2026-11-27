@@ -1263,11 +1263,6 @@ export async function assignDefenseChairperson(scheduleId, examinerUserId, filte
   })
 }
 
-export async function listAssessments(filters, actor) {
-  const departmentId = assertDepartmentAccess(actor, filters.departmentId)
-  return repository.listAssessments(pool, departmentId)
-}
-
 export async function listExaminerDefenses(actor) {
   if (actor.role !== 'examiner') throw new HttpError(403, 'Examiner access is required')
   return repository.listExaminerDefenses(pool, actor.id)

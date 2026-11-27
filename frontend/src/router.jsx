@@ -12,7 +12,6 @@ import StudentsPage from './pages/head/StudentsPage'
 import HeadDashboard from './pages/head/HeadDashboard'
 import HeadProjectsPage from './pages/head/ProjectsPage'
 import AdvisorAssignmentsPage from './pages/head/AdvisorAssignmentsPage'
-import ExaminerEvaluationsPage from './pages/head/ExaminerEvaluationsPage'
 import ProposalDefensesPage from './pages/head/ProposalDefensesPage'
 import HeadGroupsPage from './pages/head/GroupsPage'
 import HeadStaffPage from './pages/head/StaffPage'
@@ -82,7 +81,7 @@ export const router = createBrowserRouter([
                   { path: 'staff', element: <HeadStaffPage /> },
                   { path: 'projects', element: <HeadProjectsPage /> },
                   { path: 'advisor-assignments', element: <AdvisorAssignmentsPage /> },
-                  { path: 'examiner-evaluations', element: <ExaminerEvaluationsPage /> },
+                  { path: 'examiner-evaluations', element: <Navigate to="/head/dashboard" replace /> },
                   { path: 'defenses', element: <ProposalDefensesPage /> },
                 ],
               },

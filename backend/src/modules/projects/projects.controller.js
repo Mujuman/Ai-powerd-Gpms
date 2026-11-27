@@ -229,12 +229,6 @@ export const projectsController = {
       response.json({ success: true, message: 'Defense chairperson assigned' })
     } catch (error) { next(error) }
   },
-  listAssessments: async (request, response, next) => {
-    try {
-      const filters = parse(departmentQuerySchema, request.query)
-      response.json({ success: true, data: await service.listAssessments(filters, actor(request)) })
-    } catch (error) { next(error) }
-  },
   listExaminerDefenses: async (request, response, next) => {
     try {
       response.json({ success: true, data: await service.listExaminerDefenses(actor(request)) })

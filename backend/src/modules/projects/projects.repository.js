@@ -586,54 +586,6 @@ export async function findScheduleExaminer(connection, scheduleId, examinerUserI
   return rows[0] ?? null
 }
 
-export async function listAssessments(connection, departmentId) {
-  const [rows] = await connection.execute(
-    `SELECT da.id, da.schedule_id AS scheduleId, ds.group_id AS groupId,
-            g.name AS groupName, ps.title, ds.defense_type AS defenseType,
-            ds.scheduled_at AS scheduledAt, u.id AS examinerUserId,
-            u.full_name AS examinerName, da.outcome, da.rubric_json AS rubric,
-            da.comments, da.student_grades_json AS studentGrades,
-            da.submitted_at AS submittedAt, da.updated_at AS updatedAt,
-            (SELECT de.assignment_method FROM defense_schedule_examiners de
-              WHERE de.schedule_id = ds.id AND de.examiner_user_id = da.examiner_user_id
-              ORDER BY de.assigned_at DESC, de.id DESC LIMIT 1) AS assignmentMethod
-       FROM defense_assessments da
-       JOIN defense_schedules ds ON ds.id = da.schedule_id
-       JOIN student_groups g ON g.id = ds.group_id
-       JOIN users u ON u.id = da.examiner_user_id
-       LEFT JOIN project_submissions ps ON ps.group_id = g.id
-        AND ps.version = (SELECT MAX(latest.version) FROM project_submissions latest
-                           WHERE latest.group_id = g.id)
-      WHERE ds.department_id = ?
-      ORDER BY da.submitted_at DESC`,
-    [departmentId],
-  )
-  if (!rows.length) return rows
-  const groupIds = [...new Set(rows.map((row) => row.groupId))]
-  const placeholders = groupIds.map(() => '?').join(', ')
-  const [members] = await connection.execute(
-    `SELECT gm.group_id AS groupId, u.id AS userId, u.full_name AS fullName,
-            sp.student_id AS studentId
-       FROM student_group_members gm
-       JOIN users u ON u.id = gm.student_user_id
-       LEFT JOIN student_profiles sp ON sp.user_id = u.id
-      WHERE gm.group_id IN (${placeholders}) AND gm.is_active = TRUE
-      ORDER BY u.full_name`,
-    groupIds,
-  )
-  const membersByGroup = new Map(groupIds.map((id) => [id, []]))
-  for (const member of members) membersByGroup.get(member.groupId).push(member)
-  return rows.map((row) => ({
-    ...row,
-    rubric: parseJson(row.rubric, null),
-    studentGrades: parseJson(row.studentGrades, []).map((grade) => ({
-      ...grade,
-      studentName: membersByGroup.get(row.groupId).find((member) =>
-        member.userId === grade.studentUserId)?.fullName ?? 'Student',
-    })),
-  }))
-}
-
 export async function listExaminerDefenses(connection, examinerUserId) {
   const [rows] = await connection.execute(
     `SELECT ds.id AS scheduleId, ds.group_id AS groupId, g.name AS groupName,

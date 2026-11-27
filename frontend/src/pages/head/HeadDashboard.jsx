@@ -40,14 +40,6 @@ const WORK_AREAS = [
     tasks: ['View current assignments', 'Assign or reassign advisors'],
   },
   {
-    title: 'Examiner evaluations',
-    description: 'Review outcomes, grades, and comments submitted by examiners.',
-    icon: ClipboardCheck,
-    status: 'Available',
-    to: '/head/examiner-evaluations',
-    tasks: ['Review examiner outcomes', 'Read student grades and feedback'],
-  },
-  {
     title: 'Project progress',
     description: 'Monitor project status and manage advisor and examiner assignments.',
     icon: FolderKanban,
@@ -172,7 +164,7 @@ export default function HeadDashboard() {
       </section>
 
       <p className="head-dashboard-footnote">
-        Use the dedicated workspaces for advisor assignments, examiner evaluations, project reviews, and defense schedules.
+        Use the dedicated workspaces for advisor assignments, project reviews, and defense schedules.
       </p>
     </div>
   )
