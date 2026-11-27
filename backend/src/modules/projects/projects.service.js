@@ -144,7 +144,7 @@ async function rankAdvisorCandidates(departmentId, title, description) {
 export function buildAdvisorSimilarityRequest(projects, candidates) {
   const projectItems = projects.map((project) => ({
     id: `project:${project.groupId}`,
-    text: `${project.title}\n${project.description}`,
+    text: `${project.title}\n${project.description}`.slice(0, 10000),
   }))
   const advisorItems = candidates.map((advisor) => ({
     id: `advisor:${advisor.userId}`,
@@ -167,15 +167,27 @@ async function rankAdvisorCandidatesForProjects(departmentId, projects) {
 
   const candidates = await repository.listAdvisorCandidates(pool, departmentId)
   if (!candidates.length) return { modelName: null, scoresByGroup }
-
-  const { items, pairs } = buildAdvisorSimilarityRequest(projects, candidates)
-  const analysis = await analyzeSimilarity(items, pairs)
-  for (const score of analysis.scores) {
-    const groupId = score.leftId.slice('project:'.length)
-    const advisorUserId = score.rightId.slice('advisor:'.length)
-    scoresByGroup.get(groupId)?.set(advisorUserId, score.score)
+  if (candidates.length >= 500) {
+    throw new HttpError(422, 'Automatic advisor matching supports fewer than 500 active advisors per department')
   }
-  return { modelName: analysis.modelName, scoresByGroup }
+
+  const projectBatchSize = Math.max(
+    1,
+    Math.min(500 - candidates.length, Math.floor(25000 / candidates.length)),
+  )
+  let modelName = null
+  for (let offset = 0; offset < projects.length; offset += projectBatchSize) {
+    const projectBatch = projects.slice(offset, offset + projectBatchSize)
+    const { items, pairs } = buildAdvisorSimilarityRequest(projectBatch, candidates)
+    const analysis = await analyzeSimilarity(items, pairs)
+    modelName = analysis.modelName
+    for (const score of analysis.scores) {
+      const groupId = score.leftId.slice('project:'.length)
+      const advisorUserId = score.rightId.slice('advisor:'.length)
+      scoresByGroup.get(groupId)?.set(advisorUserId, score.score)
+    }
+  }
+  return { modelName, scoresByGroup }
 }
 
 async function assignApprovedProjectAdvisor(
