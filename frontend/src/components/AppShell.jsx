@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BookOpen,
+  BarChart3,
   Building2,
   CalendarDays,
   ClipboardCheck,
@@ -30,6 +31,9 @@ const NAV_LINKS = {
     { label: 'Groups', to: '/head/groups', icon: UsersRound },
     { label: 'Advisors & Examiners', to: '/head/staff', icon: ClipboardCheck },
     { label: 'Projects', to: '/head/projects', icon: FolderKanban },
+    { label: 'Advisor assignments', to: '/head/advisor-assignments', icon: UsersRound },
+    { label: 'AI similarity', to: '/head/project-similarity', icon: BarChart3 },
+    { label: 'Examiner evaluations', to: '/head/examiner-evaluations', icon: ClipboardCheck },
   ],
   academic_advisor: [
     { label: 'Dashboard', to: '/advisor/dashboard', icon: LayoutDashboard },

@@ -317,7 +317,7 @@ export default function ProjectsPage() {
             </div>
           </Section>
 
-          <Section id="project-reports" title="Project progress and department reports" description="Monitor each group's latest proposal status, advisor, upcoming defense, and received evaluations.">
+          <Section id="project-reports" title="Project progress and department reports" description="Monitor each group's latest proposal status, advisor, and upcoming defense.">
             {report?.summary && (
               <div className="head-report-grid">
                 {[
@@ -327,13 +327,12 @@ export default function ProjectsPage() {
                   ['Approved projects', report.summary.approvedProjects],
                   ['Active advisor assignments', report.summary.assignedAdvisors],
                   ['Scheduled defenses', report.summary.scheduledDefenses],
-                  ['Examiner assessments', report.summary.submittedAssessments],
                 ].map(([label, value]) => <div className="head-report-stat" key={label}><strong>{value}</strong><span>{label}</span></div>)}
               </div>
             )}
             <div className="table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Group</th><th>Members</th><th>Project status</th><th>Advisor</th><th>Next defense</th><th>Assessments</th></tr></thead>
+                <thead><tr><th>Group</th><th>Members</th><th>Project status</th><th>Advisor</th><th>Next defense</th></tr></thead>
                 <tbody>{(report?.projects ?? []).map((group) => (
                   <tr key={group.id}>
                     <td>{group.name}</td>
@@ -341,10 +340,9 @@ export default function ProjectsPage() {
                     <td>{group.title ? <>{group.title}<br /><span className="muted-copy">{group.submissionStatus}</span></> : 'Title not submitted'}</td>
                     <td>{group.advisorName || 'Unassigned'}</td>
                     <td>{group.nextDefenseAt ? formatDate(group.nextDefenseAt) : 'None scheduled'}</td>
-                    <td>{group.assessmentCount}</td>
                   </tr>
                 ))}
-                  {report?.projects?.length === 0 && <tr><td className="table-empty" colSpan={6}>No project groups found.</td></tr>}
+                  {report?.projects?.length === 0 && <tr><td className="table-empty" colSpan={5}>No project groups found.</td></tr>}
                 </tbody>
               </table>
             </div>
